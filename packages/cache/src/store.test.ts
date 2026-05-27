@@ -97,6 +97,28 @@ describe('IndexedDbStore', () => {
   });
 });
 
+describe('luaDefinition artifact', () => {
+  it('round-trips a luaDefinition artifact', async () => {
+    const store = new MemoryStore();
+    const k = {
+      semanticHash: 'abc',
+      producedBy: {
+        kernel: 'lua-definition',
+        kernelVersion: '0',
+        engineVersion: '0',
+        qualityTier: 'definition',
+      },
+    };
+    const def = {
+      schema: { inputs: [], params: {}, output: '3d' as const },
+      code: 'return geo.box({size = {1, 1, 1}})',
+    };
+    await store.put(k, { kind: 'luaDefinition', definition: def });
+    const got = await store.get(k, 'luaDefinition');
+    expect(got).toEqual({ kind: 'luaDefinition', definition: def });
+  });
+});
+
 describe('TieredStore', () => {
   it('writes L1 eagerly and L2 write-behind (flush for durability)', async () => {
     const l1 = new MemoryStore();
