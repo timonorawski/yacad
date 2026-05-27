@@ -8,13 +8,15 @@
  *
  * Each threshold is justified inline.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canonicalize, canonicalBytes } from '@yacad/canonical';
-import { hashCanonical } from '@yacad/hash';
-import { buildGraph } from '@yacad/dag';
+import { defaultHasher, hashCanonical } from '@yacad/hash';
+import { buildGraph, registerNodeType, unregisterNodeType } from '@yacad/dag';
 import { MemoryStore } from '@yacad/cache';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 import { Engine } from '@yacad/engine';
+import { hashLuaDefinition, makeLuaNodeType, WasmoonLuaRuntime } from '@yacad/lua';
+import { GEAR_DEFINITION } from '@yacad/e2e/fixtures';
 
 let kernel: ManifoldKernel;
 
@@ -157,5 +159,70 @@ describe('Engine.evaluate performance guards', () => {
     // Validate the cache-hit pattern: box is a hit, sphere+diff are misses.
     expect(result.stats.hits).toBe(1);
     expect(result.stats.misses).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LuaNode evaluation — cold/warm perf guards
+// ---------------------------------------------------------------------------
+
+describe('LuaNode Engine.evaluate performance guards', () => {
+  let luaKernel: ManifoldKernel;
+  let luaHash: string;
+  let luaResolver: { get: (h: string) => typeof GEAR_DEFINITION | undefined };
+
+  beforeAll(async () => {
+    luaKernel = new ManifoldKernel(await loadManifold());
+    luaHash = await hashLuaDefinition(GEAR_DEFINITION, defaultHasher);
+    luaResolver = { get: (h) => (h === luaHash ? GEAR_DEFINITION : undefined) };
+    const runtime = new WasmoonLuaRuntime();
+    try {
+      unregisterNodeType('lua');
+    } catch {
+      // Not registered yet — fine.
+    }
+    registerNodeType(makeLuaNodeType(runtime, luaResolver));
+  }, 120_000);
+
+  afterAll(() => {
+    try {
+      unregisterNodeType('lua');
+    } catch {
+      // Already unregistered — fine.
+    }
+  });
+
+  it('cold Lua evaluate completes within 10000 ms', async () => {
+    // Cold path: fresh store, Lua code runs, Manifold kernel evaluates.
+    // 10 000 ms is deliberately loose (pass 1 calibration per constraint 5).
+    // Expected on a developer laptop: ~3–10 ms; CI budget: ~50–200 ms.
+    const graph = await buildGraph({
+      type: 'lua',
+      params: { definitionHash: luaHash, values: { teeth: 8 } },
+    });
+    const start = Date.now();
+    await new Engine(new MemoryStore(), luaKernel, { resolver: luaResolver }).evaluate(graph);
+    expect(Date.now() - start).toBeLessThan(10_000);
+  });
+
+  it('warm Lua evaluate (outer cache hit) completes within 100 ms', async () => {
+    // Warm path: root mesh already cached; one lookup, no Lua or kernel call.
+    // 100 ms is deliberately loose (pass 1 calibration per constraint 5).
+    // Expected on a developer laptop: <1 ms; CI budget: ~5–20 ms.
+    const graph = await buildGraph({
+      type: 'lua',
+      params: { definitionHash: luaHash, values: { teeth: 8 } },
+    });
+    const store = new MemoryStore();
+    const engine = new Engine(store, luaKernel, { resolver: luaResolver });
+    await engine.evaluate(graph); // populate cache
+
+    const start = Date.now();
+    const result = await engine.evaluate(graph); // warm
+    const elapsed = Date.now() - start;
+
+    expect(result.stats.hits).toBe(1);
+    expect(result.stats.misses).toBe(0);
+    expect(elapsed).toBeLessThan(100);
   });
 });

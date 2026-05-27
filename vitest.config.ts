@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config';
 const pkg = (name: string) =>
   fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url));
 
+const pkgFile = (name: string, file: string) =>
+  fileURLToPath(new URL(`./packages/${name}/src/${file}`, import.meta.url));
+
 export default defineConfig({
   resolve: {
     // Resolve workspace packages to their TypeScript source so tests run
@@ -20,6 +23,8 @@ export default defineConfig({
       '@yacad/worker': pkg('worker'),
       '@yacad/render': pkg('render'),
       '@yacad/export-stl': pkg('export-stl'),
+      // Sub-path alias for the shared E2E fixtures (used by bench/lua.bench.ts)
+      '@yacad/e2e/fixtures': pkgFile('e2e', 'fixtures.ts'),
     },
   },
   test: {
