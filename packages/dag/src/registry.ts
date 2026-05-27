@@ -173,6 +173,9 @@ const defs: NodeTypeDef[] = [
 
 const registry = new Map<string, NodeTypeDef>(defs.map((def) => [def.type, def]));
 
+/** No-op resolver: expandable nodes that require a real resolver will fail at expand time. */
+export const NOOP_RESOLVER: DefinitionResolver = { get: () => undefined };
+
 export function getNodeType(type: string): NodeTypeDef | undefined {
   return registry.get(type);
 }

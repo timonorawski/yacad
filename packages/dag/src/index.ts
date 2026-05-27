@@ -4,6 +4,7 @@ export {
   listNodeTypes,
   registerNodeType,
   unregisterNodeType,
+  NOOP_RESOLVER,
   type NodeTypeDef,
   type KernelNodeType,
   type ExpandableNodeType,

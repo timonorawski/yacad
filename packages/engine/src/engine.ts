@@ -1,5 +1,14 @@
 import type { CacheKey, ObjectStore, Pinnable } from '@yacad/cache';
-import type { Node } from '@yacad/dag';
+import {
+  buildGraph,
+  getNodeType,
+  NOOP_RESOLVER,
+  type DefinitionResolver,
+  type ExpandableNodeType,
+  type InputRef,
+  type Node,
+  type NodeDoc,
+} from '@yacad/dag';
 import type { Mesh } from '@yacad/geometry';
 import type { Hash } from '@yacad/hash';
 import type { Kernel } from '@yacad/kernel-manifold';
@@ -51,6 +60,14 @@ export interface EvaluateResult {
   readonly perNode: readonly NodeEval[];
 }
 
+/** Options accepted by the Engine constructor. */
+export interface EngineOptions {
+  /** Resolver for expandable node definitions (e.g., LuaDefinition lookup). */
+  resolver?: DefinitionResolver;
+  /** Engine version stamped into cache keys' `produced_by.engineVersion`. */
+  engineVersion?: string;
+}
+
 function asPinnable(store: ObjectStore): Pinnable | undefined {
   const maybe = store as ObjectStore & Partial<Pinnable>;
   return typeof maybe.pin === 'function' ? (maybe as unknown as Pinnable) : undefined;
@@ -64,13 +81,24 @@ function asPinnable(store: ObjectStore): Pinnable | undefined {
  * Because the Merkle hash only changes for an edited node and its ancestors,
  * unchanged subtrees hit the cache and never reach the kernel — this is the
  * incremental-recompute property the POC exists to validate.
+ *
+ * Expandable nodes (e.g., LuaNode) are handled by calling `def.expand()`,
+ * resolving `__input_ref` sentinels by name, then recursively walking the
+ * emitted sub-DAG. The outer node's cache entry covers the full subtree so a
+ * warm cache skips `expand()` entirely.
  */
 export class Engine {
+  private readonly resolver: DefinitionResolver;
+  private readonly engineVersion: string;
+
   constructor(
     private readonly store: ObjectStore,
     private readonly kernel: Kernel,
-    private readonly engineVersion: string = ENGINE_VERSION,
-  ) {}
+    options: EngineOptions = {},
+  ) {
+    this.resolver = options.resolver ?? NOOP_RESOLVER;
+    this.engineVersion = options.engineVersion ?? ENGINE_VERSION;
+  }
 
   async evaluate(root: Node, qualityTier = 'final'): Promise<EvaluateResult> {
     const evalStart = performance.now();
@@ -104,6 +132,7 @@ export class Engine {
     const nodeStart = performance.now();
     const key = this.keyFor(node, tier);
 
+    // --- Outer cache lookup (covers both kernel and expandable nodes) ---
     const lookupStart = performance.now();
     const cached = await this.store.get(key, 'mesh');
     const lookupMs = performance.now() - lookupStart;
@@ -125,13 +154,60 @@ export class Engine {
       return cached.mesh;
     }
 
-    const childMeshes: Mesh[] = [];
-    for (const child of node.children) {
-      childMeshes.push(await this.walk(child, tier, perNode));
-    }
+    // --- Discriminate on node kind ---
+    const def = getNodeType(node.type);
+    let mesh: Mesh;
+    let kernelMs: number;
+    let importMs: number;
+    let opMs: number;
+    let exportMs: number;
 
-    const { mesh, timings } = this.kernel.evaluateTimed(node, childMeshes);
-    const kernelMs = timings.importMs + timings.opMs + timings.exportMs;
+    if (!def || def.kind === 'kernel') {
+      // --- Kernel branch: evaluate children then call the geometry kernel ---
+      const childMeshes: Mesh[] = [];
+      for (const child of node.children) {
+        childMeshes.push(await this.walk(child, tier, perNode));
+      }
+      // Use evaluateTimed to preserve per-phase timings (constraint #1).
+      const { mesh: kernelMesh, timings } = this.kernel.evaluateTimed(node, childMeshes);
+      mesh = kernelMesh;
+      kernelMs = timings.importMs + timings.opMs + timings.exportMs;
+      importMs = timings.importMs;
+      opMs = timings.opMs;
+      exportMs = timings.exportMs;
+    } else {
+      // --- Expandable branch: expand sub-DAG, resolve __input_ref sentinels, recurse ---
+      const expandableDef = def as ExpandableNodeType;
+      const inputNames = expandableDef.inputNames(node.params as Record<string, unknown>, this.resolver);
+      // Only create InputRefs for children that actually exist — the declared
+      // names list may be longer than the actual child list for optional inputs.
+      const inputs: InputRef[] = node.children.map((child, i) => ({
+        name: inputNames[i] ?? String(i),
+        type: child.outputType,
+        outputType: () => child.outputType,
+      }));
+
+      const expandStart = performance.now();
+      const subDoc = await expandableDef.expand(node.params as Record<string, unknown>, inputs);
+      const resolved = resolveInputRefs(subDoc, node.children, inputNames);
+      const subRoot = await buildGraph(resolved, undefined, undefined, this.resolver);
+      const expandMs = performance.now() - expandStart;
+
+      // Walk the sub-DAG into a PRIVATE perNode — sub-DAG nodes are implementation
+      // details and must not pollute the caller's perNode array (their IDs start at
+      // '$' and would collide with user-graph IDs, inflating stats.nodes).
+      const innerPerNode: NodeEval[] = [];
+      mesh = await this.walk(subRoot, tier, innerPerNode);
+
+      // Aggregate inner timings into this node's accounting so the outer NodeEval
+      // faithfully represents the total cost of the expandable node.
+      const sumInner = (pick: (e: NodeEval) => number) =>
+        innerPerNode.reduce((n, e) => n + pick(e), 0);
+      kernelMs = expandMs + sumInner((e) => e.kernelMs);
+      importMs = sumInner((e) => e.importMs);
+      opMs = sumInner((e) => e.opMs);
+      exportMs = sumInner((e) => e.exportMs);
+    }
 
     const storeStart = performance.now();
     await this.store.put(key, { kind: 'mesh', mesh });
@@ -146,9 +222,9 @@ export class Engine {
       selfMs: lookupMs + kernelMs + storeMs,
       lookupMs,
       kernelMs,
-      importMs: timings.importMs,
-      opMs: timings.opMs,
-      exportMs: timings.exportMs,
+      importMs,
+      opMs,
+      exportMs,
       storeMs,
     });
     return mesh;
@@ -178,4 +254,53 @@ export class Engine {
     visit(root);
     pinnable.pin(hashes);
   }
+}
+
+/**
+ * Replace `__input_ref` sentinels in an emitted sub-DAG with the corresponding
+ * child NodeDoc, matched by name (not by index).
+ *
+ * The `inputNames` array is the ordered list of declared input names returned by
+ * `ExpandableNodeType.inputNames()`. A sentinel node of the form
+ * `{ type: '__input_ref', params: { name: 'foo' } }` is replaced by the NodeDoc
+ * representation of the child whose position corresponds to the first occurrence
+ * of `'foo'` in `inputNames`.
+ */
+function resolveInputRefs(doc: NodeDoc, children: readonly Node[], inputNames: readonly string[]): NodeDoc {
+  return walkDoc(doc, children, inputNames);
+}
+
+function walkDoc(doc: unknown, children: readonly Node[], inputNames: readonly string[]): NodeDoc {
+  if (typeof doc !== 'object' || doc === null) {
+    throw new Error('expanded sub-DAG must be a NodeDoc object');
+  }
+  const d = doc as Record<string, unknown>;
+  if (d['type'] === '__input_ref') {
+    const params = (d['params'] ?? {}) as Record<string, unknown>;
+    const name = String(params['name'] ?? '');
+    // Resolve by name: find the child whose declared input name matches.
+    const idx = inputNames.indexOf(name);
+    if (idx < 0) {
+      throw new Error(`__input_ref "${name}" did not match any declared input name`);
+    }
+    const child = children[idx];
+    if (!child) {
+      throw new Error(`__input_ref "${name}" resolved to index ${idx} but no child exists at that position`);
+    }
+    return nodeDocFromNode(child);
+  }
+  const kids = Array.isArray(d['children']) ? (d['children'] as unknown[]) : [];
+  return {
+    type: d['type'] as string,
+    params: (d['params'] ?? {}) as Record<string, unknown>,
+    children: kids.map((c) => walkDoc(c, children, inputNames)),
+  };
+}
+
+function nodeDocFromNode(node: Node): NodeDoc {
+  return {
+    type: node.type,
+    params: node.params as Record<string, unknown>,
+    children: node.children.map(nodeDocFromNode),
+  };
 }
