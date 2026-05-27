@@ -206,6 +206,22 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/lua:
+    dependencies:
+      '@yacad/canonical':
+        specifier: workspace:*
+        version: link:../canonical
+      '@yacad/dag':
+        specifier: workspace:*
+        version: link:../dag
+      '@yacad/hash':
+        specifier: workspace:*
+        version: link:../hash
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/render:
     dependencies:
       '@yacad/geometry':
