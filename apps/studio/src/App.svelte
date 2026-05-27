@@ -104,6 +104,107 @@
     ],
   };
 
+  /** Tiny deterministic PRNG so wobble stays reproducible for the same seed. */
+  function mulberry32(seed: number): () => number {
+    let s = seed >>> 0;
+    return () => {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  interface TreeOpts {
+    depth: number; // recursion levels above the leaf branches
+    splits: number; // sub-branches per branch
+    trunkLength: number;
+    trunkRadius: number;
+    lengthTaper: number; // child length = parent length × this
+    radiusTaper: number; // child radius = parent radius × this
+    branchAngle: number; // degrees from parent axis
+    phyllotaxis: number; // degrees between successive children around parent axis
+    leafScale: number; // leaf radius = branch length × this
+    trunkSegments: number;
+    leafSegments: number;
+    /** ±degrees of deterministic per-branch perturbation; 0 ⇒ fully symmetric (max cache dedup). */
+    wobble: number;
+    seed: number;
+  }
+
+  /**
+   * Generate a recursive branching tree as a DAG. Each branch is a cylinder
+   * pointing +Z; sub-branches are rotated by `branchAngle` away from that axis
+   * and spun around it by successive multiples of the golden angle
+   * (`phyllotaxis`). Leaves are spheres at the branch tips.
+   *
+   * With `wobble: 0` every sub-branch at a given depth is structurally identical,
+   * so content-addressing dedupes aggressively (a few dozen kernel calls cover
+   * hundreds of node references). With `wobble > 0` each branch picks up a
+   * deterministic perturbation from a seeded PRNG, breaking dedup — every branch
+   * becomes a unique cache miss, hammering the kernel.
+   */
+  function procTree(opts: TreeOpts): NodeDoc {
+    const prng = mulberry32(opts.seed);
+    const jitter = (range: number) => (opts.wobble ? (prng() * 2 - 1) * range : 0);
+
+    function build(length: number, radius: number, depth: number, segments: number): NodeDoc {
+      const trunk: NodeDoc = {
+        type: 'cylinder',
+        params: { height: length, radius, segments, center: false },
+      };
+      if (depth === 0) {
+        const leaf: NodeDoc = {
+          type: 'translate',
+          params: { offset: [0, 0, length] },
+          children: [
+            {
+              type: 'sphere',
+              params: { radius: length * opts.leafScale, segments: opts.leafSegments },
+            },
+          ],
+        };
+        return { type: 'union', children: [trunk, leaf] };
+      }
+
+      const subLen = length * opts.lengthTaper;
+      const subRad = radius * opts.radiusTaper;
+      const subSeg = Math.max(6, Math.round(segments * 0.8));
+
+      const children: NodeDoc[] = [trunk];
+      for (let i = 0; i < opts.splits; i++) {
+        const phi = i * opts.phyllotaxis + jitter(opts.wobble * 6);
+        const ba = opts.branchAngle + jitter(opts.wobble);
+        const sub = build(subLen, subRad, depth - 1, subSeg);
+        children.push({
+          type: 'translate',
+          params: { offset: [0, 0, length] },
+          children: [{ type: 'rotate', params: { angles: [0, ba, phi] }, children: [sub] }],
+        });
+      }
+      return { type: 'union', children };
+    }
+
+    return build(opts.trunkLength, opts.trunkRadius, opts.depth, opts.trunkSegments);
+  }
+
+  const treeBaseOpts: TreeOpts = {
+    depth: 3,
+    splits: 3,
+    trunkLength: 12,
+    trunkRadius: 0.9,
+    lengthTaper: 0.72,
+    radiusTaper: 0.62,
+    branchAngle: 34,
+    phyllotaxis: 137.5,
+    leafScale: 0.55,
+    trunkSegments: 12,
+    leafSegments: 10,
+    wobble: 0,
+    seed: 1,
+  };
+
   const sceneLibrary = [
     { id: 'default', label: 'Default: box - sphere', text: DEFAULT_DOC },
     { id: 'box', label: 'Primitive: box', text: sceneBox },
@@ -128,6 +229,16 @@
       id: 'stress-hi-res',
       label: 'Stress: hi-res sphere − box',
       text: pretty(hiResSphereMinusBox),
+    },
+    {
+      id: 'stress-tree-symmetric',
+      label: 'Stress: tree (symmetric, cache-friendly)',
+      text: pretty(procTree({ ...treeBaseOpts, wobble: 0 })),
+    },
+    {
+      id: 'stress-tree-realworld',
+      label: 'Stress: tree (real-world, every branch unique)',
+      text: pretty(procTree({ ...treeBaseOpts, wobble: 1, seed: 42 })),
     },
   ] as const;
 

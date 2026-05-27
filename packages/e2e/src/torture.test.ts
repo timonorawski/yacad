@@ -202,6 +202,118 @@ describe('high-mesh-count primitives', () => {
   });
 });
 
+// ─── Procedural tree (real-world stress) ─────────────────────────────────────
+
+/** Deterministic PRNG for reproducible wobble. */
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+interface TreeOpts {
+  depth: number;
+  splits: number;
+  length: number;
+  radius: number;
+  lengthTaper: number;
+  radiusTaper: number;
+  branchAngle: number;
+  phyllotaxis: number;
+  leafScale: number;
+  segments: number;
+  wobble: number;
+  seed: number;
+}
+
+/**
+ * Recursive branching tree: each branch is a +Z cylinder with `splits`
+ * sub-branches at its tip, rotated outward by `branchAngle` and spun around the
+ * parent axis in golden-angle increments. Sphere "leaves" at depth 0.
+ *
+ * `wobble: 0` → every sub-branch at a given depth is structurally identical, so
+ * content-addressing collapses hundreds of references to a few dozen unique
+ * kernel calls. `wobble > 0` perturbs each branch deterministically from the
+ * seed, breaking dedup completely.
+ */
+function procTree(opts: TreeOpts): NodeDoc {
+  const prng = mulberry32(opts.seed);
+  const jitter = (range: number) => (opts.wobble ? (prng() * 2 - 1) * range : 0);
+
+  function build(length: number, radius: number, depth: number, segs: number): NodeDoc {
+    const trunk: NodeDoc = {
+      type: 'cylinder',
+      params: { height: length, radius, segments: segs, center: false },
+    };
+    if (depth === 0) {
+      const leaf: NodeDoc = {
+        type: 'translate',
+        params: { offset: [0, 0, length] },
+        children: [{ type: 'sphere', params: { radius: length * opts.leafScale, segments: segs } }],
+      };
+      return { type: 'union', children: [trunk, leaf] };
+    }
+    const subLen = length * opts.lengthTaper;
+    const subRad = radius * opts.radiusTaper;
+    const subSeg = Math.max(6, Math.round(segs * 0.8));
+
+    const children: NodeDoc[] = [trunk];
+    for (let i = 0; i < opts.splits; i++) {
+      const phi = i * opts.phyllotaxis + jitter(opts.wobble * 6);
+      const ba = opts.branchAngle + jitter(opts.wobble);
+      const sub = build(subLen, subRad, depth - 1, subSeg);
+      children.push({
+        type: 'translate',
+        params: { offset: [0, 0, length] },
+        children: [{ type: 'rotate', params: { angles: [0, ba, phi] }, children: [sub] }],
+      });
+    }
+    return { type: 'union', children };
+  }
+
+  return build(opts.length, opts.radius, opts.depth, opts.segments);
+}
+
+const treeBase: TreeOpts = {
+  depth: 3,
+  splits: 3,
+  length: 12,
+  radius: 0.9,
+  lengthTaper: 0.72,
+  radiusTaper: 0.62,
+  branchAngle: 34,
+  phyllotaxis: 137.5,
+  leafScale: 0.55,
+  segments: 8,
+  wobble: 0,
+  seed: 1,
+};
+
+describe('procedural tree (real-world stress)', () => {
+  it('symmetric tree: dedup compresses the walk — hundreds of branch references collapse into ~30 unique kernel calls', async () => {
+    const run = await evaluate(freshEngine(), procTree({ ...treeBase, wobble: 0 }));
+    // The compression of the visit count is the headline; hit/miss ratio is not,
+    // because each unique hash is computed once and only its sibling references
+    // produce hits.
+    expect(run.stats.nodes).toBeLessThan(50);
+    expect(run.stats.misses).toBeLessThan(40);
+    expect(isWatertight(run.mesh)).toBe(true);
+  });
+
+  it('real-world tree: wobble breaks dedup so the walk expands several-fold', async () => {
+    const symmetric = await evaluate(freshEngine(), procTree({ ...treeBase, wobble: 0 }));
+    const wobbly = await evaluate(freshEngine(), procTree({ ...treeBase, wobble: 1, seed: 42 }));
+    expect(wobbly.stats.nodes).toBeGreaterThan(symmetric.stats.nodes * 3);
+    expect(wobbly.stats.misses).toBeGreaterThan(symmetric.stats.misses * 3);
+    expect(isWatertight(wobbly.mesh)).toBe(true);
+  });
+});
+
 // ─── Geometric edge cases (correctness over performance) ──────────────────────
 
 describe('geometric edge cases', () => {
