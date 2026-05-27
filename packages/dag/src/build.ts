@@ -50,6 +50,9 @@ export async function buildGraph(
     children.push(await buildGraph(childDocs[i], hasher, `${id}/${i}`));
   }
 
+  if (def.kind !== 'kernel') {
+    throw new DagError(`expandable node type "${type}" cannot be built directly`, id);
+  }
   def.checkChildren(children, id);
   const params = def.normalizeParams(record['params'] ?? {}, id);
   const hash = await hashNode(type, params, children, hasher);
