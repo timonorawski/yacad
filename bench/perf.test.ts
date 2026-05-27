@@ -192,23 +192,26 @@ describe('LuaNode Engine.evaluate performance guards', () => {
     }
   });
 
-  it('cold Lua evaluate completes within 10000 ms', async () => {
+  it('cold Lua evaluate completes within 500 ms', async () => {
     // Cold path: fresh store, Lua code runs, Manifold kernel evaluates.
-    // 10 000 ms is deliberately loose (pass 1 calibration per constraint 5).
-    // Expected on a developer laptop: ~3–10 ms; CI budget: ~50–200 ms.
+    // Observed on M-series Mac (warm WASM): ~20 ms single-shot.
+    // 500 ms ≈ 1.5× expected CI upper bound (~333 ms on a shared runner at
+    // 4–10× slowdown). Still catches a 25× regression vs. the ~20 ms baseline.
     const graph = await buildGraph({
       type: 'lua',
       params: { definitionHash: luaHash, values: { teeth: 8 } },
     });
     const start = Date.now();
     await new Engine(new MemoryStore(), luaKernel, { resolver: luaResolver }).evaluate(graph);
-    expect(Date.now() - start).toBeLessThan(10_000);
+    expect(Date.now() - start).toBeLessThan(500);
   });
 
-  it('warm Lua evaluate (outer cache hit) completes within 100 ms', async () => {
+  it('warm Lua evaluate (outer cache hit) completes within 20 ms', async () => {
     // Warm path: root mesh already cached; one lookup, no Lua or kernel call.
-    // 100 ms is deliberately loose (pass 1 calibration per constraint 5).
-    // Expected on a developer laptop: <1 ms; CI budget: ~5–20 ms.
+    // Observed on M-series Mac: ~6 ms single-shot (Date.now() 1 ms resolution).
+    // 20 ms ≈ 1.5× expected CI upper bound (~13 ms on a shared runner).
+    // Normal warm cost is <1 ms on any modern machine — this catches a 20×
+    // regression and validates the incremental-recompute architectural bet.
     const graph = await buildGraph({
       type: 'lua',
       params: { definitionHash: luaHash, values: { teeth: 8 } },
@@ -223,6 +226,6 @@ describe('LuaNode Engine.evaluate performance guards', () => {
 
     expect(result.stats.hits).toBe(1);
     expect(result.stats.misses).toBe(0);
-    expect(elapsed).toBeLessThan(100);
+    expect(elapsed).toBeLessThan(20);
   });
 });
