@@ -37,12 +37,16 @@ export interface NodeEval {
   readonly exportMs: number;
   /** Cache write latency for this node (0 on cache hits). */
   readonly storeMs: number;
+  /** Populated when this node's expandable expansion threw. */
+  readonly error?: { phase: 'expand' | 'kernel'; message: string; cause?: string };
 }
 
 export interface EvalStats {
   readonly nodes: number;
   readonly hits: number;
   readonly misses: number;
+  /** Count of nodes whose evaluation threw (NodeEval.error is set). */
+  readonly errors: number;
   readonly totalMs: number;
   readonly lookupMs: number;
   readonly kernelMs: number;
@@ -66,6 +70,30 @@ export interface EngineOptions {
   resolver?: DefinitionResolver;
   /** Engine version stamped into cache keys' `produced_by.engineVersion`. */
   engineVersion?: string;
+}
+
+/**
+ * Thrown by `Engine.evaluate()` when the root node (or any ancestor) could not
+ * produce a mesh. Carries the root node's id/hash so callers can surface the
+ * location. Per-node entries in `perNode` carry granular error details.
+ *
+ * Only thrown at the `evaluate()` boundary — never inside `walk()`, to avoid
+ * double-wrapping nested expandable failures (constraint 6).
+ */
+export class EvaluationError extends Error {
+  override readonly name = 'EvaluationError';
+  readonly nodeId: string;
+  readonly nodeHash: string;
+  constructor(
+    message: string,
+    nodeId: string,
+    nodeHash: string,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options as ErrorOptions | undefined);
+    this.nodeId = nodeId;
+    this.nodeHash = nodeHash;
+  }
 }
 
 function asPinnable(store: ObjectStore): Pinnable | undefined {
@@ -104,7 +132,20 @@ export class Engine {
     const evalStart = performance.now();
     this.pinWorkingSet(root);
     const perNode: NodeEval[] = [];
-    const mesh = await this.walk(root, qualityTier, perNode);
+    let mesh: Mesh;
+    try {
+      mesh = await this.walk(root, qualityTier, perNode);
+    } catch (err) {
+      // Wrap at the evaluate() boundary only (constraint 6): the caller sees
+      // EvaluationError; nested expandable failures inside walk() just rethrow
+      // the original error to avoid double-wrapping.
+      throw new EvaluationError(
+        `evaluation failed at root "${root.id}": ${err instanceof Error ? err.message : String(err)}`,
+        root.id,
+        root.hash,
+        { cause: err },
+      );
+    }
 
     const sum = (pick: (e: NodeEval) => number) => perNode.reduce((n, e) => n + pick(e), 0);
     const hits = perNode.reduce((n, e) => n + (e.hit ? 1 : 0), 0);
@@ -115,6 +156,7 @@ export class Engine {
         nodes: perNode.length,
         hits,
         misses: perNode.length - hits,
+        errors: perNode.reduce((n, e) => n + (e.error ? 1 : 0), 0),
         totalMs: performance.now() - evalStart,
         lookupMs: sum((e) => e.lookupMs),
         kernelMs: sum((e) => e.kernelMs),
@@ -187,26 +229,55 @@ export class Engine {
         outputType: () => child.outputType,
       }));
 
-      const expandStart = performance.now();
-      const subDoc = await expandableDef.expand(node.params as Record<string, unknown>, inputs);
-      const resolved = resolveInputRefs(subDoc, node.children, inputNames);
-      const subRoot = await buildGraph(resolved, undefined, undefined, this.resolver);
-      const expandMs = performance.now() - expandStart;
+      let expandErr: Error | undefined;
+      try {
+        const expandStart = performance.now();
+        const subDoc = await expandableDef.expand(node.params as Record<string, unknown>, inputs);
+        const resolved = resolveInputRefs(subDoc, node.children, inputNames);
+        const subRoot = await buildGraph(resolved, undefined, undefined, this.resolver);
+        const expandMs = performance.now() - expandStart;
 
-      // Walk the sub-DAG into a PRIVATE perNode — sub-DAG nodes are implementation
-      // details and must not pollute the caller's perNode array (their IDs start at
-      // '$' and would collide with user-graph IDs, inflating stats.nodes).
-      const innerPerNode: NodeEval[] = [];
-      mesh = await this.walk(subRoot, tier, innerPerNode);
+        // Walk the sub-DAG into a PRIVATE perNode — sub-DAG nodes are implementation
+        // details and must not pollute the caller's perNode array (their IDs start at
+        // '$' and would collide with user-graph IDs, inflating stats.nodes).
+        const innerPerNode: NodeEval[] = [];
+        mesh = await this.walk(subRoot, tier, innerPerNode);
 
-      // Aggregate inner timings into this node's accounting so the outer NodeEval
-      // faithfully represents the total cost of the expandable node.
-      const sumInner = (pick: (e: NodeEval) => number) =>
-        innerPerNode.reduce((n, e) => n + pick(e), 0);
-      kernelMs = expandMs + sumInner((e) => e.kernelMs);
-      importMs = sumInner((e) => e.importMs);
-      opMs = sumInner((e) => e.opMs);
-      exportMs = sumInner((e) => e.exportMs);
+        // Aggregate inner timings into this node's accounting so the outer NodeEval
+        // faithfully represents the total cost of the expandable node.
+        const sumInner = (pick: (e: NodeEval) => number) =>
+          innerPerNode.reduce((n, e) => n + pick(e), 0);
+        kernelMs = expandMs + sumInner((e) => e.kernelMs);
+        importMs = sumInner((e) => e.importMs);
+        opMs = sumInner((e) => e.opMs);
+        exportMs = sumInner((e) => e.exportMs);
+      } catch (err) {
+        // Record failure on this node's NodeEval entry, then rethrow the ORIGINAL
+        // error (not EvaluationError) so the parent can propagate it. Wrapping as
+        // EvaluationError happens only at the evaluate() boundary (constraint 6).
+        expandErr = err instanceof Error ? err : new Error(String(err));
+        const causeMsg =
+          expandErr.cause instanceof Error ? expandErr.cause.message : undefined;
+        perNode.push({
+          id: node.id,
+          hash: node.hash,
+          hit: false,
+          totalMs: performance.now() - nodeStart,
+          selfMs: lookupMs,
+          lookupMs,
+          kernelMs: 0,
+          importMs: 0,
+          opMs: 0,
+          exportMs: 0,
+          storeMs: 0,
+          error: {
+            phase: 'expand',
+            message: expandErr.message,
+            ...(causeMsg !== undefined ? { cause: causeMsg } : {}),
+          },
+        });
+        throw expandErr;
+      }
     }
 
     const storeStart = performance.now();
