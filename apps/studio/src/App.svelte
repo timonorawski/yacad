@@ -7,6 +7,7 @@
   import { WorkerClient, type EvaluateOutcome } from '@yacad/worker';
   import type { NodeDoc } from '@yacad/dag';
   import wasmUrl from 'manifold-3d/manifold.wasm?url';
+  import luaWasmUrl from 'wasmoon/dist/glue.wasm?url';
   import sceneBox from '../../../packages/e2e/scenes/primitives/box.json?raw';
   import sceneSphere from '../../../packages/e2e/scenes/primitives/sphere.json?raw';
   import sceneCylinder from '../../../packages/e2e/scenes/primitives/cylinder.json?raw';
@@ -265,7 +266,7 @@
 
   onMount(() => {
     const worker = new EvalWorker();
-    client = new WorkerClient(worker, { wasmUrl });
+    client = new WorkerClient(worker, { wasmUrl, luaWasmUrl });
     viewport = new Viewport(canvas);
 
     const ro = new ResizeObserver(() => {
