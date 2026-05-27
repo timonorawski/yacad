@@ -14,7 +14,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,10 +28,10 @@ const OUTPUT_JSON = join(tmpdir(), `vitest-bench-${Date.now()}.json`);
 
 console.error('Running benchmarks…');
 try {
-  execSync(
-    `pnpm exec vitest bench --run --outputJson ${OUTPUT_JSON} bench/`,
-    { cwd: ROOT, stdio: 'inherit' },
-  );
+  execSync(`pnpm exec vitest bench --run --outputJson ${OUTPUT_JSON} bench/`, {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
 } catch {
   // vitest bench exits 0 on success even if some benches are slow; a non-zero
   // exit usually means a setup error. We still try to read whatever output was

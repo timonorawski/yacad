@@ -10,9 +10,7 @@ Every node uses this shape:
 {
   "type": "<node-type>",
   "params": { "...": "..." },
-  "children": [
-    { "type": "..." }
-  ]
+  "children": [{ "type": "..." }]
 }
 ```
 
@@ -86,9 +84,7 @@ Parameters:
 {
   "type": "translate",
   "params": { "offset": [15, 0, 0] },
-  "children": [
-    { "type": "box", "params": { "size": [10, 10, 10], "center": true } }
-  ]
+  "children": [{ "type": "box", "params": { "size": [10, 10, 10], "center": true } }]
 }
 ```
 
@@ -124,9 +120,7 @@ Parameters:
     {
       "type": "translate",
       "params": { "offset": [0, 0, 10] },
-      "children": [
-        { "type": "box", "params": { "size": [10, 10, 10], "center": true } }
-      ]
+      "children": [{ "type": "box", "params": { "size": [10, 10, 10], "center": true } }]
     }
   ]
 }

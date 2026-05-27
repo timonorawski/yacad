@@ -11,3 +11,6 @@ apps/*/dist/
 # Playwright
 apps/*/playwright-report/
 apps/*/test-results/
+
+# Claude Code agent worktrees
+.claude/worktrees/

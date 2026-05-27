@@ -64,7 +64,9 @@
     stats && stats.nodes > 0 ? Math.round((stats.hits / stats.nodes) * 100) : 0,
   );
 
-  const missRate = $derived(stats && stats.nodes > 0 ? Math.round((stats.misses / stats.nodes) * 100) : 0);
+  const missRate = $derived(
+    stats && stats.nodes > 0 ? Math.round((stats.misses / stats.nodes) * 100) : 0,
+  );
 
   const expensiveNodes = $derived([...perNode].sort((a, b) => b.totalMs - a.totalMs));
 
@@ -182,7 +184,10 @@
     <div class="editor-controls">
       <label>
         <span>Sample scene</span>
-        <select value={selectedScene} onchange={(event) => pickScene((event.currentTarget as HTMLSelectElement).value)}>
+        <select
+          value={selectedScene}
+          onchange={(event) => pickScene((event.currentTarget as HTMLSelectElement).value)}
+        >
           <option value="custom">Custom (current editor)</option>
           {#each sceneLibrary as scene}
             <option value={scene.id}>{scene.label}</option>

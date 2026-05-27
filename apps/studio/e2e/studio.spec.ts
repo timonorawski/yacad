@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -11,12 +11,12 @@ const REEVAL_TIMEOUT = 30_000;
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 /** Wait until .status reads "Ready" (evaluation finished, no errors). */
-async function waitForReady(page: import('@playwright/test').Page, timeout = FIRST_EVAL_TIMEOUT) {
+async function waitForReady(page: Page, timeout = FIRST_EVAL_TIMEOUT) {
   await expect(page.locator('.status')).toHaveText('Ready', { timeout });
 }
 
 /** Parse the stats panel. Returns { nodes, hits, misses, hitRate } */
-async function readStats(page: import('@playwright/test').Page) {
+async function readStats(page: Page) {
   const statsDiv = page.locator('.stats');
   await expect(statsDiv).toBeVisible({ timeout: FIRST_EVAL_TIMEOUT });
   const text = await statsDiv.innerText();
@@ -105,8 +105,8 @@ test('incremental recompute: changing sphere radius hits box, recomputes sphere 
   // Status must be Ready (no error).
   await waitForReady(page, 5_000);
 
-  // Per-node view: at least one node tagged "cached".
-  const hitItems = page.locator('ul.nodes li span.tag.hit');
+  // Per-node table: at least one node tagged "cached".
+  const hitItems = page.locator('.node-table span.tag.hit');
   const hitCount = await hitItems.count();
   expect(hitCount).toBeGreaterThanOrEqual(1);
 });
@@ -143,15 +143,15 @@ test('Export STL: download is a non-empty .stl file', async ({ page }) => {
   const exportButton = page.getByRole('button', { name: 'Export STL' });
   await expect(exportButton).toBeEnabled();
 
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    exportButton.click(),
-  ]);
+  const [download] = await Promise.all([page.waitForEvent('download'), exportButton.click()]);
 
   expect(download.suggestedFilename()).toMatch(/\.stl$/i);
 
   // Save to a temp file and check size.
-  const downloadPath = path.join(os.tmpdir(), `playwright-${Date.now()}-${download.suggestedFilename()}`);
+  const downloadPath = path.join(
+    os.tmpdir(),
+    `playwright-${Date.now()}-${download.suggestedFilename()}`,
+  );
   await download.saveAs(downloadPath);
 
   const stat = fs.statSync(downloadPath);

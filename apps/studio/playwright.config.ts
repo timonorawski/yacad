@@ -15,11 +15,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     // Headless Chromium with swiftshader for WebGL.
     launchOptions: {
-      args: [
-        '--disable-gpu-sandbox',
-        '--use-gl=swiftshader',
-        '--enable-webgl',
-      ],
+      args: ['--disable-gpu-sandbox', '--use-gl=swiftshader', '--enable-webgl'],
     },
   },
   projects: [
