@@ -299,7 +299,9 @@
             <span>buildGraph <b>{perf ? perf.buildGraphMs.toFixed(2) : '-'} ms</b></span>
             <span>engine total <b>{perf ? perf.engineMs.toFixed(2) : '-'} ms</b></span>
             <span>engine lookup <b>{stats.lookupMs.toFixed(2)} ms</b></span>
-            <span>engine kernel <b>{stats.kernelMs.toFixed(2)} ms</b></span>
+            <span>kernel import <b>{stats.importMs.toFixed(2)} ms</b></span>
+            <span>kernel op <b>{stats.opMs.toFixed(2)} ms</b></span>
+            <span>kernel export <b>{stats.exportMs.toFixed(2)} ms</b></span>
             <span>engine cache write <b>{stats.storeMs.toFixed(2)} ms</b></span>
             <span>engine wall <b>{stats.totalMs.toFixed(2)} ms</b></span>
           </div>
@@ -312,8 +314,9 @@
                 <th>node</th>
                 <th>cache</th>
                 <th>total ms</th>
-                <th>self ms</th>
-                <th>kernel ms</th>
+                <th>import ms</th>
+                <th>op ms</th>
+                <th>export ms</th>
               </tr>
             </thead>
             <tbody>
@@ -326,8 +329,9 @@
                     </span>
                   </td>
                   <td>{node.totalMs.toFixed(2)}</td>
-                  <td>{node.selfMs.toFixed(2)}</td>
-                  <td>{node.kernelMs.toFixed(2)}</td>
+                  <td>{node.importMs.toFixed(2)}</td>
+                  <td>{node.opMs.toFixed(2)}</td>
+                  <td>{node.exportMs.toFixed(2)}</td>
                 </tr>
               {/each}
             </tbody>

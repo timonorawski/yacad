@@ -18,8 +18,14 @@ export interface NodeEval {
   readonly selfMs: number;
   /** Cache lookup latency for this node. */
   readonly lookupMs: number;
-  /** Kernel execution time for this node (0 on cache hits). */
+  /** Total kernel time for this node = import + op + export (0 on cache hits). */
   readonly kernelMs: number;
+  /** Kernel phase: rebuilding child solids from cached meshes (0 on hits/leaves). */
+  readonly importMs: number;
+  /** Kernel phase: the Manifold operation itself (0 on cache hits). */
+  readonly opMs: number;
+  /** Kernel phase: extracting the result mesh from WASM (0 on cache hits). */
+  readonly exportMs: number;
   /** Cache write latency for this node (0 on cache hits). */
   readonly storeMs: number;
 }
@@ -31,6 +37,9 @@ export interface EvalStats {
   readonly totalMs: number;
   readonly lookupMs: number;
   readonly kernelMs: number;
+  readonly importMs: number;
+  readonly opMs: number;
+  readonly exportMs: number;
   readonly storeMs: number;
   readonly selfMs: number;
 }
@@ -68,12 +77,9 @@ export class Engine {
     this.pinWorkingSet(root);
     const perNode: NodeEval[] = [];
     const mesh = await this.walk(root, qualityTier, perNode);
+
+    const sum = (pick: (e: NodeEval) => number) => perNode.reduce((n, e) => n + pick(e), 0);
     const hits = perNode.reduce((n, e) => n + (e.hit ? 1 : 0), 0);
-    const lookupMs = perNode.reduce((n, e) => n + e.lookupMs, 0);
-    const kernelMs = perNode.reduce((n, e) => n + e.kernelMs, 0);
-    const storeMs = perNode.reduce((n, e) => n + e.storeMs, 0);
-    const selfMs = perNode.reduce((n, e) => n + e.selfMs, 0);
-    const totalMs = performance.now() - evalStart;
     return {
       mesh,
       hash: root.hash,
@@ -81,11 +87,14 @@ export class Engine {
         nodes: perNode.length,
         hits,
         misses: perNode.length - hits,
-        totalMs,
-        lookupMs,
-        kernelMs,
-        storeMs,
-        selfMs,
+        totalMs: performance.now() - evalStart,
+        lookupMs: sum((e) => e.lookupMs),
+        kernelMs: sum((e) => e.kernelMs),
+        importMs: sum((e) => e.importMs),
+        opMs: sum((e) => e.opMs),
+        exportMs: sum((e) => e.exportMs),
+        storeMs: sum((e) => e.storeMs),
+        selfMs: sum((e) => e.selfMs),
       },
       perNode,
     };
@@ -108,6 +117,9 @@ export class Engine {
         selfMs: totalMs,
         lookupMs,
         kernelMs: 0,
+        importMs: 0,
+        opMs: 0,
+        exportMs: 0,
         storeMs: 0,
       });
       return cached.mesh;
@@ -118,9 +130,8 @@ export class Engine {
       childMeshes.push(await this.walk(child, tier, perNode));
     }
 
-    const kernelStart = performance.now();
-    const mesh = this.kernel.evaluate(node, childMeshes);
-    const kernelMs = performance.now() - kernelStart;
+    const { mesh, timings } = this.kernel.evaluateTimed(node, childMeshes);
+    const kernelMs = timings.importMs + timings.opMs + timings.exportMs;
 
     const storeStart = performance.now();
     await this.store.put(key, { kind: 'mesh', mesh });
@@ -135,6 +146,9 @@ export class Engine {
       selfMs: lookupMs + kernelMs + storeMs,
       lookupMs,
       kernelMs,
+      importMs: timings.importMs,
+      opMs: timings.opMs,
+      exportMs: timings.exportMs,
       storeMs,
     });
     return mesh;

@@ -98,19 +98,22 @@ describe('IndexedDbStore', () => {
 });
 
 describe('TieredStore', () => {
-  it('writes through to both tiers', async () => {
+  it('writes L1 eagerly and L2 write-behind (flush for durability)', async () => {
     const l1 = new MemoryStore();
     const l2 = freshL2();
     const tiered = new TieredStore(l1, l2);
     await tiered.put(key('a'), mesh());
-    expect(await l1.has(key('a'), 'mesh')).toBe(true);
-    expect(await l2.has(key('a'), 'mesh')).toBe(true);
+    expect(await l1.has(key('a'), 'mesh')).toBe(true); // L1 resident immediately
+    await tiered.flush();
+    expect(await l2.has(key('a'), 'mesh')).toBe(true); // L2 persisted after flush
   });
 
   it('promotes L2 hits into L1 (warm start after an L1 reset)', async () => {
     const l2 = freshL2();
-    // First session populates the cache.
-    await new TieredStore(new MemoryStore(), l2).put(key('a'), mesh(9));
+    // First session populates the cache; flush to persist before "reload".
+    const first = new TieredStore(new MemoryStore(), l2);
+    await first.put(key('a'), mesh(9));
+    await first.flush();
 
     // "Reload": brand-new L1, same persistent L2.
     const l1 = new MemoryStore();

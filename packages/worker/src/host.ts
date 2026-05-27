@@ -21,36 +21,41 @@ export interface WorkerScope {
  * (which works under Node).
  */
 export function startHost(scope: WorkerScope): void {
-  let engine: Promise<Engine> | undefined;
+  let backend: Promise<Backend> | undefined;
   scope.onmessage = (event) => {
     const req = event.data as WorkerRequest;
     if (!req) return;
     if (req.kind === 'init') {
-      engine = createEngine(() => req.wasmUrl);
+      backend = createEngine(() => req.wasmUrl);
       return;
     }
     if (req.kind === 'evaluate') {
-      engine ??= createEngine();
-      void handle(scope, engine, req);
+      backend ??= createEngine();
+      void handle(scope, backend, req);
     }
   };
 }
 
-async function createEngine(locateFile?: () => string): Promise<Engine> {
+interface Backend {
+  readonly engine: Engine;
+  readonly store: TieredStore;
+}
+
+async function createEngine(locateFile?: () => string): Promise<Backend> {
   const toplevel = await loadManifold(locateFile ? { locateFile } : {});
   const store = new TieredStore(new MemoryStore(), new IndexedDbStore());
-  return new Engine(store, new ManifoldKernel(toplevel));
+  return { engine: new Engine(store, new ManifoldKernel(toplevel)), store };
 }
 
 async function handle(
   scope: WorkerScope,
-  enginePromise: Promise<Engine>,
+  backendPromise: Promise<Backend>,
   req: EvaluateRequest,
 ): Promise<void> {
   if (!req || req.kind !== 'evaluate') return;
   try {
     const workerStart = performance.now();
-    const engine = await enginePromise;
+    const { engine, store } = await backendPromise;
 
     const buildStart = performance.now();
     const root = await buildGraph(req.doc);
@@ -79,6 +84,10 @@ async function handle(
       perf: { workerTotalMs, buildGraphMs, engineMs, copyMeshMs },
     };
     scope.postMessage(ok, [vertices.buffer, indices.buffer] as Transferable[]);
+
+    // Persist artifacts to IndexedDB after the result is sent — write-behind,
+    // off the response critical path.
+    await store.flush();
   } catch (err) {
     const fail: WorkerResponse = {
       id: req.id,

@@ -5,11 +5,17 @@ import type { Artifact, ArtifactKind, CacheKey, ObjectStore, Pinnable } from './
 
 /**
  * Composite store presenting the multi-tier cache as one async-uniform
- * ObjectStore. Reads fall through L1 → L2 and promote L2 hits back into L1;
- * writes populate both tiers. This is the single object the engine talks to —
- * it never knows which tier served a request.
+ * ObjectStore. Reads fall through L1 → L2 and promote L2 hits back into L1.
+ *
+ * Writes are L1-eager / L2-write-behind: the in-memory tier is updated
+ * synchronously (so same-session reads hit immediately) while the IndexedDB
+ * write is scheduled but not awaited — keeping its latency off the evaluation
+ * critical path. Durability is reconciled via `flush()`. This is the single
+ * object the engine talks to; it never knows which tier served a request.
  */
 export class TieredStore implements ObjectStore, Pinnable {
+  private readonly pendingL2 = new Set<Promise<void>>();
+
   constructor(
     private readonly l1: MemoryStore,
     private readonly l2: IndexedDbStore,
@@ -26,8 +32,24 @@ export class TieredStore implements ObjectStore, Pinnable {
     return fromL2;
   }
 
-  async put(key: CacheKey, artifact: Artifact): Promise<void> {
-    await Promise.all([this.l1.put(key, artifact), this.l2.put(key, artifact)]);
+  put(key: CacheKey, artifact: Artifact): Promise<void> {
+    // L1 (Map) write is synchronous; the data is resident the moment this
+    // returns, so same-session reads never wait on it.
+    void this.l1.put(key, artifact);
+    // L2 (IndexedDB) is write-behind: schedule, track, but don't await.
+    const write = this.l2
+      .put(key, artifact)
+      .catch((err: unknown) => {
+        console.error('yacad cache: L2 write failed', err);
+      })
+      .finally(() => this.pendingL2.delete(write));
+    this.pendingL2.add(write);
+    return Promise.resolve();
+  }
+
+  /** Await all outstanding L2 writes — call before relying on persistence. */
+  async flush(): Promise<void> {
+    await Promise.all([...this.pendingL2]);
   }
 
   async has(key: CacheKey, kind: ArtifactKind): Promise<boolean> {
