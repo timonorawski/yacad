@@ -27,9 +27,10 @@ export function loadScenes(): Scene[] {
     }));
 }
 
-// The WASM kernel is expensive to instantiate; share one across all scenes.
+// The WASM kernel is expensive to instantiate; share one across all scenes
+// (and across the torture suite, which evaluates many graphs).
 let kernelPromise: Promise<ManifoldKernel> | undefined;
-function getKernel(): Promise<ManifoldKernel> {
+export function getKernel(): Promise<ManifoldKernel> {
   return (kernelPromise ??= loadManifold().then((api) => new ManifoldKernel(api)));
 }
 

@@ -63,6 +63,69 @@ exports[`scene → STL pipeline > composite/cored-block > matches the captured g
 }
 `;
 
+exports[`scene → STL pipeline > edge-cases/interior-void > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      10,
+      10,
+      10,
+    ],
+    "min": [
+      -10,
+      -10,
+      -10,
+    ],
+  },
+  "nodes": 3,
+  "stlBytes": 26284,
+  "triangles": 524,
+  "vertices": 266,
+}
+`;
+
+exports[`scene → STL pipeline > edge-cases/shared-face-cubes > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      15,
+      5,
+      5,
+    ],
+    "min": [
+      -5,
+      -5,
+      -5,
+    ],
+  },
+  "nodes": 4,
+  "stlBytes": 1084,
+  "triangles": 20,
+  "vertices": 12,
+}
+`;
+
+exports[`scene → STL pipeline > edge-cases/tangent-sphere-box > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      20,
+      10,
+      10,
+    ],
+    "min": [
+      -10,
+      -10,
+      -10,
+    ],
+  },
+  "nodes": 4,
+  "stlBytes": 26284,
+  "triangles": 524,
+  "vertices": 266,
+}
+`;
+
 exports[`scene → STL pipeline > primitives/box > matches the captured geometry summary 1`] = `
 {
   "bbox": {

@@ -21,8 +21,10 @@ describe('scene → STL pipeline', () => {
         expect(view.getUint32(80, true)).toBe(tris);
         expect(run.stl.byteLength).toBe(84 + 50 * tris);
 
-        // Cold cache: the whole model is computed from scratch.
-        expect(run.result.stats.hits).toBe(0);
+        // Cold cache: real work happens. (Content-addressed dedup may still
+        // produce hits for identical sibling subtrees — e.g. two identical
+        // cubes — which is correct, so we assert misses rather than hits === 0.)
+        expect(run.result.stats.misses).toBeGreaterThan(0);
       });
 
       it('matches the captured geometry summary', async () => {

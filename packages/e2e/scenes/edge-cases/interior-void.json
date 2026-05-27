@@ -1,0 +1,7 @@
+{
+  "type": "difference",
+  "children": [
+    { "type": "box", "params": { "size": [20, 20, 20], "center": true } },
+    { "type": "sphere", "params": { "radius": 5, "segments": 32 } }
+  ]
+}

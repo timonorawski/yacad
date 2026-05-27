@@ -1,0 +1,8 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`geometric edge cases > point-tangent sphere/box: produces output; capture manifold-edge behavior 1`] = `
+{
+  "nonManifoldEdges": 0,
+  "triangles": 524,
+}
+`;

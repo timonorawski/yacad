@@ -1,0 +1,11 @@
+{
+  "type": "union",
+  "children": [
+    { "type": "box", "params": { "size": [20, 20, 20], "center": true } },
+    {
+      "type": "translate",
+      "params": { "offset": [15, 0, 0] },
+      "children": [{ "type": "sphere", "params": { "radius": 5, "segments": 32 } }]
+    }
+  ]
+}
