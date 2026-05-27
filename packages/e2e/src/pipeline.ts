@@ -133,7 +133,9 @@ export async function runScene(doc: unknown): Promise<SceneRun> {
 
     // 5. Evaluate with a resolver-aware Engine.
     const engine = new Engine(new MemoryStore(), kernel, { resolver });
-    const result = await engine.evaluate(await buildGraph(unwrapped, undefined, undefined, resolver));
+    const result = await engine.evaluate(
+      await buildGraph(unwrapped, undefined, undefined, resolver),
+    );
     return { result, mesh: result.mesh, stl: meshToBinaryStl(result.mesh) };
   }
 
