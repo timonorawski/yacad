@@ -18,7 +18,8 @@
   "dependencies": {
     "@yacad/canonical": "workspace:*",
     "@yacad/dag": "workspace:*",
-    "@yacad/hash": "workspace:*"
+    "@yacad/hash": "workspace:*",
+    "wasmoon": "1.16.0"
   },
   "devDependencies": {
     "@yacad/tsconfig": "workspace:*"
