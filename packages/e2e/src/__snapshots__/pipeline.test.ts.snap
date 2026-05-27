@@ -126,6 +126,27 @@ exports[`scene → STL pipeline > edge-cases/tangent-sphere-box > matches the ca
 }
 `;
 
+exports[`scene → STL pipeline > lua/lua-gear > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      5.5,
+      5.5,
+      0.5,
+    ],
+    "min": [
+      -5.5,
+      -5.5,
+      -0.5,
+    ],
+  },
+  "nodes": 1,
+  "stlBytes": 49684,
+  "triangles": 992,
+  "vertices": 512,
+}
+`;
+
 exports[`scene → STL pipeline > primitives/box > matches the captured geometry summary 1`] = `
 {
   "bbox": {

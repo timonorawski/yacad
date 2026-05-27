@@ -9,7 +9,9 @@
     "@yacad/engine": "workspace:*",
     "@yacad/export-stl": "workspace:*",
     "@yacad/geometry": "workspace:*",
-    "@yacad/kernel-manifold": "workspace:*"
+    "@yacad/hash": "workspace:*",
+    "@yacad/kernel-manifold": "workspace:*",
+    "@yacad/lua": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

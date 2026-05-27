@@ -134,9 +134,15 @@ importers:
       '@yacad/geometry':
         specifier: workspace:*
         version: link:../geometry
+      '@yacad/hash':
+        specifier: workspace:*
+        version: link:../hash
       '@yacad/kernel-manifold':
         specifier: workspace:*
         version: link:../kernel-manifold
+      '@yacad/lua':
+        specifier: workspace:*
+        version: link:../lua
     devDependencies:
       '@types/node':
         specifier: ^25.9.1
