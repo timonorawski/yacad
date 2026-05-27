@@ -7,6 +7,12 @@ export interface EvaluateOutcome {
   readonly hash: string;
   readonly stats: EvalStats;
   readonly perNode: readonly NodeEval[];
+  readonly perf: {
+    readonly workerTotalMs: number;
+    readonly buildGraphMs: number;
+    readonly engineMs: number;
+    readonly copyMeshMs: number;
+  };
 }
 
 /** Minimal worker surface — satisfied by the DOM `Worker`. */
@@ -56,7 +62,13 @@ export class WorkerClient {
     if (!pending) return;
     this.pending.delete(res.id);
     if (res.ok) {
-      pending.resolve({ mesh: res.mesh, hash: res.hash, stats: res.stats, perNode: res.perNode });
+      pending.resolve({
+        mesh: res.mesh,
+        hash: res.hash,
+        stats: res.stats,
+        perNode: res.perNode,
+        perf: res.perf,
+      });
     } else {
       pending.reject(new Error(res.error));
     }

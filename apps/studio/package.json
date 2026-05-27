@@ -14,7 +14,8 @@
     "@yacad/export-stl": "workspace:*",
     "@yacad/render": "workspace:*",
     "@yacad/worker": "workspace:*",
-    "manifold-3d": "^3.5.0"
+    "manifold-3d": "^3.5.0",
+    "marked": "^17.0.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.1.2",

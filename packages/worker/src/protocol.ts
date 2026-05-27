@@ -29,6 +29,12 @@ export interface EvaluateOk {
   readonly hash: string;
   readonly stats: EvalStats;
   readonly perNode: readonly NodeEval[];
+  readonly perf: {
+    readonly workerTotalMs: number;
+    readonly buildGraphMs: number;
+    readonly engineMs: number;
+    readonly copyMeshMs: number;
+  };
 }
 
 export interface EvaluateErr {

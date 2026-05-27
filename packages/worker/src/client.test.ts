@@ -31,8 +31,29 @@ const okResponse = (id: number): WorkerResponse => ({
   ok: true,
   mesh: { vertices: new Float32Array([1, 2, 3]), indices: new Uint32Array([0]) },
   hash: 'abc',
-  stats: { nodes: 1, hits: 0, misses: 1 },
-  perNode: [{ id: '$', hash: 'abc', hit: false }],
+  stats: {
+    nodes: 1,
+    hits: 0,
+    misses: 1,
+    totalMs: 1,
+    lookupMs: 0.1,
+    kernelMs: 0.8,
+    storeMs: 0.1,
+    selfMs: 1,
+  },
+  perNode: [
+    {
+      id: '$',
+      hash: 'abc',
+      hit: false,
+      totalMs: 1,
+      selfMs: 1,
+      lookupMs: 0.1,
+      kernelMs: 0.8,
+      storeMs: 0.1,
+    },
+  ],
+  perf: { workerTotalMs: 3, buildGraphMs: 1, engineMs: 1.6, copyMeshMs: 0.4 },
 });
 
 describe('WorkerClient', () => {

@@ -49,14 +49,25 @@ async function handle(
 ): Promise<void> {
   if (!req || req.kind !== 'evaluate') return;
   try {
+    const workerStart = performance.now();
     const engine = await enginePromise;
+
+    const buildStart = performance.now();
     const root = await buildGraph(req.doc);
+    const buildGraphMs = performance.now() - buildStart;
+
+    const evalStart = performance.now();
     const result = await engine.evaluate(root, req.tier);
+    const engineMs = performance.now() - evalStart;
 
     // Copy out of the cached mesh so transferring (neutering) the buffers does
     // not detach the artifact still held in L1.
+    const copyStart = performance.now();
     const vertices = result.mesh.vertices.slice();
     const indices = result.mesh.indices.slice();
+    const copyMeshMs = performance.now() - copyStart;
+
+    const workerTotalMs = performance.now() - workerStart;
     const ok: WorkerResponse = {
       id: req.id,
       kind: 'result',
@@ -65,6 +76,7 @@ async function handle(
       hash: result.hash,
       stats: result.stats,
       perNode: result.perNode,
+      perf: { workerTotalMs, buildGraphMs, engineMs, copyMeshMs },
     };
     scope.postMessage(ok, [vertices.buffer, indices.buffer] as Transferable[]);
   } catch (err) {

@@ -30,7 +30,7 @@ describe('Engine', () => {
   it('misses everything on a cold cache', async () => {
     const engine = new Engine(new MemoryStore(), kernel);
     const result = await engine.evaluate(await buildGraph(model(5)));
-    expect(result.stats).toEqual({ nodes: 3, hits: 0, misses: 3 });
+    expect(result.stats).toMatchObject({ nodes: 3, hits: 0, misses: 3 });
   });
 
   it('short-circuits at the root on an unchanged model (warm cache)', async () => {
@@ -40,7 +40,7 @@ describe('Engine', () => {
     await engine.evaluate(graph);
     const again = await engine.evaluate(graph);
     // A root hit returns immediately without descending — one lookup, no recompute.
-    expect(again.stats).toEqual({ nodes: 1, hits: 1, misses: 0 });
+    expect(again.stats).toMatchObject({ nodes: 1, hits: 1, misses: 0 });
   });
 
   it('recomputes only the edited node and its ancestors (success criterion #1)', async () => {
@@ -51,7 +51,7 @@ describe('Engine', () => {
     const edited = await engine.evaluate(await buildGraph(model(6)));
 
     // box (sibling) is a hit; sphere (edited) and union (ancestor) recompute.
-    expect(edited.stats).toEqual({ nodes: 3, hits: 1, misses: 2 });
+    expect(edited.stats).toMatchObject({ nodes: 3, hits: 1, misses: 2 });
 
     const byType = (id: string) => edited.perNode.find((n) => n.id === id);
     expect(byType('$/0')?.hit).toBe(true); // box, unchanged

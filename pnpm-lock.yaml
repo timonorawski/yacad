@@ -56,6 +56,9 @@ importers:
       manifold-3d:
         specifier: ^3.5.0
         version: 3.5.0(@gltf-transform/core@4.3.0)(@gltf-transform/extensions@4.3.0)(@gltf-transform/functions@4.3.0)(esbuild-wasm@0.27.7)
+      marked:
+        specifier: ^17.0.1
+        version: 17.0.6
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.1.2
@@ -1073,6 +1076,11 @@ packages:
       '@gltf-transform/extensions': ^4.2.0
       '@gltf-transform/functions': ^4.2.0
       esbuild-wasm: ^0.27.3
+
+  marked@17.0.6:
+    resolution: {integrity: sha512-gB0gkNafnonOw0obSTEGZTT86IuhILt2Wfx0mWH/1Au83kybTayroZ/V6nS25mN7u8ASy+5fMhgB3XPNrOZdmA==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   meshoptimizer@1.1.1:
     resolution: {integrity: sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==}
@@ -2154,6 +2162,8 @@ snapshots:
       fast-xml-parser: 5.8.0
       fflate: 0.8.3
       magic-string: 0.30.21
+
+  marked@17.0.6: {}
 
   meshoptimizer@1.1.1: {}
 

@@ -12,12 +12,27 @@ export interface NodeEval {
   readonly id: string;
   readonly hash: Hash;
   readonly hit: boolean;
+  /** End-to-end time for this node including recursive child evaluation. */
+  readonly totalMs: number;
+  /** Time spent in this node's own work (lookup + kernel + cache write). */
+  readonly selfMs: number;
+  /** Cache lookup latency for this node. */
+  readonly lookupMs: number;
+  /** Kernel execution time for this node (0 on cache hits). */
+  readonly kernelMs: number;
+  /** Cache write latency for this node (0 on cache hits). */
+  readonly storeMs: number;
 }
 
 export interface EvalStats {
   readonly nodes: number;
   readonly hits: number;
   readonly misses: number;
+  readonly totalMs: number;
+  readonly lookupMs: number;
+  readonly kernelMs: number;
+  readonly storeMs: number;
+  readonly selfMs: number;
 }
 
 export interface EvaluateResult {
@@ -49,24 +64,52 @@ export class Engine {
   ) {}
 
   async evaluate(root: Node, qualityTier = 'final'): Promise<EvaluateResult> {
+    const evalStart = performance.now();
     this.pinWorkingSet(root);
     const perNode: NodeEval[] = [];
     const mesh = await this.walk(root, qualityTier, perNode);
     const hits = perNode.reduce((n, e) => n + (e.hit ? 1 : 0), 0);
+    const lookupMs = perNode.reduce((n, e) => n + e.lookupMs, 0);
+    const kernelMs = perNode.reduce((n, e) => n + e.kernelMs, 0);
+    const storeMs = perNode.reduce((n, e) => n + e.storeMs, 0);
+    const selfMs = perNode.reduce((n, e) => n + e.selfMs, 0);
+    const totalMs = performance.now() - evalStart;
     return {
       mesh,
       hash: root.hash,
-      stats: { nodes: perNode.length, hits, misses: perNode.length - hits },
+      stats: {
+        nodes: perNode.length,
+        hits,
+        misses: perNode.length - hits,
+        totalMs,
+        lookupMs,
+        kernelMs,
+        storeMs,
+        selfMs,
+      },
       perNode,
     };
   }
 
   private async walk(node: Node, tier: string, perNode: NodeEval[]): Promise<Mesh> {
+    const nodeStart = performance.now();
     const key = this.keyFor(node, tier);
 
+    const lookupStart = performance.now();
     const cached = await this.store.get(key, 'mesh');
+    const lookupMs = performance.now() - lookupStart;
     if (cached?.kind === 'mesh') {
-      perNode.push({ id: node.id, hash: node.hash, hit: true });
+      const totalMs = performance.now() - nodeStart;
+      perNode.push({
+        id: node.id,
+        hash: node.hash,
+        hit: true,
+        totalMs,
+        selfMs: totalMs,
+        lookupMs,
+        kernelMs: 0,
+        storeMs: 0,
+      });
       return cached.mesh;
     }
 
@@ -75,9 +118,25 @@ export class Engine {
       childMeshes.push(await this.walk(child, tier, perNode));
     }
 
+    const kernelStart = performance.now();
     const mesh = this.kernel.evaluate(node, childMeshes);
+    const kernelMs = performance.now() - kernelStart;
+
+    const storeStart = performance.now();
     await this.store.put(key, { kind: 'mesh', mesh });
-    perNode.push({ id: node.id, hash: node.hash, hit: false });
+    const storeMs = performance.now() - storeStart;
+
+    const totalMs = performance.now() - nodeStart;
+    perNode.push({
+      id: node.id,
+      hash: node.hash,
+      hit: false,
+      totalMs,
+      selfMs: lookupMs + kernelMs + storeMs,
+      lookupMs,
+      kernelMs,
+      storeMs,
+    });
     return mesh;
   }
 

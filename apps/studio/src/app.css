@@ -1,10 +1,12 @@
 :root {
   --bg: #1e1e22;
   --panel: #26262c;
+  --panel-2: #212127;
   --border: #36363e;
   --text: #e6e6ea;
   --muted: #9a9aa6;
   --accent: #4f9dde;
+  --accent-muted: #30465a;
   --hit: #5fbf7f;
   --miss: #e0a050;
   --error: #e06c75;
@@ -54,6 +56,7 @@ header h1 {
 header .tagline {
   font-size: 12px;
   color: var(--muted);
+  flex: 1;
 }
 
 .sidebar {
@@ -62,6 +65,40 @@ header .tagline {
   flex-direction: column;
   border-right: 1px solid var(--border);
   min-height: 0;
+}
+
+.editor-controls {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-controls label span {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+select {
+  width: 100%;
+  background: #191c21;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 textarea {
@@ -103,6 +140,16 @@ button {
   cursor: pointer;
 }
 
+button.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--accent-muted);
+}
+
+button.ghost:hover {
+  border-color: var(--accent);
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: default;
@@ -119,6 +166,7 @@ button:disabled {
 
 .stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin: 8px 0;
   font-variant-numeric: tabular-nums;
@@ -128,20 +176,50 @@ button:disabled {
   color: var(--accent);
 }
 
-.nodes {
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-  max-height: 160px;
+.metrics-grid {
+  margin: 10px 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-grid b {
+  color: var(--accent);
+}
+
+.node-table-wrap {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: auto;
+  max-height: 240px;
+}
+
+.node-table {
+  width: 100%;
+  border-collapse: collapse;
   overflow: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
 }
 
-.nodes li {
-  display: flex;
-  justify-content: space-between;
-  padding: 1px 0;
+.node-table thead {
+  position: sticky;
+  top: 0;
+  background: #1f2027;
+}
+
+.node-table th,
+.node-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #2f323a;
+  white-space: nowrap;
 }
 
 .tag.hit {
@@ -162,4 +240,78 @@ canvas {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.docs {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(640px, 92vw);
+  height: 100vh;
+  background: #191b22;
+  border-left: 1px solid var(--border);
+  transform: translateX(100%);
+  transition: transform 160ms ease;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+}
+
+.docs.open {
+  transform: translateX(0);
+}
+
+.docs-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.docs-header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.docs-content {
+  padding: 14px;
+  overflow: auto;
+  line-height: 1.55;
+}
+
+.docs-content :global(h1),
+.docs-content :global(h2),
+.docs-content :global(h3) {
+  margin: 16px 0 8px;
+}
+
+.docs-content :global(pre) {
+  overflow: auto;
+  background: #11131a;
+  border: 1px solid #2b2e37;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.docs-content :global(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 980px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(360px, 1fr) minmax(280px, 45vh);
+    grid-template-areas: 'header' 'sidebar' 'viewport';
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
 }
