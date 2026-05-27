@@ -64,7 +64,7 @@ export async function buildGraph(
     return { id, type, params, children, outputType: def.output, hash };
   } else {
     // Expandable node: validate and normalise via the definition, then hash.
-    def.checkChildren(children, record['params'] as Record<string, unknown> ?? {}, resolver, id);
+    def.checkChildren(children, (record['params'] as Record<string, unknown>) ?? {}, resolver, id);
     const params = def.normalizeParams(record['params'] ?? {}, resolver, id);
     const outputType = def.resolveOutput(params, resolver);
     const hash = await hashNode(type, params, children, hasher);

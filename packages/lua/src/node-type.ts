@@ -1,9 +1,4 @@
-import {
-  DagError,
-  type ExpandableNodeType,
-  type GeometryType,
-  type InputRef,
-} from '@yacad/dag';
+import { DagError, type ExpandableNodeType, type GeometryType, type InputRef } from '@yacad/dag';
 import type { LuaRuntime } from './runtime';
 import type { LuaDefinition } from './schema';
 import { checkInputsAgainstSchema, normalizeValues } from './validate';

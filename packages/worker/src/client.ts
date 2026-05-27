@@ -59,9 +59,12 @@ export class WorkerClient {
   }
 
   evaluate(doc: unknown, tier = 'final'): Promise<EvaluateOutcome> {
-    return this.send<{ id: number; kind: 'evaluate'; doc: unknown; tier: string }, WorkerResponse>(
-      { id: 0 /* overwritten by send */, kind: 'evaluate', doc, tier },
-    ).then((res) => {
+    return this.send<{ id: number; kind: 'evaluate'; doc: unknown; tier: string }, WorkerResponse>({
+      id: 0 /* overwritten by send */,
+      kind: 'evaluate',
+      doc,
+      tier,
+    }).then((res) => {
       if (res.kind !== 'result') {
         throw new Error(`unexpected response kind "${res.kind}" for evaluate`);
       }

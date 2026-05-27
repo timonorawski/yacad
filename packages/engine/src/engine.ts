@@ -84,12 +84,7 @@ export class EvaluationError extends Error {
   override readonly name = 'EvaluationError';
   readonly nodeId: string;
   readonly nodeHash: string;
-  constructor(
-    message: string,
-    nodeId: string,
-    nodeHash: string,
-    options?: { cause?: unknown },
-  ) {
+  constructor(message: string, nodeId: string, nodeHash: string, options?: { cause?: unknown }) {
     super(message, options as ErrorOptions | undefined);
     this.nodeId = nodeId;
     this.nodeHash = nodeHash;
@@ -220,7 +215,10 @@ export class Engine {
     } else {
       // --- Expandable branch: expand sub-DAG, resolve __input_ref sentinels, recurse ---
       const expandableDef = def as ExpandableNodeType;
-      const inputNames = expandableDef.inputNames(node.params as Record<string, unknown>, this.resolver);
+      const inputNames = expandableDef.inputNames(
+        node.params as Record<string, unknown>,
+        this.resolver,
+      );
       // Only create InputRefs for children that actually exist — the declared
       // names list may be longer than the actual child list for optional inputs.
       const inputs: InputRef[] = node.children.map((child, i) => ({
@@ -256,8 +254,7 @@ export class Engine {
         // error (not EvaluationError) so the parent can propagate it. Wrapping as
         // EvaluationError happens only at the evaluate() boundary (constraint 6).
         expandErr = err instanceof Error ? err : new Error(String(err));
-        const causeMsg =
-          expandErr.cause instanceof Error ? expandErr.cause.message : undefined;
+        const causeMsg = expandErr.cause instanceof Error ? expandErr.cause.message : undefined;
         perNode.push({
           id: node.id,
           hash: node.hash,
@@ -337,7 +334,11 @@ export class Engine {
  * representation of the child whose position corresponds to the first occurrence
  * of `'foo'` in `inputNames`.
  */
-function resolveInputRefs(doc: NodeDoc, children: readonly Node[], inputNames: readonly string[]): NodeDoc {
+function resolveInputRefs(
+  doc: NodeDoc,
+  children: readonly Node[],
+  inputNames: readonly string[],
+): NodeDoc {
   return walkDoc(doc, children, inputNames);
 }
 
@@ -356,7 +357,9 @@ function walkDoc(doc: unknown, children: readonly Node[], inputNames: readonly s
     }
     const child = children[idx];
     if (!child) {
-      throw new Error(`__input_ref "${name}" resolved to index ${idx} but no child exists at that position`);
+      throw new Error(
+        `__input_ref "${name}" resolved to index ${idx} but no child exists at that position`,
+      );
     }
     return nodeDocFromNode(child);
   }

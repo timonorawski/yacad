@@ -115,12 +115,7 @@ describe('Engine — expandable nodes', () => {
 
     const store = new MemoryStore();
     const engine = new Engine(store, kernel, { resolver: NOOP_RESOLVER });
-    const graph = await buildGraph(
-      { type: 'syn_count' },
-      undefined,
-      undefined,
-      NOOP_RESOLVER,
-    );
+    const graph = await buildGraph({ type: 'syn_count' }, undefined, undefined, NOOP_RESOLVER);
     await engine.evaluate(graph);
     await engine.evaluate(graph);
     expect(expandCalls).toBe(1);

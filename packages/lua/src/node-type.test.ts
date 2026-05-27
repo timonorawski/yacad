@@ -75,7 +75,10 @@ describe('makeLuaNodeType', () => {
     const hash = await hashLuaDefinition(defWithInputs, defaultHasher);
     const runtime = new WasmoonLuaRuntime();
     const def = makeLuaNodeType(runtime, resolverFor({ [hash]: defWithInputs }));
-    const names = def.inputNames({ definitionHash: hash, values: {} }, resolverFor({ [hash]: defWithInputs }));
+    const names = def.inputNames(
+      { definitionHash: hash, values: {} },
+      resolverFor({ [hash]: defWithInputs }),
+    );
     expect(names).toEqual(['base', 'cutter']);
     runtime.dispose();
   });

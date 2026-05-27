@@ -1,7 +1,10 @@
 import { getNodeType, listNodeTypes, type NodeDoc } from '@yacad/dag';
 
 /** Wrapper functions for known kernel node types, keyed by type name. */
-export type GeoWrappers = Record<string, (params?: Record<string, unknown>, children?: NodeDoc[]) => NodeDoc>;
+export type GeoWrappers = Record<
+  string,
+  (params?: Record<string, unknown>, children?: NodeDoc[]) => NodeDoc
+>;
 
 export type GeoApi = GeoWrappers & {
   node: (type: string, params?: Record<string, unknown>, children?: NodeDoc[]) => NodeDoc;
