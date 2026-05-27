@@ -97,12 +97,22 @@ async function installSandbox(
   engine.global.set('inputs', inputsTable(inputs));
 }
 
-/** Materialize a Lua-friendly inputs table keyed by name with outputType()
- *  available synchronously. */
+/** Materialize a Lua-friendly inputs table keyed by name.
+ *
+ * Each entry is a `__input_ref` NodeDoc sentinel so Lua code can pass
+ * `inputs.body` directly as a child to any `geo.*` call. The engine's
+ * `resolveInputRefs` step substitutes the sentinel with the real child
+ * NodeDoc before building the sub-DAG. `outputType()` is also exposed so
+ * Lua can inspect the geometry type at script time. */
 function inputsTable(inputs: readonly InputRef[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const inp of inputs) {
-    out[inp.name] = { type: inp.type, outputType: () => inp.outputType() };
+    out[inp.name] = {
+      type: '__input_ref',
+      params: { name: inp.name },
+      children: [],
+      outputType: () => inp.outputType(),
+    };
   }
   return out;
 }
