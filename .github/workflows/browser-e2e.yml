@@ -1,0 +1,81 @@
+name: Browser E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build libraries
+        run: pnpm build
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @yacad/studio exec playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: pnpm --filter @yacad/studio exec playwright test
+        env:
+          CI: true
+
+      - name: Write markdown summary
+        if: always()
+        run: |
+          RESULTS="apps/studio/playwright-report/results.json"
+          if [ ! -f "$RESULTS" ]; then
+            echo "## Browser E2E Results" >> "$GITHUB_STEP_SUMMARY"
+            echo "No results file found." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node - <<'EOF'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('apps/studio/playwright-report/results.json', 'utf8'));
+          const lines = [];
+          lines.push('## Browser E2E Results');
+          lines.push('');
+          const { expected, unexpected, skipped, flaky, duration } = data.stats;
+          const total = (expected ?? 0) + (unexpected ?? 0) + (skipped ?? 0) + (flaky ?? 0);
+          const passed = expected ?? 0;
+          const failed = unexpected ?? 0;
+          const icon = failed === 0 ? '✅' : '❌';
+          lines.push(`${icon} **${passed}/${total} passed** — ${failed} failed, ${skipped ?? 0} skipped, ${flaky ?? 0} flaky`);
+          lines.push(`Duration: ${((duration ?? 0) / 1000).toFixed(1)}s`);
+          lines.push('');
+          lines.push('| Test | Status | Duration |');
+          lines.push('|------|--------|----------|');
+          for (const suite of (data.suites ?? [])) {
+            for (const spec of (suite.specs ?? [])) {
+              for (const test of (spec.tests ?? [])) {
+                const status = test.status === 'expected' ? '✅ passed'
+                  : test.status === 'skipped' ? '⏭ skipped'
+                  : test.status === 'flaky' ? '⚠️ flaky'
+                  : '❌ failed';
+                const ms = (test.results ?? []).reduce((s, r) => s + (r.duration ?? 0), 0);
+                lines.push(`| ${spec.title} | ${status} | ${(ms/1000).toFixed(2)}s |`);
+              }
+            }
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          EOF
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/studio/playwright-report/
+          retention-days: 30

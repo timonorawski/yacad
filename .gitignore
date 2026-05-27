@@ -7,3 +7,7 @@ coverage/
 # Vite / app build output
 apps/*/dist/
 .vite/
+
+# Playwright
+apps/*/playwright-report/
+apps/*/test-results/
