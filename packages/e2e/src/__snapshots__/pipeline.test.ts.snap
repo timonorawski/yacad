@@ -1,0 +1,169 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scene → STL pipeline > booleans/box-minus-sphere > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      15,
+      15,
+      15,
+    ],
+    "min": [
+      -15,
+      -15,
+      -15,
+    ],
+  },
+  "nodes": 3,
+  "stlBytes": 51684,
+  "triangles": 1032,
+  "vertices": 508,
+}
+`;
+
+exports[`scene → STL pipeline > booleans/union-stack > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      10,
+      10,
+      15,
+    ],
+    "min": [
+      -10,
+      -10,
+      -5,
+    ],
+  },
+  "nodes": 4,
+  "stlBytes": 1484,
+  "triangles": 28,
+  "vertices": 16,
+}
+`;
+
+exports[`scene → STL pipeline > composite/cored-block > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      18,
+      10,
+      10,
+    ],
+    "min": [
+      -10,
+      -10,
+      -10,
+    ],
+  },
+  "nodes": 6,
+  "stlBytes": 44984,
+  "triangles": 898,
+  "vertices": 449,
+}
+`;
+
+exports[`scene → STL pipeline > primitives/box > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      10,
+      10,
+      10,
+    ],
+    "min": [
+      -10,
+      -10,
+      -10,
+    ],
+  },
+  "nodes": 1,
+  "stlBytes": 684,
+  "triangles": 12,
+  "vertices": 8,
+}
+`;
+
+exports[`scene → STL pipeline > primitives/cylinder > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      8,
+      8,
+      15,
+    ],
+    "min": [
+      -8,
+      -8,
+      -15,
+    ],
+  },
+  "nodes": 1,
+  "stlBytes": 12684,
+  "triangles": 252,
+  "vertices": 128,
+}
+`;
+
+exports[`scene → STL pipeline > primitives/sphere > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      10,
+      10,
+      10,
+    ],
+    "min": [
+      -10,
+      -10,
+      -10,
+    ],
+  },
+  "nodes": 1,
+  "stlBytes": 57684,
+  "triangles": 1152,
+  "vertices": 578,
+}
+`;
+
+exports[`scene → STL pipeline > transforms/rotated-cylinder > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      6,
+      15,
+      6,
+    ],
+    "min": [
+      -6,
+      -15,
+      -6,
+    ],
+  },
+  "nodes": 2,
+  "stlBytes": 12684,
+  "triangles": 252,
+  "vertices": 128,
+}
+`;
+
+exports[`scene → STL pipeline > transforms/translated-box > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      20,
+      5,
+      5,
+    ],
+    "min": [
+      10,
+      -5,
+      -5,
+    ],
+  },
+  "nodes": 2,
+  "stlBytes": 684,
+  "triangles": 12,
+  "vertices": 8,
+}
+`;

@@ -1,0 +1,20 @@
+{
+  "type": "difference",
+  "children": [
+    {
+      "type": "union",
+      "children": [
+        { "type": "box", "params": { "size": [20, 20, 20], "center": true } },
+        {
+          "type": "translate",
+          "params": { "offset": [10, 0, 0] },
+          "children": [{ "type": "sphere", "params": { "radius": 8, "segments": 48 } }]
+        }
+      ]
+    },
+    {
+      "type": "cylinder",
+      "params": { "height": 40, "radius": 5, "segments": 64, "center": true }
+    }
+  ]
+}

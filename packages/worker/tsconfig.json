@@ -1,0 +1,17 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    { "path": "../cache" },
+    { "path": "../dag" },
+    { "path": "../engine" },
+    { "path": "../geometry" },
+    { "path": "../kernel-manifold" }
+  ]
+}

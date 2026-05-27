@@ -1,0 +1,14 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["vite/client"],
+    "paths": {
+      "@yacad/worker/host": ["../../packages/worker/src/host.ts"],
+      "@yacad/*": ["../../packages/*/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte", "vite.config.ts", "svelte.config.js"]
+}

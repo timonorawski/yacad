@@ -1,0 +1,165 @@
+:root {
+  --bg: #1e1e22;
+  --panel: #26262c;
+  --border: #36363e;
+  --text: #e6e6ea;
+  --muted: #9a9aa6;
+  --accent: #4f9dde;
+  --hit: #5fbf7f;
+  --miss: #e0a050;
+  --error: #e06c75;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: 'header header' 'sidebar viewport';
+  height: 100vh;
+}
+
+header {
+  grid-area: header;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  font-size: 15px;
+  margin: 0;
+  font-weight: 600;
+}
+
+header .tagline {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  min-height: 0;
+}
+
+textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 12px;
+  background: #1a1a1e;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+.panel {
+  border-top: 1px solid var(--border);
+  padding: 12px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+button {
+  background: var(--accent);
+  color: #06121d;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--error);
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats b {
+  color: var(--accent);
+}
+
+.nodes {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 160px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.nodes li {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 0;
+}
+
+.tag.hit {
+  color: var(--hit);
+}
+
+.tag.miss {
+  color: var(--miss);
+}
+
+.viewport {
+  grid-area: viewport;
+  position: relative;
+  min-width: 0;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

@@ -1,0 +1,4 @@
+{
+  "type": "sphere",
+  "params": { "radius": 10, "segments": 48 }
+}

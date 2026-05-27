@@ -1,0 +1,27 @@
+{
+  "name": "@yacad/studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@yacad/dag": "workspace:*",
+    "@yacad/export-stl": "workspace:*",
+    "@yacad/render": "workspace:*",
+    "@yacad/worker": "workspace:*",
+    "manifold-3d": "^3.5.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@yacad/tsconfig": "workspace:*",
+    "svelte": "^5.55.9",
+    "svelte-check": "^4.4.8",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14"
+  }
+}

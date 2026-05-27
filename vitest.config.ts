@@ -1,0 +1,31 @@
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vitest/config';
+
+const pkg = (name: string) =>
+  fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url));
+
+export default defineConfig({
+  resolve: {
+    // Resolve workspace packages to their TypeScript source so tests run
+    // without a prior `tsc -b`. Only bare top-level specifiers are used.
+    alias: {
+      '@yacad/canonical': pkg('canonical'),
+      '@yacad/hash': pkg('hash'),
+      '@yacad/geometry': pkg('geometry'),
+      '@yacad/dag': pkg('dag'),
+      '@yacad/cache': pkg('cache'),
+      '@yacad/kernel-manifold': pkg('kernel-manifold'),
+      '@yacad/engine': pkg('engine'),
+      '@yacad/worker': pkg('worker'),
+      '@yacad/render': pkg('render'),
+      '@yacad/export-stl': pkg('export-stl'),
+    },
+  },
+  test: {
+    environment: 'node',
+    globals: false,
+    passWithNoTests: true,
+    setupFiles: ['./vitest.setup.ts'],
+    include: ['packages/*/src/**/*.test.ts'],
+  },
+});

@@ -1,0 +1,7 @@
+{
+  "type": "rotate",
+  "params": { "angles": [90, 0, 0] },
+  "children": [
+    { "type": "cylinder", "params": { "height": 30, "radius": 6, "segments": 64, "center": true } }
+  ]
+}

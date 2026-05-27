@@ -1,0 +1,18 @@
+{
+  "name": "@yacad/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@yacad/cache": "workspace:*",
+    "@yacad/dag": "workspace:*",
+    "@yacad/engine": "workspace:*",
+    "@yacad/export-stl": "workspace:*",
+    "@yacad/geometry": "workspace:*",
+    "@yacad/kernel-manifold": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@yacad/tsconfig": "workspace:*"
+  }
+}

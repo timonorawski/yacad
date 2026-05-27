@@ -1,0 +1,16 @@
+{
+  "env": {
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_BUG_COMMAND": "1",
+    "DISABLE_ERROR_REPORTING": "1"
+  },
+  "includeCoAuthoredBy": false,
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "semgrep@claude-plugins-official": true
+  }
+}

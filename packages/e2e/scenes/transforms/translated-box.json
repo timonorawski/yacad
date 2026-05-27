@@ -1,0 +1,5 @@
+{
+  "type": "translate",
+  "params": { "offset": [15, 0, 0] },
+  "children": [{ "type": "box", "params": { "size": [10, 10, 10], "center": true } }]
+}

@@ -1,0 +1,44 @@
+import type { Hash } from '@yacad/hash';
+import type { MemoryStore } from './memory-store';
+import type { IndexedDbStore } from './indexeddb-store';
+import type { Artifact, ArtifactKind, CacheKey, ObjectStore, Pinnable } from './types';
+
+/**
+ * Composite store presenting the multi-tier cache as one async-uniform
+ * ObjectStore. Reads fall through L1 → L2 and promote L2 hits back into L1;
+ * writes populate both tiers. This is the single object the engine talks to —
+ * it never knows which tier served a request.
+ */
+export class TieredStore implements ObjectStore, Pinnable {
+  constructor(
+    private readonly l1: MemoryStore,
+    private readonly l2: IndexedDbStore,
+  ) {}
+
+  async get(key: CacheKey, kind: ArtifactKind): Promise<Artifact | undefined> {
+    const fromL1 = await this.l1.get(key, kind);
+    if (fromL1 !== undefined) return fromL1;
+
+    const fromL2 = await this.l2.get(key, kind);
+    if (fromL2 !== undefined) {
+      await this.l1.put(key, fromL2); // promote to hot tier
+    }
+    return fromL2;
+  }
+
+  async put(key: CacheKey, artifact: Artifact): Promise<void> {
+    await Promise.all([this.l1.put(key, artifact), this.l2.put(key, artifact)]);
+  }
+
+  async has(key: CacheKey, kind: ArtifactKind): Promise<boolean> {
+    return (await this.l1.has(key, kind)) || (await this.l2.has(key, kind));
+  }
+
+  async delete(key: CacheKey, kind: ArtifactKind): Promise<void> {
+    await Promise.all([this.l1.delete(key, kind), this.l2.delete(key, kind)]);
+  }
+
+  pin(hashes: Iterable<Hash>): void {
+    this.l1.pin(hashes);
+  }
+}

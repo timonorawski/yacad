@@ -1,0 +1,16 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    { "path": "../cache" },
+    { "path": "../dag" },
+    { "path": "../geometry" },
+    { "path": "../hash" },
+    { "path": "../kernel-manifold" }
+  ]
+}

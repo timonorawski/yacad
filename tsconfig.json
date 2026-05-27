@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/canonical" },
+    { "path": "packages/hash" },
+    { "path": "packages/geometry" },
+    { "path": "packages/dag" },
+    { "path": "packages/cache" },
+    { "path": "packages/kernel-manifold" },
+    { "path": "packages/engine" },
+    { "path": "packages/worker" },
+    { "path": "packages/render" },
+    { "path": "packages/export-stl" }
+  ]
+}

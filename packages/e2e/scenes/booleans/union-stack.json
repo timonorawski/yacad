@@ -1,0 +1,11 @@
+{
+  "type": "union",
+  "children": [
+    { "type": "box", "params": { "size": [20, 20, 10], "center": true } },
+    {
+      "type": "translate",
+      "params": { "offset": [0, 0, 10] },
+      "children": [{ "type": "box", "params": { "size": [10, 10, 10], "center": true } }]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "type": "cylinder",
+  "params": { "height": 30, "radius": 8, "segments": 64, "center": true }
+}

@@ -1,0 +1,4 @@
+{
+  "type": "box",
+  "params": { "size": [20, 20, 20], "center": true }
+}
