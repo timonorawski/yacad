@@ -1,6 +1,8 @@
+import { defaultHasher } from '@yacad/hash';
+import { hashLuaDefinition, type LuaDefinition } from '@yacad/lua';
 import { describe, expect, it, vi } from 'vitest';
 import { startHost, type WorkerScope } from './host';
-import type { EvaluateOk, EvaluateErr } from './protocol';
+import type { EvaluateErr, EvaluateOk, OkResponse } from './protocol';
 
 function fakeScope() {
   const messages: unknown[] = [];
@@ -43,5 +45,82 @@ describe('startHost', () => {
     const res = messages[0] as EvaluateErr;
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/unknown node type/);
+  });
+});
+
+describe('putLuaDefinition / hasLuaDefinition', () => {
+  const def: LuaDefinition = {
+    schema: { inputs: [], params: {}, output: '3d' },
+    code: 'return geo.box({size = {1, 1, 1}})',
+  };
+
+  it('responds to hasLuaDefinition (present: false) before put', async () => {
+    const { scope, messages } = fakeScope();
+    startHost(scope);
+
+    // Use a unique hash so this test is independent of module-level state
+    const hash = await hashLuaDefinition(
+      { schema: { inputs: [], params: {}, output: '3d' }, code: 'return geo.box({size={2,2,2}})' },
+      defaultHasher,
+    );
+
+    scope.onmessage!({ data: { id: 10, kind: 'hasLuaDefinition', hash } });
+    await vi.waitFor(() => expect(messages.length).toBe(1), { timeout: 5000 });
+    const before = messages[0] as OkResponse;
+    expect(before.kind).toBe('ok');
+    expect(before.id).toBe(10);
+    expect(before.present).toBe(false);
+  });
+
+  it('responds ok to putLuaDefinition and then present: true on hasLuaDefinition', async () => {
+    const { scope, messages } = fakeScope();
+    startHost(scope);
+
+    const hash = await hashLuaDefinition(def, defaultHasher);
+
+    // 1. put
+    scope.onmessage!({ data: { id: 20, kind: 'putLuaDefinition', hash, definition: def } });
+    await vi.waitFor(() => expect(messages.length).toBe(1), { timeout: 5000 });
+    const putRes = messages[0] as OkResponse;
+    expect(putRes.kind).toBe('ok');
+    expect(putRes.id).toBe(20);
+    expect(putRes.present).toBeUndefined();
+
+    // 2. has — should now be present
+    scope.onmessage!({ data: { id: 21, kind: 'hasLuaDefinition', hash } });
+    await vi.waitFor(() => expect(messages.length).toBe(2), { timeout: 5000 });
+    const hasRes = messages[1] as OkResponse;
+    expect(hasRes.kind).toBe('ok');
+    expect(hasRes.id).toBe(21);
+    expect(hasRes.present).toBe(true);
+  });
+
+  it('put/has round-trip works without init (no kernel needed for definition management)', async () => {
+    // putLuaDefinition and hasLuaDefinition are handled synchronously on the
+    // message loop — they don't require the backend to be ready, so no WASM
+    // loading is triggered. This confirms the protocol works in isolation.
+    const { scope, messages } = fakeScope();
+    startHost(scope);
+
+    const hash = 'smoke-test-hash';
+    const smokeDef: LuaDefinition = {
+      schema: { inputs: [], params: {}, output: '3d' },
+      code: 'return geo.box({size={3,3,3}})',
+    };
+
+    // Check absent first
+    scope.onmessage!({ data: { id: 30, kind: 'hasLuaDefinition', hash } });
+    await vi.waitFor(() => expect(messages.length).toBe(1), { timeout: 5000 });
+    expect((messages[0] as OkResponse).present).toBe(false);
+
+    // Store
+    scope.onmessage!({ data: { id: 31, kind: 'putLuaDefinition', hash, definition: smokeDef } });
+    await vi.waitFor(() => expect(messages.length).toBe(2), { timeout: 5000 });
+    expect((messages[1] as OkResponse).kind).toBe('ok');
+
+    // Check present
+    scope.onmessage!({ data: { id: 32, kind: 'hasLuaDefinition', hash } });
+    await vi.waitFor(() => expect(messages.length).toBe(3), { timeout: 5000 });
+    expect((messages[2] as OkResponse).present).toBe(true);
   });
 });

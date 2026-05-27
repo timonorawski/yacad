@@ -1,14 +1,19 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
 import type { Mesh } from '@yacad/geometry';
+import type { LuaDefinition } from '@yacad/lua';
 
 /**
  * One-shot initialization carrying the `manifold.wasm` URL, which the main
  * thread resolves (bundlers resolve package asset URLs there, not in the worker
  * sub-bundle) and forwards to the kernel loader.
+ *
+ * `luaWasmUrl`, if provided, is stashed and used to instantiate WasmoonLuaRuntime.
+ * Actual Wasmoon loading is deferred until the first Lua-node evaluation.
  */
 export interface InitRequest {
   readonly kind: 'init';
   readonly wasmUrl: string;
+  readonly luaWasmUrl?: string;
 }
 
 /** Request to evaluate a document (raw parsed JSON) to its root mesh. */
@@ -19,7 +24,32 @@ export interface EvaluateRequest {
   readonly tier: string;
 }
 
-export type WorkerRequest = InitRequest | EvaluateRequest;
+/**
+ * Store a Lua definition in the worker's in-memory definition map.
+ * The worker echoes `{ id, kind: 'ok' }` on success.
+ */
+export interface PutLuaDefinitionRequest {
+  readonly id: number;
+  readonly kind: 'putLuaDefinition';
+  readonly hash: string;
+  readonly definition: LuaDefinition;
+}
+
+/**
+ * Check whether a Lua definition is present in the worker's in-memory map.
+ * The worker echoes `{ id, kind: 'ok', present: boolean }`.
+ */
+export interface HasLuaDefinitionRequest {
+  readonly id: number;
+  readonly kind: 'hasLuaDefinition';
+  readonly hash: string;
+}
+
+export type WorkerRequest =
+  | InitRequest
+  | EvaluateRequest
+  | PutLuaDefinitionRequest
+  | HasLuaDefinitionRequest;
 
 export interface EvaluateOk {
   readonly id: number;
@@ -44,4 +74,14 @@ export interface EvaluateErr {
   readonly error: string;
 }
 
-export type WorkerResponse = EvaluateOk | EvaluateErr;
+/**
+ * Generic acknowledgement for `putLuaDefinition` and `hasLuaDefinition`.
+ * `present` is only set on `hasLuaDefinition` responses.
+ */
+export interface OkResponse {
+  readonly id: number;
+  readonly kind: 'ok';
+  readonly present?: boolean;
+}
+
+export type WorkerResponse = EvaluateOk | EvaluateErr | OkResponse;

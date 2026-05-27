@@ -24,7 +24,8 @@
     "@yacad/dag": "workspace:*",
     "@yacad/engine": "workspace:*",
     "@yacad/geometry": "workspace:*",
-    "@yacad/kernel-manifold": "workspace:*"
+    "@yacad/kernel-manifold": "workspace:*",
+    "@yacad/lua": "workspace:*"
   },
   "devDependencies": {
     "@yacad/tsconfig": "workspace:*"

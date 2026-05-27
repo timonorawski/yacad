@@ -1,8 +1,21 @@
 import { IndexedDbStore, MemoryStore, TieredStore } from '@yacad/cache';
-import { buildGraph } from '@yacad/dag';
+import { buildGraph, registerNodeType } from '@yacad/dag';
 import { Engine } from '@yacad/engine';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
-import type { EvaluateRequest, WorkerRequest, WorkerResponse } from './protocol';
+import {
+  makeLuaNodeType,
+  WasmoonLuaRuntime,
+  type LuaDefinition,
+  type LuaDefinitionResolver,
+} from '@yacad/lua';
+import type {
+  EvaluateRequest,
+  HasLuaDefinitionRequest,
+  OkResponse,
+  PutLuaDefinitionRequest,
+  WorkerRequest,
+  WorkerResponse,
+} from './protocol';
 
 /** Minimal worker-scope surface — satisfied by DedicatedWorkerGlobalScope. */
 export interface WorkerScope {
@@ -19,18 +32,56 @@ export interface WorkerScope {
  * The engine is created lazily: an `init` message supplies the WASM URL in
  * bundled contexts; otherwise it falls back to Emscripten's default lookup
  * (which works under Node).
+ *
+ * Lua state (definition map, runtime, resolver) lives inside this closure so
+ * multiple test instances can co-exist without shared mutable module state.
  */
 export function startHost(scope: WorkerScope): void {
+  // ---------------------------------------------------------------------------
+  // Lua state — scoped to this host instance so tests are isolated.
+  // The resolver is created once and passed to both the node-type registration
+  // and the Engine constructor so both see the same live Map.
+  // ---------------------------------------------------------------------------
+  const luaDefs = new Map<string, LuaDefinition>();
+  const luaResolver: LuaDefinitionResolver = { get: (h) => luaDefs.get(h) };
+  let luaRegistered = false;
+
+  function ensureLuaRegistered(runtime: WasmoonLuaRuntime): void {
+    if (luaRegistered) return;
+    registerNodeType(makeLuaNodeType(runtime, luaResolver));
+    luaRegistered = true;
+  }
+
   let backend: Promise<Backend> | undefined;
+
   scope.onmessage = (event) => {
     const req = event.data as WorkerRequest;
     if (!req) return;
+
     if (req.kind === 'init') {
-      backend = createEngine(() => req.wasmUrl);
+      // Stash the Lua WASM URL and instantiate the runtime — WasmoonLuaRuntime
+      // defers actual Wasmoon loading until the first createEngine() call
+      // (LuaFactory is lazy internally). Register the node type once.
+      if (req.luaWasmUrl) {
+        const luaRuntime = new WasmoonLuaRuntime({ wasmUrl: req.luaWasmUrl });
+        ensureLuaRegistered(luaRuntime);
+      }
+      backend = createEngine(() => req.wasmUrl, luaResolver);
       return;
     }
+
+    if (req.kind === 'putLuaDefinition') {
+      handlePutLuaDefinition(scope, luaDefs, req);
+      return;
+    }
+
+    if (req.kind === 'hasLuaDefinition') {
+      handleHasLuaDefinition(scope, luaDefs, req);
+      return;
+    }
+
     if (req.kind === 'evaluate') {
-      backend ??= createEngine();
+      backend ??= createEngine(undefined, luaResolver);
       void handle(scope, backend, req);
     }
   };
@@ -41,10 +92,35 @@ interface Backend {
   readonly store: TieredStore;
 }
 
-async function createEngine(locateFile?: () => string): Promise<Backend> {
+async function createEngine(
+  locateFile: (() => string) | undefined,
+  luaResolver: LuaDefinitionResolver,
+): Promise<Backend> {
   const toplevel = await loadManifold(locateFile ? { locateFile } : {});
   const store = new TieredStore(new MemoryStore(), new IndexedDbStore());
-  return { engine: new Engine(store, new ManifoldKernel(toplevel)), store };
+  return {
+    engine: new Engine(store, new ManifoldKernel(toplevel), { resolver: luaResolver }),
+    store,
+  };
+}
+
+function handlePutLuaDefinition(
+  scope: WorkerScope,
+  luaDefs: Map<string, LuaDefinition>,
+  req: PutLuaDefinitionRequest,
+): void {
+  luaDefs.set(req.hash, req.definition);
+  const res: OkResponse = { id: req.id, kind: 'ok' };
+  scope.postMessage(res);
+}
+
+function handleHasLuaDefinition(
+  scope: WorkerScope,
+  luaDefs: Map<string, LuaDefinition>,
+  req: HasLuaDefinitionRequest,
+): void {
+  const res: OkResponse = { id: req.id, kind: 'ok', present: luaDefs.has(req.hash) };
+  scope.postMessage(res);
 }
 
 async function handle(

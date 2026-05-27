@@ -258,6 +258,9 @@ importers:
       '@yacad/kernel-manifold':
         specifier: workspace:*
         version: link:../kernel-manifold
+      '@yacad/lua':
+        specifier: workspace:*
+        version: link:../lua
     devDependencies:
       '@yacad/tsconfig':
         specifier: workspace:*

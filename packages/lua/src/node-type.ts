@@ -1,6 +1,5 @@
 import {
   DagError,
-  type DefinitionResolver,
   type ExpandableNodeType,
   type GeometryType,
   type InputRef,

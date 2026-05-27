@@ -12,6 +12,7 @@
     { "path": "../dag" },
     { "path": "../engine" },
     { "path": "../geometry" },
-    { "path": "../kernel-manifold" }
+    { "path": "../kernel-manifold" },
+    { "path": "../lua" }
   ]
 }

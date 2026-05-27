@@ -16,6 +16,7 @@ export default defineConfig({
       '@yacad/cache': pkg('cache'),
       '@yacad/kernel-manifold': pkg('kernel-manifold'),
       '@yacad/engine': pkg('engine'),
+      '@yacad/lua': pkg('lua'),
       '@yacad/worker': pkg('worker'),
       '@yacad/render': pkg('render'),
       '@yacad/export-stl': pkg('export-stl'),
