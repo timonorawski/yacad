@@ -5,6 +5,7 @@
   import type { Mesh } from '@yacad/geometry';
   import { Viewport } from '@yacad/render';
   import { WorkerClient, type EvaluateOutcome } from '@yacad/worker';
+  import type { NodeDoc } from '@yacad/dag';
   import wasmUrl from 'manifold-3d/manifold.wasm?url';
   import sceneBox from '../../../packages/e2e/scenes/primitives/box.json?raw';
   import sceneSphere from '../../../packages/e2e/scenes/primitives/sphere.json?raw';
@@ -14,6 +15,9 @@
   import sceneUnionStack from '../../../packages/e2e/scenes/booleans/union-stack.json?raw';
   import sceneBoxMinusSphere from '../../../packages/e2e/scenes/booleans/box-minus-sphere.json?raw';
   import sceneCoredBlock from '../../../packages/e2e/scenes/composite/cored-block.json?raw';
+  import sceneTangent from '../../../packages/e2e/scenes/edge-cases/tangent-sphere-box.json?raw';
+  import sceneSharedFace from '../../../packages/e2e/scenes/edge-cases/shared-face-cubes.json?raw';
+  import sceneInteriorVoid from '../../../packages/e2e/scenes/edge-cases/interior-void.json?raw';
   import languageReferenceMd from '../../../docs/language-reference.md?raw';
   import EvalWorker from './worker?worker';
 
@@ -46,6 +50,60 @@
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let evalSeq = 0;
 
+  // Stress-test scene generators — too verbose or too parametric to keep as
+  // static files, so they're built on demand for the picker. They mirror the
+  // graphs exercised by the e2e torture suite (packages/e2e/src/torture.test.ts).
+  const pretty = (doc: NodeDoc) => JSON.stringify(doc, null, 2);
+
+  /** `depth` nested translates over a sphere — a long cache-invalidation chain. */
+  function transformChain(depth: number, radius: number): NodeDoc {
+    let node: NodeDoc = { type: 'sphere', params: { radius, segments: 16 } };
+    for (let i = 0; i < depth; i++) {
+      node = { type: 'translate', params: { offset: [1, 0, 0] }, children: [node] };
+    }
+    return node;
+  }
+
+  /** union(difference(<inner>, sphere), translate(box)) nested `levels` deep. */
+  function boolNest(levels: number): NodeDoc {
+    if (levels === 0) return { type: 'box', params: { size: [10, 10, 10], center: true } };
+    return {
+      type: 'union',
+      children: [
+        {
+          type: 'difference',
+          children: [boolNest(levels - 1), { type: 'sphere', params: { radius: 4, segments: 16 } }],
+        },
+        {
+          type: 'translate',
+          params: { offset: [6 * levels, 0, 0] },
+          children: [{ type: 'box', params: { size: [6, 6, 6], center: true } }],
+        },
+      ],
+    };
+  }
+
+  /** A union of `n` overlapping boxes marching along +X. */
+  function wideUnion(n: number): NodeDoc {
+    const children: NodeDoc[] = [];
+    for (let i = 0; i < n; i++) {
+      children.push({
+        type: 'translate',
+        params: { offset: [i * 5, 0, 0] },
+        children: [{ type: 'box', params: { size: [8, 8, 8], center: true } }],
+      });
+    }
+    return { type: 'union', children };
+  }
+
+  const hiResSphereMinusBox: NodeDoc = {
+    type: 'difference',
+    children: [
+      { type: 'sphere', params: { radius: 20, segments: 256 } },
+      { type: 'box', params: { size: [20, 20, 40], center: true } },
+    ],
+  };
+
   const sceneLibrary = [
     { id: 'default', label: 'Default: box - sphere', text: DEFAULT_DOC },
     { id: 'box', label: 'Primitive: box', text: sceneBox },
@@ -56,6 +114,21 @@
     { id: 'union-stack', label: 'Boolean: union stack', text: sceneUnionStack },
     { id: 'box-minus-sphere', label: 'Boolean: box minus sphere', text: sceneBoxMinusSphere },
     { id: 'cored-block', label: 'Composite: cored block', text: sceneCoredBlock },
+    { id: 'edge-tangent', label: 'Edge case: tangent sphere/box', text: sceneTangent },
+    { id: 'edge-shared-face', label: 'Edge case: shared-face cubes', text: sceneSharedFace },
+    { id: 'edge-interior-void', label: 'Edge case: interior void', text: sceneInteriorVoid },
+    { id: 'stress-wide-union', label: 'Stress: wide union (50)', text: pretty(wideUnion(50)) },
+    { id: 'stress-bool-nest', label: 'Stress: boolean nest (×5)', text: pretty(boolNest(5)) },
+    {
+      id: 'stress-chain',
+      label: 'Stress: transform chain (×40)',
+      text: pretty(transformChain(40, 5)),
+    },
+    {
+      id: 'stress-hi-res',
+      label: 'Stress: hi-res sphere − box',
+      text: pretty(hiResSphereMinusBox),
+    },
   ] as const;
 
   const languageReferenceHtml = marked.parse(languageReferenceMd) as string;
