@@ -28,6 +28,12 @@ export async function buildGraph(
   if (typeof type !== 'string') {
     throw new DagError('node "type" must be a string', id);
   }
+  if (type.startsWith('__')) {
+    throw new DagError(
+      `node type "${type}" uses reserved "__" prefix (engine-internal types only)`,
+      id,
+    );
+  }
 
   const def = getNodeType(type);
   if (!def) {
