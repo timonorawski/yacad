@@ -310,6 +310,12 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/vfs:
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/worker:
     dependencies:
       '@yacad/cache':
