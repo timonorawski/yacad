@@ -69,8 +69,12 @@ export interface Vfs {
   list(prefix: string): Promise<readonly string[]>;
 }
 
-export class IndexedDbVfs implements Vfs { /* prod */ }
-export class MemoryVfs implements Vfs { /* tests, in-RAM scratch */ }
+export class IndexedDbVfs implements Vfs {
+  /* prod */
+}
+export class MemoryVfs implements Vfs {
+  /* tests, in-RAM scratch */
+}
 ```
 
 - Keys are path-like strings by **convention only**; the Vfs makes no claims about hierarchy.
@@ -95,11 +99,11 @@ The VFS key layout is convention, not contract:
 
 ```ts
 interface DocMeta {
-  readonly id: string;          // UUID
+  readonly id: string; // UUID
   readonly name: string;
-  readonly createdAt: number;   // ms since epoch
+  readonly createdAt: number; // ms since epoch
   readonly updatedAt: number;
-  readonly thumbnail?: string;  // optional data URL, written by editor later
+  readonly thumbnail?: string; // optional data URL, written by editor later
 }
 ```
 
@@ -130,7 +134,7 @@ interface DocLibrary {
 interface DocSession {
   readonly id: string;
   readonly meta: DocMeta;
-  readonly doc: NodeDoc;                       // current snapshot, frozen
+  readonly doc: NodeDoc; // current snapshot, frozen
   readonly blobs: ReadonlyMap<Hash, Uint8Array>;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -140,20 +144,20 @@ interface DocSession {
   readonly invalidationError?: Error;
 
   mutate(fn: (prev: NodeDoc) => NodeDoc): Promise<void>;
-  addBlob(bytes: Uint8Array): Promise<Hash>;   // hashes, stores, uploads to worker
+  addBlob(bytes: Uint8Array): Promise<Hash>; // hashes, stores, uploads to worker
   undo(): void;
   redo(): void;
-  save(): Promise<void>;                       // explicit; autosave runs too
-  close(): Promise<void>;                      // flush + tear down
+  save(): Promise<void>; // explicit; autosave runs too
+  close(): Promise<void>; // flush + tear down
 
   subscribe(cb: (evt: DocEvent) => void): () => void;
 }
 
 type DocEvent =
-  | { kind: 'doc-changed' }                    // any commit (mutate / undo / redo)
-  | { kind: 'meta-changed' }                   // name etc.
-  | { kind: 'persisted' }                      // save flushed
-  | { kind: 'invalidated'; error: Error };     // worker / persistence failure
+  | { kind: 'doc-changed' } // any commit (mutate / undo / redo)
+  | { kind: 'meta-changed' } // name etc.
+  | { kind: 'persisted' } // save flushed
+  | { kind: 'invalidated'; error: Error }; // worker / persistence failure
 ```
 
 ### Mutation flow

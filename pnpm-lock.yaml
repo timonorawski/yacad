@@ -123,6 +123,28 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/doc-store:
+    dependencies:
+      '@yacad/canonical':
+        specifier: workspace:*
+        version: link:../canonical
+      '@yacad/dag':
+        specifier: workspace:*
+        version: link:../dag
+      '@yacad/hash':
+        specifier: workspace:*
+        version: link:../hash
+      '@yacad/lua':
+        specifier: workspace:*
+        version: link:../lua
+      '@yacad/vfs':
+        specifier: workspace:*
+        version: link:../vfs
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/e2e:
     dependencies:
       '@yacad/cache':

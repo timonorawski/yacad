@@ -51,6 +51,7 @@ The studio app (v1) is **not** wired to these packages — spec 2's studio v2 wi
 ## Task 1: Scaffold `@yacad/vfs` package
 
 **Files:**
+
 - Create: `packages/vfs/package.json`
 - Create: `packages/vfs/tsconfig.json`
 - Modify: `tsconfig.json` (root, add reference)
@@ -128,6 +129,7 @@ git commit -m "feat(vfs): scaffold @yacad/vfs package"
 ## Task 2: Vfs interface + MemoryVfs impl (with parametric test scaffolding)
 
 **Files:**
+
 - Create: `packages/vfs/src/types.ts`
 - Create: `packages/vfs/src/memory-vfs.ts`
 - Create: `packages/vfs/src/index.ts`
@@ -213,11 +215,7 @@ describe.each(impls)('Vfs contract — $name', ({ factory, teardown }) => {
     expect(aKeys).toEqual(['/docs/a/document.json', '/docs/a/meta.json']);
 
     const docsKeys = [...(await vfs.list('/docs/'))].sort();
-    expect(docsKeys).toEqual([
-      '/docs/a/document.json',
-      '/docs/a/meta.json',
-      '/docs/b/meta.json',
-    ]);
+    expect(docsKeys).toEqual(['/docs/a/document.json', '/docs/a/meta.json', '/docs/b/meta.json']);
   });
 
   it('list returns an empty array for a prefix with no matches', async () => {
@@ -363,7 +361,10 @@ export class IndexedDbVfs implements Vfs {
     // with `prefix` lexicographically — ￿ is the highest code point in
     // the BMP, larger than anything realistic application code emits.
     const range = IDBKeyRange.bound(prefix, prefix + '￿', false, true);
-    return this.run<readonly string[]>('readonly', (s) => s.getAllKeys(range) as IDBRequest<readonly string[]>);
+    return this.run<readonly string[]>(
+      'readonly',
+      (s) => s.getAllKeys(range) as IDBRequest<readonly string[]>,
+    );
   }
 
   /** Closes the backing connection (mainly for test isolation). */
@@ -406,6 +407,7 @@ git commit -m "feat(vfs): Vfs interface + MemoryVfs + IndexedDbVfs impls"
 ## Task 3: Scaffold `@yacad/doc-store` package
 
 **Files:**
+
 - Create: `packages/doc-store/package.json`
 - Create: `packages/doc-store/tsconfig.json`
 - Modify: `tsconfig.json` (root)
@@ -504,6 +506,7 @@ git commit -m "feat(doc-store): scaffold @yacad/doc-store package"
 ## Task 4: Define shared types
 
 **Files:**
+
 - Create: `packages/doc-store/src/types.ts`
 - Create: `packages/doc-store/src/index.ts`
 
@@ -572,6 +575,7 @@ git commit -m "feat(doc-store): DocMeta, DocEvent, BlobUploader types"
 ## Task 5: Define VFS key conventions
 
 **Files:**
+
 - Create: `packages/doc-store/src/paths.ts`
 - Create: `packages/doc-store/src/paths.test.ts`
 
@@ -675,6 +679,7 @@ git commit -m "feat(doc-store): VFS key convention helpers"
 ## Task 6: DocLibrary — list / create / rename / delete (without open)
 
 **Files:**
+
 - Create: `packages/doc-store/src/library.ts`
 - Create: `packages/doc-store/src/library.test.ts`
 
@@ -979,6 +984,7 @@ git commit -m "feat(doc-store): DocLibrary list/create/rename/delete + DocSessio
 ## Task 7: DocSession.mutate with validation + history
 
 **Files:**
+
 - Modify: `packages/doc-store/src/session.ts`
 - Create: `packages/doc-store/src/session.test.ts`
 
@@ -1031,7 +1037,7 @@ describe('DocSession.mutate', () => {
     const before = session.doc;
 
     await expect(
-      session.mutate(() => ({ type: 'not-a-real-type', params: {} } as NodeDoc)),
+      session.mutate(() => ({ type: 'not-a-real-type', params: {} }) as NodeDoc),
     ).rejects.toThrow();
 
     expect(session.doc).toBe(before);
@@ -1258,6 +1264,7 @@ git commit -m "feat(doc-store): DocSession.mutate with validation + snapshot und
 ## Task 8: DocSession.addBlob with idempotent worker upload
 
 **Files:**
+
 - Modify: `packages/doc-store/src/session.ts`
 - Modify: `packages/doc-store/src/session.test.ts`
 
@@ -1368,6 +1375,7 @@ git commit -m "feat(doc-store): DocSession.addBlob with idempotent worker upload
 ## Task 9: Autosave + explicit save + close drain
 
 **Files:**
+
 - Modify: `packages/doc-store/src/session.ts`
 - Modify: `packages/doc-store/src/session.test.ts`
 
@@ -1688,6 +1696,7 @@ git commit -m "feat(doc-store): autosave + explicit save + close drain"
 ## Task 10: DocLibrary.open with blob load, worker sync, and invalidated state
 
 **Files:**
+
 - Modify: `packages/doc-store/src/library.ts`
 - Modify: `packages/doc-store/src/session.ts`
 - Create: `packages/doc-store/src/open.test.ts`
@@ -1782,7 +1791,10 @@ describe('DocLibrary.open', () => {
 
   it('enters invalidated state when the loaded doc fails buildGraph', async () => {
     const vfs = new MemoryVfs();
-    const { lib, id } = await plant(vfs, { type: 'this-type-does-not-exist', params: {} } as NodeDoc);
+    const { lib, id } = await plant(vfs, {
+      type: 'this-type-does-not-exist',
+      params: {},
+    } as NodeDoc);
     const session = await lib.open(id);
     expect(session.state).toBe('invalidated');
     expect(session.doc).toMatchObject({ type: 'this-type-does-not-exist' });
@@ -1935,6 +1947,7 @@ Expected: all green. `pnpm test` should show ≥ 22 new tests (≥ 14 vfs + ≥ 
 - [ ] **Step 2: If any check fails, fix and re-run**
 
 Common fixes:
+
 - Prettier drift: `pnpm format` then re-run `format:check`.
 - ESLint complaints about implicit `any` in test files: add explicit types.
 - TS errors about missing references: confirm `tsconfig.json` references are added for both packages.
