@@ -53,7 +53,16 @@ export class DocLibrary {
     const doc: NodeDoc = seed ?? DEFAULT_SEED;
     await this.vfs.write(metaKey(id), ENC.encode(JSON.stringify(meta)));
     await this.vfs.write(docKey(id), ENC.encode(JSON.stringify(doc)));
-    const session = await this.open(id, options);
+
+    let session: DocSession;
+    try {
+      session = await this.open(id, options);
+    } catch (err) {
+      // Any failure opening the new doc must roll back the partial write.
+      await this.delete(id);
+      throw err;
+    }
+
     if (session.state === 'invalidated') {
       // Roll back the failed creation so a bad seed doesn't leave an
       // un-openable document in the library.

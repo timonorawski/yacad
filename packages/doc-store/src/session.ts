@@ -36,7 +36,7 @@ export class DocSession {
   ) {
     this.id = meta.id;
     this.currentMeta = meta;
-    this.currentDoc = doc;
+    this.currentDoc = deepFreeze(doc);
     this.autosaveMs = options.autosaveMs ?? DEFAULT_AUTOSAVE_MS;
   }
 
@@ -77,7 +77,7 @@ export class DocSession {
     const docBytes = await vfs.read(docKey(id));
     if (!docBytes) throw new Error(`document "${id}" has no document.json`);
     const doc = JSON.parse(DEC.decode(docBytes)) as NodeDoc;
-    const session = new DocSession(vfs, uploader, meta, doc, options);
+    const session = new DocSession(vfs, uploader, meta, deepFreeze(doc), options);
 
     // Load blobs and seed the session's blob map.
     const blobKeys = await vfs.list(listBlobsPrefix(id));
@@ -126,7 +126,7 @@ export class DocSession {
 
       this.undoStack.push(this.currentDoc);
       this.redoStack.length = 0;
-      this.currentDoc = next;
+      this.currentDoc = deepFreeze(next);
       this.markDirty();
       this.emit({ kind: 'doc-changed' });
     } finally {
@@ -136,22 +136,40 @@ export class DocSession {
 
   undo(): void {
     if (this.currentState === 'invalidated') return;
+    if (this.mutating) return;
     const prev = this.undoStack.pop();
     if (prev === undefined) return;
     this.redoStack.push(this.currentDoc);
-    this.currentDoc = prev;
+    this.currentDoc = deepFreeze(prev);
     this.markDirty();
     this.emit({ kind: 'doc-changed' });
   }
 
   redo(): void {
     if (this.currentState === 'invalidated') return;
+    if (this.mutating) return;
     const next = this.redoStack.pop();
     if (next === undefined) return;
     this.undoStack.push(this.currentDoc);
-    this.currentDoc = next;
+    this.currentDoc = deepFreeze(next);
     this.markDirty();
     this.emit({ kind: 'doc-changed' });
+  }
+
+  /**
+   * Update the document's display name. Bumps `updatedAt`, persists in the
+   * next autosave, and emits `meta-changed` to subscribers. For closed docs,
+   * use `DocLibrary.rename` instead — those two paths must not be combined
+   * for the same document while it's open.
+   */
+  updateMeta(patch: { name?: string }): void {
+    if (this.currentState === 'invalidated') {
+      throw new Error('cannot update meta: session is invalidated');
+    }
+    if (patch.name === undefined || patch.name === this.currentMeta.name) return;
+    this.currentMeta = { ...this.currentMeta, name: patch.name };
+    this.markDirty();
+    this.emit({ kind: 'meta-changed' });
   }
 
   async addBlob(bytes: Uint8Array): Promise<Hash> {
@@ -240,4 +258,18 @@ export class DocSession {
       }
     }
   }
+}
+
+/**
+ * Recursively freezes an object and all its nested objects/arrays. Used to
+ * make session.doc tamper-proof at runtime so a UI binding that accidentally
+ * tries to mutate the snapshot fails fast instead of silently corrupting
+ * session state.
+ */
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return Object.freeze(value) as T;
 }

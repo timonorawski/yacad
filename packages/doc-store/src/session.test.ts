@@ -202,6 +202,84 @@ describe('DocSession.addBlob', () => {
   });
 });
 
+describe('DocSession.updateMeta', () => {
+  it('updates the name, emits meta-changed, and marks dirty', async () => {
+    const lib = new DocLibrary(new MemoryVfs(), noopUploader);
+    const session = await lib.create('Original');
+    const events: DocEvent[] = [];
+    session.subscribe((e) => events.push(e));
+
+    session.updateMeta({ name: 'Renamed' });
+
+    expect(session.meta.name).toBe('Renamed');
+    expect(events.some((e) => e.kind === 'meta-changed')).toBe(true);
+    expect(session.isDirty).toBe(true);
+  });
+
+  it('is a no-op when the name is unchanged', async () => {
+    const lib = new DocLibrary(new MemoryVfs(), noopUploader);
+    const session = await lib.create('Same');
+    const events: DocEvent[] = [];
+    session.subscribe((e) => events.push(e));
+
+    session.updateMeta({ name: 'Same' });
+
+    expect(events).toEqual([]);
+    expect(session.isDirty).toBe(false);
+  });
+
+  it('persists the new name on save', async () => {
+    const vfs = new MemoryVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('Original');
+    session.updateMeta({ name: 'New' });
+    await session.save();
+
+    const metaBytes = await vfs.read(`/docs/${session.id}/meta.json`);
+    const parsed = JSON.parse(new TextDecoder().decode(metaBytes!));
+    expect(parsed.name).toBe('New');
+  });
+});
+
+describe('DocSession deep-freeze', () => {
+  it('session.doc is deep-frozen', async () => {
+    const session = await freshSession();
+    expect(Object.isFrozen(session.doc)).toBe(true);
+    // Frozen mutations throw in strict mode (vitest runs strict).
+    expect(() => {
+      (session.doc as { type: string }).type = 'changed';
+    }).toThrow();
+  });
+});
+
+describe('DocSession.undo/redo mutating guard', () => {
+  it('undo() is a no-op while mutate() is in flight', async () => {
+    const session = await freshSession();
+    await session.mutate(() => ({ type: 'sphere', params: { radius: 5 } }));
+    const sphereDoc = session.doc;
+
+    // `mutating` is set synchronously at the start of mutate() before the
+    // first await, so the guard fires when undo() is called during the
+    // microtask gap. Racing via Promise resolution ordering:
+    let undoCalledDuringMutate = false;
+    const inflight = session.mutate(() => {
+      // Call undo synchronously from within the mutate fn (mutating = true).
+      // undo() must ignore this call; if it doesn't, doc would regress.
+      session.undo();
+      undoCalledDuringMutate = true;
+      return { type: 'cylinder', params: { height: 1, radius: 1 } };
+    });
+
+    await inflight;
+    expect(undoCalledDuringMutate).toBe(true);
+    // Undo inside mutate fn was a no-op — cylinder committed successfully.
+    expect(session.doc).toMatchObject({ type: 'cylinder' });
+    // Undo now works (not mutating): reverts to sphere.
+    session.undo();
+    expect(session.doc).toEqual(sphereDoc);
+  });
+});
+
 describe('DocSession persistence', () => {
   it('save() writes document.json + meta.json to the VFS', async () => {
     const vfs = new MemoryVfs();

@@ -125,9 +125,6 @@ importers:
 
   packages/doc-store:
     dependencies:
-      '@yacad/canonical':
-        specifier: workspace:*
-        version: link:../canonical
       '@yacad/dag':
         specifier: workspace:*
         version: link:../dag

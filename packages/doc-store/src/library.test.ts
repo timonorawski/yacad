@@ -100,4 +100,30 @@ describe('DocLibrary', () => {
     const docs = await lib.list();
     expect(docs).toHaveLength(0);
   });
+
+  it('create rolls back the partial doc when open() throws', async () => {
+    class FailReadAfterNVfs extends MemoryVfs {
+      reads = 0;
+      readonly failAfter: number;
+      constructor(failAfter: number) {
+        super();
+        this.failAfter = failAfter;
+      }
+      override async read(key: string): Promise<Uint8Array | undefined> {
+        this.reads++;
+        if (this.reads > this.failAfter) throw new Error('simulated read failure');
+        return super.read(key);
+      }
+    }
+    // create() does: write meta, write doc, then open() reads meta + doc + lists blobs.
+    // Allow the two writes to succeed, then fail starting on the first read.
+    const vfs = new FailReadAfterNVfs(0);
+    const lib2 = new DocLibrary(vfs, noopUploader);
+    await expect(lib2.create('Bad')).rejects.toThrow(/simulated read failure/);
+
+    // Verify no orphan entries remain: re-enable reads and check list is empty.
+    vfs.reads = -1000; // never trigger failure
+    const docs = await lib2.list();
+    expect(docs).toHaveLength(0);
+  });
 });

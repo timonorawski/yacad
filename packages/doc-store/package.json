@@ -16,7 +16,6 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@yacad/canonical": "workspace:*",
     "@yacad/dag": "workspace:*",
     "@yacad/hash": "workspace:*",
     "@yacad/lua": "workspace:*",
