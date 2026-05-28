@@ -36,4 +36,7 @@ export default defineConfig({
   worker: { format: 'es' },
   // Emscripten-built WASM module doesn't pre-bundle cleanly.
   optimizeDeps: { exclude: ['manifold-3d'] },
+  server: {
+    allowedHosts: ['127.0.0.1', '::1', 'cad.yamplay.cc'],
+  }
 });
