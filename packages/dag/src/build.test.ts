@@ -257,6 +257,33 @@ describe('spline node type', () => {
   });
 });
 
+describe('translate_2d node type', () => {
+  it('builds with vec2 offset and a single 2D child', async () => {
+    const node = await buildGraph({
+      type: 'translate_2d',
+      params: { offset: [10, -5] },
+      children: [{ type: 'circle', params: { radius: 1 } }],
+    });
+    expect(node.outputType).toBe('2d');
+  });
+
+  it('rejects a 3D child', async () => {
+    await expect(
+      buildGraph({
+        type: 'translate_2d',
+        params: { offset: [10, -5] },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/2d/);
+  });
+
+  it('requires exactly one child', async () => {
+    await expect(
+      buildGraph({ type: 'translate_2d', params: { offset: [0, 0] }, children: [] }),
+    ).rejects.toThrow(/exactly one/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',

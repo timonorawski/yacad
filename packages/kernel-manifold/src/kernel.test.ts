@@ -180,6 +180,27 @@ it('kernel evaluates spline to a tessellated CrossSection', async () => {
   }
 });
 
+it('kernel evaluates translate_2d: shifts polygon centroid by offset', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const node = await buildGraph({
+    type: 'translate_2d',
+    params: { offset: [10, 20] },
+    children: [{ type: 'circle', params: { radius: 1, segments: 4 } }],
+  });
+  const childGeo = kernel.evaluate(node.children[0]!, []);
+  const { geometry } = kernel.evaluateTimed(node, [childGeo]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    // Centroid of all vertices should be close to the offset (10, 20)
+    const pts = geometry.section.polygons[0]!;
+    expect(pts.length).toBeGreaterThan(0);
+    const sumX = pts.reduce((s, p) => s + p[0]!, 0);
+    const sumY = pts.reduce((s, p) => s + p[1]!, 0);
+    expect(sumX / pts.length).toBeCloseTo(10, 5);
+    expect(sumY / pts.length).toBeCloseTo(20, 5);
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({

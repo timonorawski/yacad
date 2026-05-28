@@ -1,6 +1,16 @@
 import { DagError, type GeometryType, type Node, type NodeDoc } from './types';
 import type { Hash } from '@yacad/hash';
-import { asRecord, optBool, optSegments, posNum, posVec2, posVec3, vec2Array, vec3 } from './validate';
+import {
+  asRecord,
+  optBool,
+  optSegments,
+  posNum,
+  posVec2,
+  posVec3,
+  vec2,
+  vec2Array,
+  vec3,
+} from './validate';
 
 const DEFAULT_SEGMENTS = 32;
 
@@ -138,6 +148,25 @@ function transform(
   };
 }
 
+/** A unary 2D transform: exactly one 2D child, '2d' output. */
+function transform2d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '2d',
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '2d', path);
+    },
+    normalizeParams,
+  };
+}
+
 /** An n-ary boolean: one or more 3D children, 3D output, no params. */
 function boolean(type: string): KernelNodeType {
   return {
@@ -236,6 +265,10 @@ const defs: NodeTypeDef[] = [
               return tension;
             })(),
     };
+  }),
+  transform2d('translate_2d', (params, path) => {
+    const p = asRecord(params, path);
+    return { offset: vec2(p, 'offset', path) };
   }),
 ];
 

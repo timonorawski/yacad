@@ -1,6 +1,6 @@
 import { type Manifold as Solid, type ManifoldToplevel } from 'manifold-3d';
 import type { Node, Vec3 } from '@yacad/dag';
-import type { Geometry, Mesh } from '@yacad/geometry';
+import type { CrossSection, Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
 import { catmullRomClosed } from './spline';
 
@@ -47,6 +47,13 @@ function asMesh(g: Geometry, nodeId: string, i: number): Mesh {
   return g.mesh;
 }
 
+function asCrossSection(g: Geometry, nodeId: string, i: number): CrossSection {
+  if (g.kind !== '2d') {
+    throw new KernelError(`node ${nodeId}: expected 2D child at index ${i}, got 3D`);
+  }
+  return g.section;
+}
+
 /**
  * The primary kernel (CLAUDE.md #7), backed by Manifold WASM.
  *
@@ -79,6 +86,9 @@ export class ManifoldKernel implements Kernel {
     }
     if (node.type === 'spline') {
       return this.evaluateSpline(node);
+    }
+    if (node.type === 'translate_2d') {
+      return this.evaluateTranslate2d(node, childGeometries);
     }
 
     // Import: rebuild every child solid up front so the op phase measures only
@@ -150,7 +160,8 @@ export class ManifoldKernel implements Kernel {
     const importMs = 0;
     const opStart = performance.now();
     const points = node.params['points'] as ReadonlyArray<readonly [number, number]>;
-    const cs = this.api.CrossSection.ofPolygons([points]);
+    // Cast away readonly: Manifold's ofPolygons expects mutable arrays.
+    const cs = this.api.CrossSection.ofPolygons([points] as unknown as [number, number][][]);
     const opMs = performance.now() - opStart;
     const exportStart = performance.now();
     const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
@@ -168,11 +179,32 @@ export class ManifoldKernel implements Kernel {
     const segmentsPerCurve = node.params['segmentsPerCurve'] as number;
     const tension = node.params['tension'] as number;
     const tess = catmullRomClosed(points, segmentsPerCurve, tension);
-    const cs = this.api.CrossSection.ofPolygons([tess]);
+    // Cast away readonly: Manifold's ofPolygons expects mutable arrays.
+    const cs = this.api.CrossSection.ofPolygons([tess] as unknown as [number, number][][]);
     const opMs = performance.now() - opStart;
     const exportStart = performance.now();
     const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
     cs.delete?.();
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+    };
+  }
+
+  private evaluateTranslate2d(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    const child = asCrossSection(childGeometries[0]!, node.id, 0);
+    const importStart = performance.now();
+    // Cast readonly nested arrays to the mutable form Manifold's ofPolygons expects.
+    const cs = this.api.CrossSection.ofPolygons(child.polygons as unknown as [number, number][][]);
+    const importMs = performance.now() - importStart;
+    const opStart = performance.now();
+    const [dx, dy] = node.params['offset'] as [number, number];
+    const translated = cs.translate([dx, dy]);
+    const opMs = performance.now() - opStart;
+    const exportStart = performance.now();
+    const polygons = translated.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    cs.delete?.();
+    translated.delete?.();
     return {
       geometry: { kind: '2d', section: { polygons } },
       timings: { importMs, opMs, exportMs: performance.now() - exportStart },
