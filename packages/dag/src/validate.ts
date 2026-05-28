@@ -1,5 +1,6 @@
 import { DagError } from './types';
 import type { Vec3 } from './types';
+import type { Vec2 } from '@yacad/geometry';
 
 /** Narrow an unknown params payload to a plain record. */
 export function asRecord(params: unknown, path: string): Record<string, unknown> {
@@ -40,6 +41,28 @@ export function vec3(p: Record<string, unknown>, key: string, path: string): Vec
 export function posVec3(p: Record<string, unknown>, key: string, path: string): Vec3 {
   const v = vec3(p, key, path);
   for (let i = 0; i < 3; i++) {
+    if (v[i]! <= 0) throw new DagError(`"${key}[${i}]" must be greater than 0`, path);
+  }
+  return v;
+}
+
+export function vec2(p: Record<string, unknown>, key: string, path: string): Vec2 {
+  const v = p[key];
+  if (!Array.isArray(v) || v.length !== 2) {
+    throw new DagError(`"${key}" must be a 2-element array`, path);
+  }
+  for (let i = 0; i < 2; i++) {
+    const n = v[i];
+    if (typeof n !== 'number' || !Number.isFinite(n)) {
+      throw new DagError(`"${key}[${i}]" must be a finite number`, path);
+    }
+  }
+  return [v[0] as number, v[1] as number];
+}
+
+export function posVec2(p: Record<string, unknown>, key: string, path: string): Vec2 {
+  const v = vec2(p, key, path);
+  for (let i = 0; i < 2; i++) {
     if (v[i]! <= 0) throw new DagError(`"${key}[${i}]" must be greater than 0`, path);
   }
   return v;
