@@ -36,6 +36,7 @@ The output type also picks the cache artifact kind (`crossSection` vs `mesh`), s
 | [`offset_2d`](#offset_2d)                                                                           | 2D               | exactly 1 (2D)    |
 | [`refine`](#refine)                                                                                 | 3D               | exactly 1 (3D)    |
 | [`extrude`](#extrude) / [`revolve`](#revolve)                                                       | 3D               | exactly 1 (2D)    |
+| [`section`](#section)                                                                               | 2D               | exactly 1 (3D)    |
 | [`lua`](#lua)                                                                                       | per schema       | per schema        |
 | [`import-stl`](#import-stl)                                                                         | 3D               | 0                 |
 
@@ -379,6 +380,52 @@ Sweeps a 2D region around the chosen axis to produce a 3D solid.
 - `degrees`: optional finite number, default `360`. Sweep arc — less than 360 produces an open-arc sweep.
 
 The input 2D profile must lie entirely on the non-negative side of the swept axis. Translate the profile if needed before revolving.
+
+## 3D→2D bridges
+
+### `section`
+
+Cut a 3D solid with an arbitrary plane; produces the 2D `CrossSection` where the plane intersects the solid.
+
+```json
+{
+  "type": "section",
+  "params": {
+    "origin": [0, 0, 5],
+    "normal": [0, 0, 1]
+  },
+  "children": [
+    {
+      "type": "difference",
+      "children": [
+        { "type": "box", "params": { "size": [10, 10, 10], "center": true } },
+        { "type": "sphere", "params": { "radius": 4 } }
+      ]
+    }
+  ]
+}
+```
+
+- `origin`: required `vec3` point on the cut plane.
+- `normal`: required `vec3` normal to the cut plane. Non-zero; need not be unit length (kernel normalizes internally). The shortest-arc rotation aligning `normal` with `+Z` determines the output's X/Y axes.
+
+**Edge cases:**
+
+- Plane that misses the solid → empty `CrossSection` (not an error).
+- Plane tangent to a face → behavior depends on Manifold's tolerance handling (may be empty or a degenerate strip). Nudge `origin` by epsilon if you hit this.
+- `normal` anti-parallel to `+Z` (i.e., `[0, 0, -1]`) → rotation is 180° around X; resulting section is mirrored vs the equivalent `[0, 0, 1]` slice.
+
+Use case: section-then-extrude is the canonical "lift a 2D profile out of a 3D part for further parametric ops" workflow:
+
+```json
+{
+  "type": "extrude",
+  "params": { "height": 2 },
+  "children": [
+    { "type": "section", "params": { "origin": [0, 0, 0], "normal": [0, 0, 1] }, "children": [...] }
+  ]
+}
+```
 
 ## Lua code nodes
 
