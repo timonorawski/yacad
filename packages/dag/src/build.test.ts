@@ -118,6 +118,13 @@ describe('buildGraph', () => {
     });
   });
 
+  it('rejects reserved __-prefixed node types in authored documents', async () => {
+    await expect(buildGraph({ type: '__input_ref', params: { name: 'foo' } })).rejects.toThrow(
+      /reserved/i,
+    );
+    await expect(buildGraph({ type: '__anything' })).rejects.toThrow(/reserved/i);
+  });
+
   describe('buildFromJson', () => {
     it('parses and builds', async () => {
       const node = await buildFromJson('{"type":"box","params":{"size":[2,2,2]}}');

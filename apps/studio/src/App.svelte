@@ -3,10 +3,14 @@
   import { marked } from 'marked';
   import { meshToBinaryStl } from '@yacad/export-stl';
   import type { Mesh } from '@yacad/geometry';
+  import { defaultHasher } from '@yacad/hash';
+  import { hashLuaDefinition } from '@yacad/lua';
+  import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION } from '@yacad/e2e/fixtures';
   import { Viewport } from '@yacad/render';
   import { WorkerClient, type EvaluateOutcome } from '@yacad/worker';
   import type { NodeDoc } from '@yacad/dag';
   import wasmUrl from 'manifold-3d/manifold.wasm?url';
+  import luaWasmUrl from 'wasmoon/dist/glue.wasm?url';
   import sceneBox from '../../../packages/e2e/scenes/primitives/box.json?raw';
   import sceneSphere from '../../../packages/e2e/scenes/primitives/sphere.json?raw';
   import sceneCylinder from '../../../packages/e2e/scenes/primitives/cylinder.json?raw';
@@ -49,6 +53,22 @@
   let lastMesh = $state<Mesh | undefined>(undefined);
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let evalSeq = 0;
+
+  // Lua definition hashes — populated once on mount (async hash of canonical form).
+  let gearHash = $state('');
+  let arrayAlongXHash = $state('');
+  // Tracks which definition hashes have already been pushed to the worker.
+  const pushedDefinitions = new Set<string>();
+
+  /** Push a Lua definition to the worker exactly once per hash. */
+  async function ensureLuaDefinition(
+    hash: string,
+    def: typeof GEAR_DEFINITION | typeof ARRAY_ALONG_X_DEFINITION,
+  ): Promise<void> {
+    if (!hash || pushedDefinitions.has(hash)) return;
+    pushedDefinitions.add(hash);
+    await client.putLuaDefinition(hash, def);
+  }
 
   // Stress-test scene generators — too verbose or too parametric to keep as
   // static files, so they're built on demand for the picker. They mirror the
@@ -104,6 +124,141 @@
     ],
   };
 
+  /** Tiny deterministic PRNG so wobble stays reproducible for the same seed. */
+  function mulberry32(seed: number): () => number {
+    let s = seed >>> 0;
+    return () => {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  interface TreeOpts {
+    depth: number; // recursion levels above the leaf branches
+    splits: number; // sub-branches per branch
+    trunkLength: number;
+    trunkRadius: number;
+    lengthTaper: number; // child length = parent length × this
+    radiusTaper: number; // child radius = parent radius × this
+    branchAngle: number; // degrees from parent axis
+    phyllotaxis: number; // degrees between successive children around parent axis
+    leafScale: number; // leaf radius = branch length × this
+    trunkSegments: number;
+    leafSegments: number;
+    /** ±degrees of deterministic per-branch perturbation; 0 ⇒ fully symmetric (max cache dedup). */
+    wobble: number;
+    seed: number;
+  }
+
+  /**
+   * Generate a recursive branching tree as a DAG. Each branch is a cylinder
+   * pointing +Z; sub-branches are rotated by `branchAngle` away from that axis
+   * and spun around it by successive multiples of the golden angle
+   * (`phyllotaxis`). Leaves are spheres at the branch tips.
+   *
+   * With `wobble: 0` every sub-branch at a given depth is structurally identical,
+   * so content-addressing dedupes aggressively (a few dozen kernel calls cover
+   * hundreds of node references). With `wobble > 0` each branch picks up a
+   * deterministic perturbation from a seeded PRNG, breaking dedup — every branch
+   * becomes a unique cache miss, hammering the kernel.
+   */
+  function procTree(opts: TreeOpts): NodeDoc {
+    const prng = mulberry32(opts.seed);
+    const jitter = (range: number) => (opts.wobble ? (prng() * 2 - 1) * range : 0);
+
+    function build(length: number, radius: number, depth: number, segments: number): NodeDoc {
+      const trunk: NodeDoc = {
+        type: 'cylinder',
+        params: { height: length, radius, segments, center: false },
+      };
+      if (depth === 0) {
+        const leaf: NodeDoc = {
+          type: 'translate',
+          params: { offset: [0, 0, length] },
+          children: [
+            {
+              type: 'sphere',
+              params: { radius: length * opts.leafScale, segments: opts.leafSegments },
+            },
+          ],
+        };
+        return { type: 'union', children: [trunk, leaf] };
+      }
+
+      const subLen = length * opts.lengthTaper;
+      const subRad = radius * opts.radiusTaper;
+      const subSeg = Math.max(6, Math.round(segments * 0.8));
+
+      const children: NodeDoc[] = [trunk];
+      for (let i = 0; i < opts.splits; i++) {
+        const phi = i * opts.phyllotaxis + jitter(opts.wobble * 6);
+        const ba = opts.branchAngle + jitter(opts.wobble);
+        const sub = build(subLen, subRad, depth - 1, subSeg);
+        children.push({
+          type: 'translate',
+          params: { offset: [0, 0, length] },
+          children: [{ type: 'rotate', params: { angles: [0, ba, phi] }, children: [sub] }],
+        });
+      }
+      return { type: 'union', children };
+    }
+
+    return build(opts.trunkLength, opts.trunkRadius, opts.depth, opts.trunkSegments);
+  }
+
+  const treeBaseOpts: TreeOpts = {
+    depth: 3,
+    splits: 3,
+    trunkLength: 18,
+    trunkRadius: 1.1,
+    lengthTaper: 0.68,
+    radiusTaper: 0.6,
+    branchAngle: 28,
+    phyllotaxis: 137.5,
+    leafScale: 0.4,
+    trunkSegments: 14,
+    leafSegments: 12,
+    wobble: 0,
+    seed: 1,
+  };
+
+  const luaScenes = $derived([
+    {
+      id: 'lua-gear',
+      label: 'Lua: gear (teeth=8, radius=5)',
+      text: pretty({
+        type: 'lua',
+        params: { definitionHash: gearHash, values: { teeth: 8, radius: 5.0 } },
+      } as NodeDoc),
+      defHash: gearHash,
+      def: GEAR_DEFINITION,
+    },
+    {
+      id: 'lua-gear-customized',
+      label: 'Lua: gear customized (teeth=12, radius=3)',
+      text: pretty({
+        type: 'lua',
+        params: { definitionHash: gearHash, values: { teeth: 12, radius: 3.0 } },
+      } as NodeDoc),
+      defHash: gearHash,
+      def: GEAR_DEFINITION,
+    },
+    {
+      id: 'lua-array-of-spheres',
+      label: 'Lua: array of spheres (count=4, spacing=3)',
+      text: pretty({
+        type: 'lua',
+        params: { definitionHash: arrayAlongXHash, values: { count: 4, spacing: 3.0 } },
+        children: [{ type: 'sphere', params: { radius: 1, segments: 32 } }],
+      } as NodeDoc),
+      defHash: arrayAlongXHash,
+      def: ARRAY_ALONG_X_DEFINITION,
+    },
+  ]);
+
   const sceneLibrary = [
     { id: 'default', label: 'Default: box - sphere', text: DEFAULT_DOC },
     { id: 'box', label: 'Primitive: box', text: sceneBox },
@@ -129,7 +284,17 @@
       label: 'Stress: hi-res sphere − box',
       text: pretty(hiResSphereMinusBox),
     },
-  ] as const;
+    {
+      id: 'stress-tree-symmetric',
+      label: 'Stress: tree (symmetric, cache-friendly)',
+      text: pretty(procTree({ ...treeBaseOpts, wobble: 0 })),
+    },
+    {
+      id: 'stress-tree-realworld',
+      label: 'Stress: tree (real-world, every branch unique)',
+      text: pretty(procTree({ ...treeBaseOpts, wobble: 1, seed: 42 })),
+    },
+  ];
 
   const languageReferenceHtml = marked.parse(languageReferenceMd) as string;
 
@@ -154,7 +319,7 @@
 
   onMount(() => {
     const worker = new EvalWorker();
-    client = new WorkerClient(worker, { wasmUrl });
+    client = new WorkerClient(worker, { wasmUrl, luaWasmUrl });
     viewport = new Viewport(canvas);
 
     const ro = new ResizeObserver(() => {
@@ -162,6 +327,15 @@
       viewport.resize(rect.width, rect.height);
     });
     ro.observe(canvas);
+
+    // Pre-compute Lua definition hashes so scene text is ready when the user
+    // opens the dropdown. Hashing is async but fast (SubtleCrypto SHA-256).
+    void hashLuaDefinition(GEAR_DEFINITION, defaultHasher).then((h) => {
+      gearHash = h;
+    });
+    void hashLuaDefinition(ARRAY_ALONG_X_DEFINITION, defaultHasher).then((h) => {
+      arrayAlongXHash = h;
+    });
 
     void evaluate();
 
@@ -193,11 +367,17 @@
     }
   }
 
-  function pickScene(id: string): void {
-    const scene = sceneLibrary.find((entry) => entry.id === id);
+  async function pickScene(id: string): Promise<void> {
+    const staticScene = sceneLibrary.find((entry) => entry.id === id);
+    const luaScene = luaScenes.find((entry) => entry.id === id);
+    const scene = staticScene ?? luaScene;
     if (!scene) return;
     selectedScene = scene.id;
     text = JSON.stringify(JSON.parse(scene.text), null, 2);
+    // For Lua scenes, push the definition to the worker before evaluating.
+    if (luaScene) {
+      await ensureLuaDefinition(luaScene.defHash, luaScene.def);
+    }
     void evaluate();
   }
 
@@ -263,6 +443,9 @@
         >
           <option value="custom">Custom (current editor)</option>
           {#each sceneLibrary as scene}
+            <option value={scene.id}>{scene.label}</option>
+          {/each}
+          {#each luaScenes as scene}
             <option value={scene.id}>{scene.label}</option>
           {/each}
         </select>

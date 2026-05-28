@@ -1,6 +1,6 @@
 import { canonicalBytes } from '@yacad/canonical';
 import { defaultHasher, type Hash, type Hasher } from '@yacad/hash';
-import { getNodeType } from './registry';
+import { getNodeType, NOOP_RESOLVER, type DefinitionResolver } from './registry';
 import { DagError, type Node, type NodeId } from './types';
 
 /**
@@ -13,11 +13,18 @@ import { DagError, type Node, type NodeId } from './types';
  *
  * `id` is a path-derived authoring identity ('$' for the root, '$/0' for its
  * first child) and is intentionally excluded from the hash.
+ *
+ * `resolver` is forwarded to expandable node types so they can look up their
+ * stored definitions (e.g., LuaDefinition) during param normalisation, child
+ * checking, and output-type resolution. Pass `undefined` to use a no-op
+ * resolver (expandable nodes that require a real resolver will throw at that
+ * point, not here).
  */
 export async function buildGraph(
   doc: unknown,
   hasher: Hasher = defaultHasher,
   id: NodeId = '$',
+  resolver: DefinitionResolver = NOOP_RESOLVER,
 ): Promise<Node> {
   if (typeof doc !== 'object' || doc === null || Array.isArray(doc)) {
     throw new DagError('node must be an object', id);
@@ -27,6 +34,12 @@ export async function buildGraph(
   const { type } = record;
   if (typeof type !== 'string') {
     throw new DagError('node "type" must be a string', id);
+  }
+  if (type.startsWith('__')) {
+    throw new DagError(
+      `node type "${type}" uses reserved "__" prefix (engine-internal types only)`,
+      id,
+    );
   }
 
   const def = getNodeType(type);
@@ -41,14 +54,22 @@ export async function buildGraph(
 
   const children: Node[] = [];
   for (let i = 0; i < childDocs.length; i++) {
-    children.push(await buildGraph(childDocs[i], hasher, `${id}/${i}`));
+    children.push(await buildGraph(childDocs[i], hasher, `${id}/${i}`, resolver));
   }
 
-  def.checkChildren(children, id);
-  const params = def.normalizeParams(record['params'] ?? {}, id);
-  const hash = await hashNode(type, params, children, hasher);
-
-  return { id, type, params, children, outputType: def.output, hash };
+  if (def.kind === 'kernel') {
+    def.checkChildren(children, id);
+    const params = def.normalizeParams(record['params'] ?? {}, id);
+    const hash = await hashNode(type, params, children, hasher);
+    return { id, type, params, children, outputType: def.output, hash };
+  } else {
+    // Expandable node: validate and normalise via the definition, then hash.
+    def.checkChildren(children, (record['params'] as Record<string, unknown>) ?? {}, resolver, id);
+    const params = def.normalizeParams(record['params'] ?? {}, resolver, id);
+    const outputType = def.resolveOutput(params, resolver);
+    const hash = await hashNode(type, params, children, hasher);
+    return { id, type, params, children, outputType, hash };
+  }
 }
 
 /** Parse a JSON document string and build the graph. */

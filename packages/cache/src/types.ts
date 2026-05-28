@@ -24,7 +24,7 @@ export interface CacheKey {
 }
 
 /** The kinds of derived artifact stored per node, each under its own sub-key. */
-export type ArtifactKind = 'mesh' | 'bbox';
+export type ArtifactKind = 'mesh' | 'bbox' | 'luaDefinition';
 
 export interface MeshArtifact {
   readonly kind: 'mesh';
@@ -36,7 +36,24 @@ export interface BBoxArtifact {
   readonly bbox: BBox | null;
 }
 
-export type Artifact = MeshArtifact | BBoxArtifact;
+/**
+ * Structural placeholder for a Lua definition. The concrete
+ * `LuaDefinition` from @yacad/lua is structurally assignable to this; we keep
+ * @yacad/cache free of any @yacad/lua import so the dep graph stays acyclic
+ * and `cache` and `lua` remain siblings under `dag` (see spec §Layered
+ * placement).
+ */
+export interface LuaDefinitionLike {
+  readonly schema: { readonly output: '2d' | '3d'; readonly [k: string]: unknown };
+  readonly code: string;
+}
+
+export interface LuaDefinitionArtifact {
+  readonly kind: 'luaDefinition';
+  readonly definition: LuaDefinitionLike;
+}
+
+export type Artifact = MeshArtifact | BBoxArtifact | LuaDefinitionArtifact;
 
 /**
  * Async-uniform store. Consumers use this interface without knowing which tier

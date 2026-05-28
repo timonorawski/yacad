@@ -1,0 +1,19 @@
+{
+  "definitions": {
+    "@gear": {
+      "schema": {
+        "inputs": [],
+        "params": {
+          "teeth": { "type": "int", "default": 8, "min": 3, "max": 64 },
+          "radius": { "type": "number", "default": 5.0 }
+        },
+        "output": "3d"
+      },
+      "code": "local parts = {}\nfor i = 1, params.teeth do\n  local angle = (i - 1) * 360 / params.teeth\n  parts[#parts + 1] = geo.rotate({angles = {0, 0, angle}}, {\n    geo.translate({offset = {params.radius, 0, 0}}, {\n      geo.cylinder({radius = 0.5, height = 1.0, center = true})\n    })\n  })\nend\nreturn geo.union({}, parts)\n"
+    }
+  },
+  "doc": {
+    "type": "lua",
+    "params": { "definitionHash": "@gear", "values": { "teeth": 8, "radius": 5.0 } }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "name": "@yacad/worker",
+  "name": "@yacad/lua",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,10 +9,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./host": {
-      "types": "./dist/host.d.ts",
-      "default": "./dist/host.js"
     }
   },
   "scripts": {
@@ -20,12 +16,10 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@yacad/cache": "workspace:*",
+    "@yacad/canonical": "workspace:*",
     "@yacad/dag": "workspace:*",
-    "@yacad/engine": "workspace:*",
-    "@yacad/geometry": "workspace:*",
-    "@yacad/kernel-manifold": "workspace:*",
-    "@yacad/lua": "workspace:*"
+    "@yacad/hash": "workspace:*",
+    "wasmoon": "1.16.0"
   },
   "devDependencies": {
     "@yacad/tsconfig": "workspace:*"

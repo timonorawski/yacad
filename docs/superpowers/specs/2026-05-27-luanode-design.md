@@ -1,6 +1,6 @@
 # LuaNode design
 
-**Status**: design approved, awaiting implementation plan
+**Status**: implemented
 **Date**: 2026-05-27
 **Scope**: Phase 1 of the roadmap in [docs/vision.md](../../vision.md) — introduce a sandboxed, sub-DAG-emitting LuaNode plus the general `ExpandableNodeType` abstraction it specializes.
 

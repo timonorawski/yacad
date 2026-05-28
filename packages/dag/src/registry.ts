@@ -1,22 +1,74 @@
-import { DagError, type GeometryType, type Node } from './types';
+import { DagError, type GeometryType, type Node, type NodeDoc } from './types';
+import type { Hash } from '@yacad/hash';
 import { asRecord, optBool, optSegments, posNum, posVec3, vec3 } from './validate';
 
 const DEFAULT_SEGMENTS = 32;
 
+/** Generic interface for whatever a definition-driven expandable node looks up.
+ *  Each ExpandableNodeType narrows the return value to its own definition shape. */
+export interface DefinitionResolver {
+  get(hash: Hash): unknown | undefined;
+}
+
 /**
- * Definition of a node operation: its output type, its child arity/type rule
- * (the 2D/3D type system, CLAUDE.md #6), and how to validate + normalize its
- * params. Normalization applies defaults and drops unknown keys so that two
- * documents describing the same geometry hash identically.
+ * Existing path: a kernel-backed node. Evaluation produces a mesh by calling
+ * a geometry kernel on the node's child meshes. Signature unchanged from the
+ * pre-discriminated `NodeTypeDef`.
  */
-export interface NodeTypeDef {
+export interface KernelNodeType {
+  readonly kind: 'kernel';
   readonly type: string;
   readonly output: GeometryType;
-  /** Validate child count and child output types; throws DagError on mismatch. */
   checkChildren(children: readonly Node[], path: string): void;
-  /** Validate and normalize params into the canonical form used for hashing. */
   normalizeParams(params: unknown, path: string): Record<string, unknown>;
 }
+
+/**
+ * New path: an expandable node. Evaluation produces a sub-DAG (NodeDoc tree)
+ * that the engine then walks normally. Signature widened with `params` and
+ * `resolver` because output type and child checks may depend on a stored
+ * definition (e.g., LuaDefinition).
+ *
+ * `expand` is the contract: deterministic function of normalized params + input
+ * refs, returns a NodeDoc whose `__input_ref` sentinels the engine substitutes
+ * with the expandable node's children.
+ */
+export interface ExpandableNodeType {
+  readonly kind: 'expandable';
+  readonly type: string;
+  resolveOutput(params: Record<string, unknown>, resolver: DefinitionResolver): GeometryType;
+  checkChildren(
+    children: readonly Node[],
+    params: Record<string, unknown>,
+    resolver: DefinitionResolver,
+    path: string,
+  ): void;
+  normalizeParams(
+    params: unknown,
+    resolver: DefinitionResolver,
+    path: string,
+  ): Record<string, unknown>;
+  /**
+   * Declared positional input names. The engine reads these to resolve
+   * `__input_ref` sentinels by name when walking an emitted sub-DAG. For
+   * LuaNode this maps to schema.inputs[*].name; for static expanders it's
+   * a constant array. Required from day one so chunk 4's tests compile.
+   */
+  inputNames(params: Record<string, unknown>, resolver: DefinitionResolver): readonly string[];
+  expand(params: Record<string, unknown>, inputs: readonly InputRef[]): Promise<NodeDoc>;
+}
+
+/** Reference to a child input of an expandable node, supplied by the engine.
+ *  Declared HERE (in @yacad/dag) because ExpandableNodeType.expand's signature
+ *  references it. @yacad/lua re-exports it for its public surface — do NOT
+ *  redeclare in chunks 2/3. */
+export interface InputRef {
+  readonly name: string;
+  readonly type: GeometryType;
+  outputType(): GeometryType;
+}
+
+export type NodeTypeDef = KernelNodeType | ExpandableNodeType;
 
 function expectAllOfType(children: readonly Node[], type: GeometryType, path: string): void {
   children.forEach((child, i) => {
@@ -30,8 +82,12 @@ function expectAllOfType(children: readonly Node[], type: GeometryType, path: st
 }
 
 /** A leaf primitive: no children, 3D output. */
-function primitive(type: string, normalizeParams: NodeTypeDef['normalizeParams']): NodeTypeDef {
+function primitive(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
   return {
+    kind: 'kernel',
     type,
     output: '3d',
     checkChildren(children, path) {
@@ -44,8 +100,12 @@ function primitive(type: string, normalizeParams: NodeTypeDef['normalizeParams']
 }
 
 /** A unary transform: exactly one 3D child, 3D output. */
-function transform(type: string, normalizeParams: NodeTypeDef['normalizeParams']): NodeTypeDef {
+function transform(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
   return {
+    kind: 'kernel',
     type,
     output: '3d',
     checkChildren(children, path) {
@@ -59,8 +119,9 @@ function transform(type: string, normalizeParams: NodeTypeDef['normalizeParams']
 }
 
 /** An n-ary boolean: one or more 3D children, 3D output, no params. */
-function boolean(type: string): NodeTypeDef {
+function boolean(type: string): KernelNodeType {
   return {
+    kind: 'kernel',
     type,
     output: '3d',
     checkChildren(children, path) {
@@ -112,11 +173,29 @@ const defs: NodeTypeDef[] = [
 
 const registry = new Map<string, NodeTypeDef>(defs.map((def) => [def.type, def]));
 
+/** No-op resolver: expandable nodes that require a real resolver will fail at expand time. */
+export const NOOP_RESOLVER: DefinitionResolver = { get: () => undefined };
+
 export function getNodeType(type: string): NodeTypeDef | undefined {
   return registry.get(type);
 }
 
+export function registerNodeType(def: NodeTypeDef): void {
+  if (registry.has(def.type)) {
+    throw new Error(`node type "${def.type}" already registered`);
+  }
+  registry.set(def.type, def);
+}
+
+/** Test-only — remove a previously-registered external node type. */
+export function unregisterNodeType(type: string): void {
+  registry.delete(type);
+}
+
 /** Metadata for every registered node type (for UI / introspection). */
-export function listNodeTypes(): { type: string; output: GeometryType }[] {
-  return defs.map(({ type, output }) => ({ type, output }));
+export function listNodeTypes(): { type: string; output: GeometryType | '?' }[] {
+  return [...registry.values()].map((def) => ({
+    type: def.type,
+    output: def.kind === 'kernel' ? def.output : '?',
+  }));
 }

@@ -17,7 +17,8 @@
     "@yacad/render": "workspace:*",
     "@yacad/worker": "workspace:*",
     "manifold-3d": "^3.5.0",
-    "marked": "^17.0.1"
+    "marked": "^17.0.1",
+    "wasmoon": "1.16.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

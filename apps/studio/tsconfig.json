@@ -7,6 +7,7 @@
     "types": ["vite/client"],
     "paths": {
       "@yacad/worker/host": ["../../packages/worker/src/host.ts"],
+      "@yacad/e2e/fixtures": ["../../packages/e2e/src/fixtures.ts"],
       "@yacad/*": ["../../packages/*/src/index.ts"]
     }
   },
