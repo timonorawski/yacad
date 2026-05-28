@@ -6,7 +6,8 @@
   import { defaultHasher } from '@yacad/hash';
   import { hashLuaDefinition } from '@yacad/lua';
   import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION } from '@yacad/e2e/fixtures';
-  import { Viewport } from '@yacad/render';
+  import { Viewport, geometryToObject3D } from '@yacad/render';
+  import { loadManifold } from '@yacad/kernel-manifold';
   import { WorkerClient, type EvaluateOutcome } from '@yacad/worker';
   import type { NodeDoc } from '@yacad/dag';
   import wasmUrl from 'manifold-3d/manifold.wasm?url';
@@ -51,6 +52,8 @@
   let client: WorkerClient;
   let viewport: Viewport;
   let lastMesh = $state<Mesh | undefined>(undefined);
+  // Lazily loaded on first 2D geometry render; cached thereafter.
+  let manifoldApi: Awaited<ReturnType<typeof loadManifold>> | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let evalSeq = 0;
 
@@ -399,11 +402,14 @@
       const outcome = await client.evaluate(doc, 'final');
       if (seq !== evalSeq) return; // a newer edit superseded this one
       if (outcome.geometry.kind === '2d') {
-        throw new Error('2D geometry rendering not yet implemented (chunk 6)');
+        manifoldApi ??= await loadManifold({ locateFile: () => wasmUrl });
+        viewport.setGeometry(outcome.geometry, manifoldApi);
+        lastMesh = undefined;
+      } else {
+        const mesh = outcome.geometry.mesh;
+        lastMesh = mesh;
+        viewport.setMesh(mesh);
       }
-      const mesh = outcome.geometry.mesh;
-      lastMesh = mesh;
-      viewport.setMesh(mesh);
       stats = outcome.stats;
       perf = outcome.perf;
       perNode = outcome.perNode;
