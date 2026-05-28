@@ -99,4 +99,43 @@ describe('DocSession.mutate', () => {
     await session.mutate(() => ({ type: 'sphere', params: { radius: 5 } }));
     expect(events).toEqual([]);
   });
+
+  it('rejects overlapping mutate calls', async () => {
+    const first = session.mutate(() => ({ type: 'sphere', params: { radius: 5 } }));
+    await expect(
+      session.mutate(() => ({ type: 'cylinder', params: { height: 1, radius: 1 } })),
+    ).rejects.toThrow(/in progress/);
+    await first;
+    expect(session.doc).toMatchObject({ type: 'sphere' });
+  });
+
+  it('a throwing subscriber does not block other subscribers', async () => {
+    const received: string[] = [];
+    session.subscribe(() => {
+      throw new Error('subscriber A boom');
+    });
+    session.subscribe(() => received.push('B'));
+    // Silence expected console.error in this test.
+    const origErr = console.error;
+    console.error = () => {};
+    try {
+      await session.mutate(() => ({ type: 'sphere', params: { radius: 5 } }));
+    } finally {
+      console.error = origErr;
+    }
+    expect(received).toEqual(['B']);
+  });
+
+  it('a subscriber unsubscribed by an earlier subscriber still receives the in-flight event', async () => {
+    const received: string[] = [];
+    const unsubscribeB = session.subscribe(() => received.push('B'));
+    session.subscribe(() => {
+      received.push('A');
+      unsubscribeB();
+    });
+    await session.mutate(() => ({ type: 'sphere', params: { radius: 5 } }));
+    // Both fire on the snapshot of subscribers taken at emit time, even
+    // though the second subscriber unsubscribes B mid-emit.
+    expect(received.sort()).toEqual(['A', 'B']);
+  });
 });

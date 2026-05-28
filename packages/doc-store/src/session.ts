@@ -23,6 +23,7 @@ export class DocSession {
   private dirty = false;
   private currentState: 'live' | 'invalidated' = 'live';
   private readonly subscribers = new Set<(evt: DocEvent) => void>();
+  private mutating = false;
 
   private constructor(
     private readonly vfs: Vfs,
@@ -71,16 +72,24 @@ export class DocSession {
     if (this.currentState === 'invalidated') {
       throw new Error('cannot mutate: session is invalidated');
     }
-    const next = fn(this.currentDoc);
-    // Validate by running the same builder the engine uses. Any rejection
-    // here leaves state untouched and propagates the original error.
-    await buildGraph(next, defaultHasher, '$', this.makeResolver());
+    if (this.mutating) {
+      throw new Error('cannot mutate: another mutation is already in progress');
+    }
+    this.mutating = true;
+    try {
+      const next = fn(this.currentDoc);
+      // Validate by running the same builder the engine uses. Any rejection
+      // here leaves state untouched and propagates the original error.
+      await buildGraph(next, defaultHasher, '$', this.makeResolver());
 
-    this.undoStack.push(this.currentDoc);
-    this.redoStack.length = 0;
-    this.currentDoc = next;
-    this.dirty = true;
-    this.emit({ kind: 'doc-changed' });
+      this.undoStack.push(this.currentDoc);
+      this.redoStack.length = 0;
+      this.currentDoc = next;
+      this.dirty = true;
+      this.emit({ kind: 'doc-changed' });
+    } finally {
+      this.mutating = false;
+    }
   }
 
   undo(): void {
@@ -130,6 +139,16 @@ export class DocSession {
   }
 
   private emit(evt: DocEvent): void {
-    for (const cb of this.subscribers) cb(evt);
+    // Snapshot subscribers before iteration so unsubscribe/subscribe calls
+    // during emit don't affect the current dispatch.
+    for (const cb of [...this.subscribers]) {
+      try {
+        cb(evt);
+      } catch (err) {
+        // Swallow subscriber errors so one throwing subscriber doesn't
+        // prevent delivery to others. Log to console for visibility.
+        console.error('DocSession subscriber threw:', err);
+      }
+    }
   }
 }
