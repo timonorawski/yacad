@@ -332,8 +332,7 @@ export class ManifoldKernel implements Kernel {
       degrees,
     );
     // Post-rotate so the ring axis aligns with the requested 3D axis.
-    const result =
-      axis === 'x' ? m.rotate([0, -90, 0]) : axis === 'y' ? m.rotate([90, 0, 0]) : m;
+    const result = axis === 'x' ? m.rotate([0, -90, 0]) : axis === 'y' ? m.rotate([90, 0, 0]) : m;
     const opMs = performance.now() - opStart;
 
     const exportStart = performance.now();

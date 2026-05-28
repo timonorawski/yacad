@@ -411,14 +411,22 @@ it('kernel evaluates revolve with axis=x to a 3D mesh with correct orientation',
   if (geometry.kind === '3d') {
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
     const verts = geometry.mesh.vertices;
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity;
+    let minY = Infinity,
+      maxY = -Infinity;
+    let minZ = Infinity,
+      maxZ = -Infinity;
     for (let i = 0; i < verts.length; i += 3) {
-      const x = verts[i]!, y = verts[i + 1]!, z = verts[i + 2]!;
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+      const x = verts[i]!,
+        y = verts[i + 1]!,
+        z = verts[i + 2]!;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
     }
     // Manifold.revolve sets the revolve axis as Z; rotate([0,-90,0]) maps Z→+X.
     // Ring axis is X: X span is narrow (profile Y extent ≈ ±1 around the axis),
