@@ -46,6 +46,7 @@
   let perf = $state<EvaluateOutcome['perf'] | null>(null);
   let perNode = $state<EvaluateOutcome['perNode']>([]);
   let roundTripMs = $state<number | null>(null);
+  let renderMs = $state<number | null>(null);
   let docsOpen = $state(false);
   let selectedScene = $state('default');
 
@@ -498,11 +499,16 @@
     try {
       const outcome = await client.evaluate(doc, 'final');
       if (seq !== evalSeq) return; // a newer edit superseded this one
+      // Time the main-thread post-response work: BufferGeometry build,
+      // vertex-normal compute, scene swap, and Svelte state assignments.
+      // (Browser repaint happens later, on the next rAF — outside this number.)
+      const renderStart = performance.now();
       lastMesh = outcome.mesh;
       viewport.setMesh(outcome.mesh);
       stats = outcome.stats;
       perf = outcome.perf;
       perNode = outcome.perNode;
+      renderMs = performance.now() - renderStart;
       roundTripMs = performance.now() - requestStart;
       status = 'idle';
     } catch (e) {
@@ -581,7 +587,10 @@
             <span>mesh vertices <b>{meshSummary.vertices}</b></span>
             <span>mesh triangles <b>{meshSummary.triangles}</b></span>
             <span>main round-trip <b>{roundTripMs ? roundTripMs.toFixed(2) : '-'} ms</b></span>
+            <span>transport in <b>{perf ? perf.transportInMs.toFixed(2) : '-'} ms</b></span>
             <span>worker total <b>{perf ? perf.workerTotalMs.toFixed(2) : '-'} ms</b></span>
+            <span>transport out <b>{perf ? perf.transportOutMs.toFixed(2) : '-'} ms</b></span>
+            <span>main render <b>{renderMs ? renderMs.toFixed(2) : '-'} ms</b></span>
             <span>buildGraph <b>{perf ? perf.buildGraphMs.toFixed(2) : '-'} ms</b></span>
             <span>engine total <b>{perf ? perf.engineMs.toFixed(2) : '-'} ms</b></span>
             <span>engine lookup <b>{stats.lookupMs.toFixed(2)} ms</b></span>

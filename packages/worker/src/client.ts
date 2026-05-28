@@ -13,6 +13,10 @@ export interface EvaluateOutcome {
     readonly buildGraphMs: number;
     readonly engineMs: number;
     readonly copyMeshMs: number;
+    /** Main → worker postMessage latency (clone + queue + dispatch). */
+    readonly transportInMs: number;
+    /** Worker → main postMessage latency (clone + queue + dispatch). */
+    readonly transportOutMs: number;
   };
 }
 
@@ -59,26 +63,42 @@ export class WorkerClient {
   }
 
   evaluate(doc: unknown, tier = 'final'): Promise<EvaluateOutcome> {
-    return this.send<{ id: number; kind: 'evaluate'; doc: unknown; tier: string }, WorkerResponse>({
-      id: 0 /* overwritten by send */,
-      kind: 'evaluate',
-      doc,
-      tier,
-    }).then((res) => {
-      if (res.kind !== 'result') {
-        throw new Error(`unexpected response kind "${res.kind}" for evaluate`);
-      }
-      if (res.ok) {
-        return {
-          mesh: res.mesh,
-          hash: res.hash,
-          stats: res.stats,
-          perNode: res.perNode,
-          perf: res.perf,
-        };
-      } else {
-        throw new Error(res.error);
-      }
+    // Stamp the moment we postMessage so we can compare against workerStartAbs
+    // (recorded by the worker on entry) for the inbound transport latency.
+    const mainSentAbs = performance.timeOrigin + performance.now();
+    const id = ++this.seq;
+    return new Promise<EvaluateOutcome>((resolve, reject) => {
+      this.pending.set(id, {
+        // The resolver runs synchronously inside onMessage, so capturing now()
+        // here is the actual receive timestamp.
+        resolve: (res) => {
+          const mainRecvAbs = performance.timeOrigin + performance.now();
+          if (res.kind !== 'result') {
+            reject(new Error(`unexpected response kind "${res.kind}" for evaluate`));
+            return;
+          }
+          if (!res.ok) {
+            reject(new Error(res.error));
+            return;
+          }
+          resolve({
+            mesh: res.mesh,
+            hash: res.hash,
+            stats: res.stats,
+            perNode: res.perNode,
+            perf: {
+              workerTotalMs: res.perf.workerTotalMs,
+              buildGraphMs: res.perf.buildGraphMs,
+              engineMs: res.perf.engineMs,
+              copyMeshMs: res.perf.copyMeshMs,
+              transportInMs: Math.max(0, res.perf.workerStartAbs - mainSentAbs),
+              transportOutMs: Math.max(0, mainRecvAbs - res.perf.workerPostAbs),
+            },
+          });
+        },
+        reject,
+      });
+      this.worker.postMessage({ id, kind: 'evaluate', doc, tier });
     });
   }
 

@@ -53,7 +53,14 @@ const okResponse = (id: number): WorkerResponse => ({
       storeMs: 0.1,
     },
   ],
-  perf: { workerTotalMs: 3, buildGraphMs: 1, engineMs: 1.6, copyMeshMs: 0.4 },
+  perf: {
+    workerTotalMs: 3,
+    buildGraphMs: 1,
+    engineMs: 1.6,
+    copyMeshMs: 0.4,
+    workerStartAbs: 1000,
+    workerPostAbs: 1003,
+  },
 });
 
 describe('WorkerClient', () => {

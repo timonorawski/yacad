@@ -178,6 +178,9 @@ async function handle(
   if (!req || req.kind !== 'evaluate') return;
   try {
     const workerStart = performance.now();
+    // Absolute wall-clock at handler entry; the main thread compares it against
+    // its own mainSentAbs to compute the main→worker postMessage latency.
+    const workerStartAbs = performance.timeOrigin + workerStart;
     const { engine, store } = await backendPromise;
 
     const buildStart = performance.now();
@@ -195,7 +198,9 @@ async function handle(
     const indices = result.mesh.indices.slice();
     const copyMeshMs = performance.now() - copyStart;
 
-    const workerTotalMs = performance.now() - workerStart;
+    const workerEnd = performance.now();
+    const workerTotalMs = workerEnd - workerStart;
+    const workerPostAbs = performance.timeOrigin + workerEnd;
     const ok: WorkerResponse = {
       id: req.id,
       kind: 'result',
@@ -204,7 +209,14 @@ async function handle(
       hash: result.hash,
       stats: result.stats,
       perNode: result.perNode,
-      perf: { workerTotalMs, buildGraphMs, engineMs, copyMeshMs },
+      perf: {
+        workerTotalMs,
+        buildGraphMs,
+        engineMs,
+        copyMeshMs,
+        workerStartAbs,
+        workerPostAbs,
+      },
     };
     scope.postMessage(ok, [vertices.buffer, indices.buffer] as Transferable[]);
 

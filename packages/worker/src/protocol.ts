@@ -85,6 +85,14 @@ export interface EvaluateOk {
     readonly buildGraphMs: number;
     readonly engineMs: number;
     readonly copyMeshMs: number;
+    /**
+     * Absolute timestamps `performance.timeOrigin + performance.now()` so the
+     * main thread can compute postMessage transport latency in both directions
+     * (worker and main contexts have different `performance.timeOrigin`s, but
+     * the sum is comparable wall-clock-ms-since-epoch on both sides).
+     */
+    readonly workerStartAbs: number;
+    readonly workerPostAbs: number;
   };
 }
 
