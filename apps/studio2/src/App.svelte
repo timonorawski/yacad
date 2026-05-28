@@ -3,6 +3,7 @@
   import { IndexedDbVfs } from '@yacad/vfs';
   import { DocLibrary } from '@yacad/doc-store';
   import { WorkerClient } from '@yacad/worker';
+  import type { EvaluateOutcome } from '@yacad/worker';
   import wasmUrl from 'manifold-3d/manifold.wasm?url';
   import luaWasmUrl from 'wasmoon/dist/glue.wasm?url';
   import EvalWorker from './worker?worker';
@@ -16,6 +17,7 @@
   import TreePane from './ui/TreePane.svelte';
   import InspectorPane from './ui/InspectorPane.svelte';
   import ViewportPane from './ui/ViewportPane.svelte';
+  import PerformancePanel from './ui/PerformancePanel.svelte';
 
   let userLibrary: DocLibrary;
   let sampleLibrary: DocLibrary;
@@ -25,6 +27,7 @@
   let userDocs = $state<{ id: string; name: string }[]>([]);
   let sampleDocs = $state<{ id: string; name: string }[]>([]);
   let docsOpen = $state(false);
+  let evalOutcome = $state<EvaluateOutcome | undefined>(undefined);
 
   async function refreshDocs() {
     if (!userLibrary || !sampleLibrary) return;
@@ -45,6 +48,7 @@
     }
     session = new SessionState(opened);
     selection = new SelectionState();
+    evalOutcome = undefined;
   }
 
   async function createDoc() {
@@ -118,6 +122,7 @@
   </header>
   <aside class="tree-pane">
     {#if session && selection}
+      <PerformancePanel outcome={evalOutcome} />
       <TreePane {session} {selection} />
     {:else}
       <em>loading…</em>
@@ -125,7 +130,7 @@
   </aside>
   <main class="viewport-pane">
     {#if session && client}
-      <ViewportPane {session} {client} />
+      <ViewportPane {session} {client} onEvaluated={(o) => (evalOutcome = o)} />
     {/if}
   </main>
   <aside class="inspector-pane">

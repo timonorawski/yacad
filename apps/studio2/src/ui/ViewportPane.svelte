@@ -9,9 +9,10 @@
   interface Props {
     session: SessionState;
     client: WorkerClient;
+    onEvaluated?: (outcome: EvaluateOutcome | undefined) => void;
   }
 
-  let { session, client }: Props = $props();
+  let { session, client, onEvaluated }: Props = $props();
 
   let canvas: HTMLCanvasElement;
   let viewport: Viewport | undefined;
@@ -48,11 +49,13 @@
       stats = outcome.stats;
       error = '';
       status = 'idle';
+      onEvaluated?.(outcome);
     } catch (e) {
       if (seq !== evalSeq) return;
       clearTimeout(statusTimer);
       status = 'error';
       error = (e as Error).message;
+      onEvaluated?.(undefined);
     }
   }
 
