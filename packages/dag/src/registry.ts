@@ -149,6 +149,25 @@ function transform(
   };
 }
 
+/** A 2D→3D bridge: exactly one 2D child, '3d' output. */
+function bridge2dTo3d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '3d',
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '2d', path);
+    },
+    normalizeParams,
+  };
+}
+
 /** A unary 2D transform: exactly one 2D child, '2d' output. */
 function transform2d(
   type: string,
@@ -280,6 +299,34 @@ const defs: NodeTypeDef[] = [
                 throw new DagError(`"tension" must be a finite number`, path);
               }
               return tension;
+            })(),
+    };
+  }),
+  bridge2dTo3d('extrude', (params, path) => {
+    const p = asRecord(params, path);
+    const twist = p['twist'];
+    const segments = p['segments'];
+    return {
+      height: posNum(p, 'height', path),
+      twist:
+        twist === undefined
+          ? 0
+          : (() => {
+              if (typeof twist !== 'number' || !Number.isFinite(twist)) {
+                throw new DagError(`"twist" must be a finite number`, path);
+              }
+              return twist;
+            })(),
+      scaleTop:
+        p['scaleTop'] === undefined ? [1, 1] : vec2(p as Record<string, unknown>, 'scaleTop', path),
+      segments:
+        segments === undefined
+          ? 1
+          : (() => {
+              if (typeof segments !== 'number' || !Number.isInteger(segments) || segments < 1) {
+                throw new DagError(`"segments" must be a positive integer`, path);
+              }
+              return segments;
             })(),
     };
   }),

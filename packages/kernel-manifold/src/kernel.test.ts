@@ -321,6 +321,24 @@ it('kernel evaluates 2D hull of two offset circles (stadium shape)', async () =>
   }
 });
 
+it('kernel evaluates extrude(rectangle(10x10), height=5) to a box-equivalent mesh', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const rect = kernel.evaluateTimed(
+    await buildGraph({ type: 'rectangle', params: { size: [10, 10], center: true } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'extrude',
+    params: { height: 5 },
+    children: [{ type: 'rectangle', params: { size: [10, 10], center: true } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [rect]);
+  expect(geometry.kind).toBe('3d');
+  if (geometry.kind === '3d') {
+    expect(geometry.mesh.indices.length).toBeGreaterThan(0);
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({

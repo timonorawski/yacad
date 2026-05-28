@@ -390,6 +390,41 @@ describe('type-overloaded ops', () => {
   });
 });
 
+describe('extrude node type', () => {
+  it('builds with a 2D child and required height', async () => {
+    const node = await buildGraph({
+      type: 'extrude',
+      params: { height: 10 },
+      children: [{ type: 'circle', params: { radius: 5 } }],
+    });
+    expect(node.outputType).toBe('3d');
+    expect(node.params['height']).toBe(10);
+    expect(node.params['twist']).toBe(0);
+    expect(node.params['scaleTop']).toEqual([1, 1]);
+    expect(node.params['segments']).toBe(1);
+  });
+
+  it('rejects 3D child', async () => {
+    await expect(
+      buildGraph({
+        type: 'extrude',
+        params: { height: 10 },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/2d/);
+  });
+
+  it('requires positive height', async () => {
+    await expect(
+      buildGraph({
+        type: 'extrude',
+        params: { height: 0 },
+        children: [{ type: 'circle', params: { radius: 5 } }],
+      }),
+    ).rejects.toThrow(/greater than 0/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',

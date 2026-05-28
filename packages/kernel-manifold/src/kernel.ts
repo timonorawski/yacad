@@ -110,6 +110,11 @@ export class ManifoldKernel implements Kernel {
       return this.evaluate2dOp(node, childGeometries);
     }
 
+    // 2D→3D bridge: extrude a CrossSection into a 3D Manifold.
+    if (node.type === 'extrude') {
+      return this.evaluateExtrude(node, childGeometries);
+    }
+
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
     const importStart = performance.now();
@@ -245,6 +250,33 @@ export class ManifoldKernel implements Kernel {
     rotated.delete?.();
     return {
       geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+    };
+  }
+
+  private evaluateExtrude(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    const child = asCrossSection(childGeometries[0]!, node.id, 0);
+    const importStart = performance.now();
+    const cs = this.api.CrossSection.ofPolygons(
+      child.polygons as unknown as [number, number][][],
+    );
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    const height = node.params['height'] as number;
+    const twist = node.params['twist'] as number;
+    const scaleTop = node.params['scaleTop'] as [number, number];
+    const segments = node.params['segments'] as number;
+    // Instance method signature: extrude(height, nDivisions?, twistDegrees?, scaleTop?, centered?)
+    const m = cs.extrude(height, segments, twist, scaleTop);
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    const mesh = this.toMesh(m);
+    cs.delete?.();
+    m.delete?.();
+    return {
+      geometry: { kind: '3d', mesh },
       timings: { importMs, opMs, exportMs: performance.now() - exportStart },
     };
   }
