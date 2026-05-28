@@ -53,8 +53,8 @@ function axisAngleToEulerXYZ(ux: number, uy: number, uz: number, angle: number):
   const m10 = t * ux * uy + s * uz;
   const m11 = t * uy * uy + c;
   const m12 = t * uy * uz - s * ux;
-  const m20 = t * ux * uz - s * uy;
-  const m21 = t * uy * uz + s * ux;
+  // m20, m21 are intentionally omitted: the XYZ-Euler extraction uses only
+  // m00, m01, m02, m10, m11, m12, m22.
   const m22 = t * uz * uz + c;
 
   // Extract XYZ Euler angles (assuming rotation R = Rz · Ry · Rx applied to a

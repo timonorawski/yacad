@@ -435,8 +435,7 @@ return geo.revolve({ axis = "y", segments = 64, degrees = 360 }, { profile })`,
   // ── 3D→2D bridge ──────────────────────────────────────────────────────────
   {
     type: 'section',
-    summary:
-      'Cut a 3D solid with an arbitrary plane; produces the 2D cross-section at that plane.',
+    summary: 'Cut a 3D solid with an arbitrary plane; produces the 2D cross-section at that plane.',
     outputDoc: '2D cross-section',
     params: [
       {

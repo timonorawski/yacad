@@ -8,7 +8,7 @@ function applyEulerXYZ(v: Vec3, euler: Vec3): Vec3 {
   const [rx, ry, rz] = euler.map((d) => (d * Math.PI) / 180) as Vec3;
   // Rotate around X
   let x = v[0];
-  let y = v[1] * Math.cos(rx) - v[2] * Math.sin(rx);
+  const y = v[1] * Math.cos(rx) - v[2] * Math.sin(rx);
   let z = v[1] * Math.sin(rx) + v[2] * Math.cos(rx);
   // Rotate around Y
   const x1 = x * Math.cos(ry) + z * Math.sin(ry);
