@@ -19,7 +19,7 @@ export const SANDBOX_GLOBALS: {
     // Surviving base-library entries (Lua 5.1-ish base as exposed by Wasmoon)
     'assert', 'error', 'getmetatable', 'ipairs', 'next', 'pairs',
     'pcall', 'rawequal', 'rawget', 'rawlen', 'rawset', 'select',
-    'setmetatable', 'tonumber', 'tostring', 'type', 'unpack', 'xpcall',
+    'setmetatable', 'tonumber', 'tostring', 'type', 'xpcall',
     '_VERSION',
   ]),
   libraryMembers: new Map<string, ReadonlySet<string>>([
@@ -58,7 +58,7 @@ export const SANDBOX_STRIP_SCRIPT: string = (() => {
     'ipairs', 'load', 'loadfile', 'loadstring', 'next', 'pairs',
     'pcall', 'print', 'rawequal', 'rawget', 'rawlen', 'rawset',
     'require', 'select', 'setmetatable', 'tonumber', 'tostring',
-    'type', 'unpack', 'xpcall', '_G', '_VERSION',
+    'type', 'unpack', 'warn', 'xpcall', '_G', '_VERSION',
   ]);
 
   // Library member sets as opened by loadLibrary, minus our whitelist.

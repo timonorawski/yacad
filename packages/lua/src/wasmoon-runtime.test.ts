@@ -4,6 +4,7 @@ import { hashLuaDefinition } from './canonical';
 import { LuaError } from './runtime';
 import type { LuaDefinition } from './schema';
 import { WasmoonLuaRuntime } from './wasmoon-runtime';
+import { SANDBOX_GLOBALS } from './sandbox-globals';
 
 const trivial: LuaDefinition = {
   schema: { inputs: [], params: {}, output: '3d' },
@@ -226,6 +227,38 @@ describe('WasmoonLuaRuntime error mapping', () => {
       expect(err).toBeInstanceOf(LuaError);
       expect(err.phase).toBe('runtime');
       expect(err.message).toMatch(/nil value/i);
+    } finally {
+      runtime.dispose();
+    }
+  });
+});
+
+describe('sandbox-runtime parity', () => {
+  it('post-installSandbox _ENV matches SANDBOX_GLOBALS.topLevel', async () => {
+    const runtime = new WasmoonLuaRuntime();
+    try {
+      const def: LuaDefinition = {
+        schema: { inputs: [], params: {}, output: '3d' },
+        // Enumerate the chunk's environment table. `_ENV` is the Lua 5.4 upvalue
+        // pointing at the global table; it survives the strip (the strip nils
+        // the global named `_G`, not `_ENV`). Filtering on `v ~= nil` skips
+        // entries the strip nilled out; we also exclude any literal '_ENV' key
+        // if one shows up (it shouldn't in practice, but cheap defense).
+        code: [
+          'local names = {}',
+          'for k, v in pairs(_ENV) do',
+          '  if v ~= nil and k ~= "_ENV" then names[#names + 1] = k end',
+          'end',
+          'table.sort(names)',
+          'return geo.node("box", { size = {1, 1, 1}, __sandbox_keys = names })',
+        ].join('\n'),
+      };
+      const result = (await runtime.evaluate(def, [], {})) as { params: Record<string, unknown> };
+      const actual = new Set(result.params['__sandbox_keys'] as string[]);
+
+      const extras = [...actual].filter((n) => !SANDBOX_GLOBALS.topLevel.has(n));
+      const missing = [...SANDBOX_GLOBALS.topLevel].filter((n) => !actual.has(n));
+      expect({ extras, missing }).toEqual({ extras: [], missing: [] });
     } finally {
       runtime.dispose();
     }
