@@ -160,8 +160,8 @@
   </header>
   <aside class="tree-pane">
     {#if session && selection}
-      <PerformancePanel outcome={evalOutcome} />
       <TreePane {session} {selection} />
+      <PerformancePanel outcome={evalOutcome} />
     {:else}
       <em>loading…</em>
     {/if}

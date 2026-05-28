@@ -36,6 +36,20 @@ body {
   grid-area: tree;
   background: var(--panel);
   border-right: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.tree-pane > :first-child {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.tree-pane > .perf-panel {
+  flex: none;
+  border-top: 1px solid var(--panel-border);
+  max-height: 50%;
   overflow: auto;
 }
 .viewport-pane {
