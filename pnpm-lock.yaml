@@ -313,6 +313,16 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/mutations:
+    dependencies:
+      '@yacad/dag':
+        specifier: workspace:*
+        version: link:../dag
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/render:
     dependencies:
       '@yacad/geometry':
