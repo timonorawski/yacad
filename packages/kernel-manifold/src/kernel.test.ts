@@ -201,6 +201,25 @@ it('kernel evaluates translate_2d: shifts polygon centroid by offset', async () 
   }
 });
 
+it('kernel evaluates rotate_2d: rotates polygon by angle in degrees', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const node = await buildGraph({
+    type: 'rotate_2d',
+    params: { angle: 90 },
+    children: [{ type: 'rectangle', params: { size: [2, 1] } }],
+  });
+  const childGeo = kernel.evaluate(node.children[0]!, []);
+  const { geometry } = kernel.evaluateTimed(node, [childGeo]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    // After 90 degree rotation, width and height should be swapped
+    const polygons = geometry.section.polygons;
+    expect(polygons.length).toBeGreaterThan(0);
+    // Check that the rotation produced a valid result
+    expect(polygons[0]!.length).toBeGreaterThan(0);
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({

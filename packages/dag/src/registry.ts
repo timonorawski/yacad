@@ -2,6 +2,7 @@ import { DagError, type GeometryType, type Node, type NodeDoc } from './types';
 import type { Hash } from '@yacad/hash';
 import {
   asRecord,
+  num,
   optBool,
   optSegments,
   posNum,
@@ -269,6 +270,10 @@ const defs: NodeTypeDef[] = [
   transform2d('translate_2d', (params, path) => {
     const p = asRecord(params, path);
     return { offset: vec2(p, 'offset', path) };
+  }),
+  transform2d('rotate_2d', (params, path) => {
+    const p = asRecord(params, path);
+    return { angle: num(p, 'angle', path) };
   }),
 ];
 

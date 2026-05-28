@@ -284,6 +284,27 @@ describe('translate_2d node type', () => {
   });
 });
 
+describe('rotate_2d node type', () => {
+  it('builds with a numeric angle in degrees', async () => {
+    const node = await buildGraph({
+      type: 'rotate_2d',
+      params: { angle: 45 },
+      children: [{ type: 'rectangle', params: { size: [1, 1] } }],
+    });
+    expect(node.outputType).toBe('2d');
+  });
+
+  it('rejects non-finite angles', async () => {
+    await expect(
+      buildGraph({
+        type: 'rotate_2d',
+        params: { angle: Infinity },
+        children: [{ type: 'circle', params: { radius: 1 } }],
+      }),
+    ).rejects.toThrow(/finite/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',
