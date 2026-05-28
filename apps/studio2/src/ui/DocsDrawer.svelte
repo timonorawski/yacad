@@ -6,11 +6,12 @@
 
   interface Props {
     open: boolean;
+    tab: 'language' | 'luaApi';
+    onTabChange: (tab: 'language' | 'luaApi') => void;
     onClose: () => void;
   }
 
-  let { open, onClose }: Props = $props();
-  let tab = $state<'language' | 'luaApi'>('language');
+  let { open, tab, onTabChange, onClose }: Props = $props();
 
   // Filter KERNEL_TYPE_DOCS down to currently-registered kernel types.
   const registeredKernelTypes = new Set(
@@ -93,7 +94,7 @@
         type="button"
         class="tab-btn"
         class:active={tab === 'language'}
-        onclick={() => (tab = 'language')}
+        onclick={() => onTabChange('language')}
       >
         Language Reference
       </button>
@@ -101,7 +102,7 @@
         type="button"
         class="tab-btn"
         class:active={tab === 'luaApi'}
-        onclick={() => (tab = 'luaApi')}
+        onclick={() => onTabChange('luaApi')}
       >
         Lua API
       </button>

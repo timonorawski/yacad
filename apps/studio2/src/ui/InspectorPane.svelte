@@ -12,9 +12,10 @@
   interface Props {
     session: SessionState;
     selection: SelectionState;
+    onEditLua: () => void;
   }
 
-  let { session, selection }: Props = $props();
+  let { session, selection, onEditLua }: Props = $props();
 
   const selectedNode = $derived.by(() => {
     if (!selection.selectedId) return undefined;
@@ -50,6 +51,7 @@
     node={selectedNode}
     definitionResolver={(h) => decodeLuaDefinitionBytes(session.session.blobs.get(h))}
     onCommitValue={commitParam}
+    onEditCode={onEditLua}
   />
 {:else if selectedDef?.kind === 'decoder'}
   <DecoderInspector

@@ -11,9 +11,10 @@
     node: NodeDoc;
     definitionResolver: (hash: string) => unknown;
     onCommitValue: (paramName: string, value: unknown) => void;
+    onEditCode: () => void;
   }
 
-  let { node, definitionResolver, onCommitValue }: Props = $props();
+  let { node, definitionResolver, onCommitValue, onEditCode }: Props = $props();
 
   const definitionHash = $derived((node.params ?? {})['definitionHash'] as string | undefined);
   const definition = $derived.by(() => {
@@ -47,6 +48,9 @@
 
 {#if definition}
   <h3>lua</h3>
+  <div class="lua-inspector-actions">
+    <button type="button" onclick={() => onEditCode()}>Edit code</button>
+  </div>
   <p class="summary">definitionHash: <code>{definitionHash}</code></p>
   {#each paramsEntries(definition) as [name, decl] (name)}
     {@const schema = toParamDoc(name, decl)}
