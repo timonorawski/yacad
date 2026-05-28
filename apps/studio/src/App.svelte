@@ -398,8 +398,12 @@
     try {
       const outcome = await client.evaluate(doc, 'final');
       if (seq !== evalSeq) return; // a newer edit superseded this one
-      lastMesh = outcome.mesh;
-      viewport.setMesh(outcome.mesh);
+      if (outcome.geometry.kind === '2d') {
+        throw new Error('2D geometry rendering not yet implemented (chunk 6)');
+      }
+      const mesh = outcome.geometry.mesh;
+      lastMesh = mesh;
+      viewport.setMesh(mesh);
       stats = outcome.stats;
       perf = outcome.perf;
       perNode = outcome.perNode;

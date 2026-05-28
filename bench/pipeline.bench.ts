@@ -28,7 +28,9 @@ beforeAll(async () => {
 async function runScene(doc: unknown): Promise<void> {
   const engine = new Engine(new MemoryStore(), kernel);
   const result = await engine.evaluate(await buildGraph(doc));
-  meshToBinaryStl(result.mesh);
+  if (result.geometry.kind === '3d') {
+    meshToBinaryStl(result.geometry.mesh);
+  }
 }
 
 // Representative scene: a moderate boolean with 48-segment sphere.

@@ -1,5 +1,5 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
-import type { Mesh } from '@yacad/geometry';
+import type { Geometry } from '@yacad/geometry';
 import type { LuaDefinition } from '@yacad/lua';
 
 /**
@@ -55,7 +55,7 @@ export interface EvaluateOk {
   readonly id: number;
   readonly kind: 'result';
   readonly ok: true;
-  readonly mesh: Mesh;
+  readonly geometry: Geometry;
   readonly hash: string;
   readonly stats: EvalStats;
   readonly perNode: readonly NodeEval[];

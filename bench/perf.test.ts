@@ -136,6 +136,10 @@ describe('Engine.evaluate performance guards', () => {
 
     expect(result.stats.hits).toBe(1);
     expect(result.stats.misses).toBe(0);
+    expect(result.geometry.kind).toBe('3d');
+    if (result.geometry.kind === '3d') {
+      expect(result.geometry.mesh.indices.length).toBeGreaterThan(0);
+    }
     expect(elapsed).toBeLessThan(100);
   });
 
