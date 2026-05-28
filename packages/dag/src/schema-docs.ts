@@ -1,5 +1,3 @@
-import { getNodeType } from './registry';
-
 /**
  * Per-parameter documentation used by the studio's property inspector and by
  * any other introspection tool (Lua API docs, future code completion).
@@ -20,18 +18,4 @@ export interface KernelTypeDocSummary {
   readonly summary: string;
   readonly outputDoc: string;
   readonly paramSchema: readonly ParamDoc[];
-}
-
-/**
- * Returns the schema-summary documentation for a kernel-backed node type, or
- * `undefined` if `type` is not registered or is not a kernel node.
- */
-export function getKernelTypeDoc(type: string): KernelTypeDocSummary | undefined {
-  const def = getNodeType(type);
-  if (!def || def.kind !== 'kernel') return undefined;
-  return {
-    summary: def.summary,
-    outputDoc: def.outputDoc,
-    paramSchema: def.paramSchema,
-  };
 }

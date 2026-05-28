@@ -682,6 +682,7 @@ const defs: NodeTypeDef[] = [
           type: 'string',
           required: false,
           default: 'y',
+          enum: ['y', 'x'],
           doc: 'Axis of revolution: "y" (default) or "x".',
         },
         {
@@ -830,6 +831,7 @@ const defs: NodeTypeDef[] = [
             type: 'string',
             required: false,
             default: 'round',
+            enum: ['round', 'square', 'miter'],
             doc: 'Corner join style: "round", "square", or "miter".',
           },
           {
@@ -886,6 +888,16 @@ export const NOOP_RESOLVER: DefinitionResolver = { get: () => undefined };
 
 export function getNodeType(type: string): NodeTypeDef | undefined {
   return registry.get(type);
+}
+
+/**
+ * Returns the schema-summary documentation for a kernel-backed node type, or
+ * `undefined` if `type` is not registered or is not a kernel node.
+ */
+export function getKernelTypeDoc(type: string): KernelTypeDocSummary | undefined {
+  const def = getNodeType(type);
+  if (!def || def.kind !== 'kernel') return undefined;
+  return def; // KernelNodeType extends KernelTypeDocSummary
 }
 
 export function registerNodeType(def: NodeTypeDef): void {

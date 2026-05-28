@@ -1,6 +1,7 @@
 export { buildGraph, buildFromJson } from './build';
 export {
   getNodeType,
+  getKernelTypeDoc,
   listNodeTypes,
   registerNodeType,
   unregisterNodeType,
@@ -15,4 +16,3 @@ export {
 export { DagError } from './types';
 export type { GeometryType, Node, NodeDoc, NodeId, Vec3 } from './types';
 export type { ParamDoc, KernelTypeDocSummary } from './schema-docs';
-export { getKernelTypeDoc } from './schema-docs';

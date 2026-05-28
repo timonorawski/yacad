@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { listNodeTypes, getKernelTypeDoc, getNodeType } from './index';
+import {
+  listNodeTypes,
+  getKernelTypeDoc,
+  getNodeType,
+  registerNodeType,
+  unregisterNodeType,
+} from './index';
 
 describe('kernel schema-docs', () => {
   it('getKernelTypeDoc returns summary/outputDoc/paramSchema for every kernel type', () => {
@@ -17,10 +23,26 @@ describe('kernel schema-docs', () => {
     }
   });
 
-  it('getKernelTypeDoc returns undefined for non-kernel types', () => {
-    // 'lua' is expandable; 'import-stl' is a decoder. Neither has a kernel doc.
-    expect(getKernelTypeDoc('lua')).toBeUndefined();
+  it('getKernelTypeDoc returns undefined for unknown types', () => {
     expect(getKernelTypeDoc('not-a-real-type')).toBeUndefined();
+  });
+
+  it('returns undefined for a registered non-kernel type', () => {
+    const MOCK_TYPE = 'mock-expandable-for-test';
+    registerNodeType({
+      kind: 'expandable',
+      type: MOCK_TYPE,
+      resolveOutput: () => '3d',
+      checkChildren: () => {},
+      normalizeParams: () => ({}),
+      inputNames: () => [],
+      expand: async () => ({ type: 'box', params: { size: [1, 1, 1] } }),
+    });
+    try {
+      expect(getKernelTypeDoc(MOCK_TYPE)).toBeUndefined();
+    } finally {
+      unregisterNodeType(MOCK_TYPE);
+    }
   });
 
   it('a kernel doc with paramSchema entries has well-formed ParamDoc shape', () => {
