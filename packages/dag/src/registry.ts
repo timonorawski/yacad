@@ -469,6 +469,37 @@ const defs: NodeTypeDef[] = [
       return { angles: vec3(p, 'angles', path) };
     },
   ),
+  transform(
+    'warp',
+    {
+      summary:
+        'Deforms a 3D mesh by running a Lua function on every vertex. The function receives the current position as locals x, y, z and returns the new x, y, z. Use this for bends, twists, and other vertex-level deformations that are awkward to express as boolean operations.',
+      outputDoc: '3D mesh',
+      paramSchema: [
+        {
+          name: 'code',
+          type: 'string',
+          required: true,
+          doc: 'Lua function body. Receives x, y, z as locals; must return three numbers (new x, y, z). Sandbox matches LuaNode: no I/O, no clock, no RNG (math.random is stripped). The callback must be a pure function of (x, y, z) and `params`.',
+        },
+        // TODO: `values` is a free-form table (canonical JSON record); ParamDoc.type
+        // has no 'record' variant yet, so it's not exposed in the inspector — edit
+        // via the JSON path or via a Lua wrapper for now.
+      ],
+    },
+    (params, path) => {
+      const p = asRecord(params, path);
+      const code = p['code'];
+      if (typeof code !== 'string' || code.length === 0) {
+        throw new DagError('"code" must be a non-empty string', path);
+      }
+      const values = p['values'] ?? {};
+      if (typeof values !== 'object' || values === null || Array.isArray(values)) {
+        throw new DagError('"values" must be an object', path);
+      }
+      return { code, values };
+    },
+  ),
   overloaded('union', 1, {
     summary:
       'Boolean union of ≥1 children — accepts all-2D or all-3D children (output matches children).',

@@ -672,3 +672,73 @@ describe('KernelNodeType.output per-instance resolver', () => {
     }
   });
 });
+
+describe('warp node type', () => {
+  it('validates as a 3D→3D transform with a string code param', async () => {
+    const node = await buildGraph({
+      type: 'warp',
+      params: { code: 'return x, y, z + 1' },
+      children: [{ type: 'sphere', params: { radius: 1, segments: 8 } }],
+    });
+    expect(node.outputType).toBe('3d');
+    expect(node.children).toHaveLength(1);
+    expect(node.params['code']).toBe('return x, y, z + 1');
+    expect(node.params['values']).toEqual({});
+  });
+
+  it('rejects a missing or non-string code', async () => {
+    await expect(
+      buildGraph({
+        type: 'warp',
+        params: {},
+        children: [{ type: 'sphere', params: { radius: 1, segments: 8 } }],
+      }),
+    ).rejects.toThrow(/code/);
+    await expect(
+      buildGraph({
+        type: 'warp',
+        params: { code: 42 },
+        children: [{ type: 'sphere', params: { radius: 1, segments: 8 } }],
+      }),
+    ).rejects.toThrow(/code/);
+    await expect(
+      buildGraph({
+        type: 'warp',
+        params: { code: '' },
+        children: [{ type: 'sphere', params: { radius: 1, segments: 8 } }],
+      }),
+    ).rejects.toThrow(/code/);
+  });
+
+  it('requires exactly one 3D child', async () => {
+    await expect(
+      buildGraph({ type: 'warp', params: { code: 'return x,y,z' }, children: [] }),
+    ).rejects.toThrow(/exactly one child/);
+    await expect(
+      buildGraph({
+        type: 'warp',
+        params: { code: 'return x,y,z' },
+        children: [{ type: 'circle', params: { radius: 1, segments: 8 } }],
+      }),
+    ).rejects.toThrow(/3d/);
+  });
+
+  it('accepts and preserves a values record', async () => {
+    const node = await buildGraph({
+      type: 'warp',
+      params: { code: 'return x, y, z + params.dz', values: { dz: 7 } },
+      children: [{ type: 'sphere', params: { radius: 1, segments: 8 } }],
+    });
+    expect(node.params['values']).toEqual({ dz: 7 });
+  });
+
+  it('rejects non-object values', async () => {
+    await expect(
+      buildGraph({
+        type: 'warp',
+        params: { code: 'return x,y,z', values: 'oops' },
+        children: [{ type: 'sphere', params: { radius: 1, segments: 8 } }],
+      }),
+    ).rejects.toThrow(/values/);
+  });
+});

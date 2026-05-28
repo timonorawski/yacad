@@ -56,6 +56,11 @@ const EXAMPLES: Record<string, string> = {
   refine: 'return geo.refine({ n = 2 }, { geo.box({ size = {1, 1, 1} }) })',
   offset_2d:
     'return geo.offset_2d({ delta = 2, joinType = "round" }, { geo.rectangle({ size = {10, 10}, center = true }) })',
+  warp: `-- Bend a cylinder by shifting Z proportional to X.
+return geo.warp(
+  { code = 'return x, y, z + params.k * x', values = { k = 0.2 } },
+  { geo.cylinder({ height = 20, radius = 5, center = true }) }
+)`,
 };
 
 /**
