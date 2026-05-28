@@ -24,19 +24,47 @@
   {#each doc.paramSchema as schema (schema.name)}
     {@const value = (node.params ?? {})[schema.name]}
     {#if schema.enum}
-      <EnumField {schema} value={value as string | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <EnumField
+        {schema}
+        value={value as string | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'number'}
-      <NumberField {schema} value={value as number | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <NumberField
+        {schema}
+        value={value as number | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'int'}
-      <IntField {schema} value={value as number | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <IntField
+        {schema}
+        value={value as number | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'boolean'}
-      <BoolField {schema} value={value as boolean | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <BoolField
+        {schema}
+        value={value as boolean | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'string'}
-      <StringField {schema} value={value as string | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <StringField
+        {schema}
+        value={value as string | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'vec2'}
-      <Vec2Field {schema} value={value as [number, number] | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <Vec2Field
+        {schema}
+        value={value as [number, number] | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'vec3'}
-      <Vec3Field {schema} value={value as [number, number, number] | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <Vec3Field
+        {schema}
+        value={value as [number, number, number] | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {/if}
   {/each}
 {:else}

@@ -5,11 +5,7 @@ import { defaultHasher } from '@yacad/hash';
 import { canonicalBytes } from '@yacad/canonical';
 import { meshToBinaryStl } from '@yacad/export-stl';
 import { hashStlBlob } from '@yacad/import-stl';
-import {
-  GEAR_DEFINITION,
-  ARRAY_ALONG_X_DEFINITION,
-  FLOWER_DEFINITION,
-} from '@yacad/e2e/fixtures';
+import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION, FLOWER_DEFINITION } from '@yacad/e2e/fixtures';
 import sceneBox from '../../../packages/e2e/scenes/primitives/box.json?raw';
 import sceneSphere from '../../../packages/e2e/scenes/primitives/sphere.json?raw';
 import sceneCylinder from '../../../packages/e2e/scenes/primitives/cylinder.json?raw';
@@ -282,7 +278,11 @@ export async function seedSceneLibrary(library: DocLibrary): Promise<void> {
   for (const luaScene of luaScenes) {
     const defBytes = canonicalBytes(luaScene.defConstant);
     const hash = await defaultHasher.hash(defBytes);
-    const session = await library.create(luaScene.name, luaScene.buildDoc(hash));
+    // Skip validation: blobs are not yet in the resolver at create time.
+    // addBlob() below persists them before the session is closed.
+    const session = await library.create(luaScene.name, luaScene.buildDoc(hash), {
+      skipValidation: true,
+    });
     await session.addBlob(defBytes);
     await session.save();
     await session.close();

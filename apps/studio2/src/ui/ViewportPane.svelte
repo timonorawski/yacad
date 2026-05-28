@@ -34,7 +34,9 @@
     }, STATUS_DEFER_MS);
     const seq = ++evalSeq;
     try {
-      const outcome = await client.evaluate(session.doc, 'final');
+      // $state.snapshot strips Svelte 5 proxy wrappers — postMessage requires
+      // plain structured-cloneable objects.
+      const outcome = await client.evaluate($state.snapshot(session.doc), 'final');
       if (seq !== evalSeq) return;
       clearTimeout(statusTimer);
       if (outcome.geometry.kind === '2d') {

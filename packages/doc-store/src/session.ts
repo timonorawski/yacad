@@ -102,11 +102,17 @@ export class DocSession {
     // itself — subscribers can't have attached yet. The `invalidated`
     // event remains in DocEvent for mid-session transitions (e.g., a
     // future worker-failure path).
-    try {
-      await buildGraph(doc, defaultHasher, '$', session.makeResolver());
-    } catch (err) {
-      session.currentState = 'invalidated';
-      session.currentInvalidationError = err instanceof Error ? err : new Error(String(err));
+    //
+    // Validation is skipped when `options.skipValidation` is true. Use this
+    // only in controlled seeding / batch-import paths where blobs are not yet
+    // available to the resolver (they will be added via `addBlob` afterwards).
+    if (!options?.skipValidation) {
+      try {
+        await buildGraph(doc, defaultHasher, '$', session.makeResolver());
+      } catch (err) {
+        session.currentState = 'invalidated';
+        session.currentInvalidationError = err instanceof Error ? err : new Error(String(err));
+      }
     }
 
     return session;

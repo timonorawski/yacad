@@ -60,7 +60,11 @@
     {:else if decl.type === 'string'}
       <StringField {schema} value={value as string | undefined} onCommit={(v) => commit(name, v)} />
     {:else if decl.type === 'vec3'}
-      <Vec3Field {schema} value={value as [number, number, number] | undefined} onCommit={(v) => commit(name, v)} />
+      <Vec3Field
+        {schema}
+        value={value as [number, number, number] | undefined}
+        onCommit={(v) => commit(name, v)}
+      />
     {/if}
   {/each}
 {:else if definitionHash}

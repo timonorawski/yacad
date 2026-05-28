@@ -39,4 +39,10 @@ export interface BlobUploader {
 export interface SessionOptions {
   /** Autosave debounce window in milliseconds. Default 500. */
   readonly autosaveMs?: number;
+  /**
+   * When true, skip `buildGraph` validation on open. Use only in controlled
+   * seeding / batch-import paths where the caller guarantees doc integrity
+   * and blobs are not yet available to the resolver.
+   */
+  readonly skipValidation?: boolean;
 }
