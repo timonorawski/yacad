@@ -96,10 +96,7 @@ describe('unwrap', () => {
   it('replaces a nested node with its sole child', () => {
     const nestedTree: NodeDoc = {
       type: 'union',
-      children: [
-        wrapped,
-        { type: 'sphere', params: { radius: 5 } },
-      ],
+      children: [wrapped, { type: 'sphere', params: { radius: 5 } }],
     };
     const next = unwrap(nestedTree, '$/0');
     expect((next.children![0] as NodeDoc).type).toBe('box');

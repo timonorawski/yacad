@@ -66,9 +66,7 @@ export function unwrap(doc: NodeDoc, path: string): NodeDoc {
   const node = getAt(doc, path);
   const children = node.children ?? [];
   if (children.length !== 1) {
-    throw new Error(
-      `unwrap requires exactly 1 child at ${path} (found ${children.length})`,
-    );
+    throw new Error(`unwrap requires exactly 1 child at ${path} (found ${children.length})`);
   }
   return replaceWithin(doc, path, children[0]!);
 }
