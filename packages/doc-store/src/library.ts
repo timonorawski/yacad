@@ -56,7 +56,12 @@ export class DocLibrary {
     return this.open(id);
   }
 
-  /** Updates the display name and bumps `updatedAt`. */
+  /**
+   * Updates the display name and bumps `updatedAt`. Throws if `id` is unknown
+   * — a loud failure prevents silent data loss from a stale UI reference.
+   * (Compare with `delete`, which is intentionally silent on unknown ids so
+   * cleanup paths can be unconditional.)
+   */
   async rename(id: string, name: string): Promise<void> {
     const metaBytes = await this.vfs.read(metaKey(id));
     if (!metaBytes) {
@@ -67,12 +72,19 @@ export class DocLibrary {
     await this.vfs.write(metaKey(id), ENC.encode(JSON.stringify(updated)));
   }
 
-  /** Removes the document, its blobs, and its meta entry. Idempotent. */
+  /**
+   * Removes the document, its document.json body, and its blobs. Idempotent.
+   *
+   * Deletion order is **meta → doc → blobs** so that a crash mid-delete leaves
+   * the document fully removed from `list()`'s index. The body / blobs become
+   * orphan storage that a future sweep can reclaim, but the user never sees
+   * a "ghost" document that can't be opened.
+   */
   async delete(id: string): Promise<void> {
+    await this.vfs.delete(metaKey(id));
+    await this.vfs.delete(docKey(id));
     const blobKeys = await this.vfs.list(listBlobsPrefix(id));
     for (const k of blobKeys) await this.vfs.delete(k);
-    await this.vfs.delete(docKey(id));
-    await this.vfs.delete(metaKey(id));
   }
 
   /**
