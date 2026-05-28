@@ -287,4 +287,75 @@ describe('DocSession persistence', () => {
     const bytes = await vfs.read(`/docs/${session.id}/document.json`);
     expect(JSON.parse(new TextDecoder().decode(bytes!))).toMatchObject({ type: 'sphere' });
   });
+
+  it('serializes concurrent save calls', async () => {
+    // Use a VFS that records its write order so we can detect interleaving.
+    class OrderTrackingVfs extends MemoryVfs {
+      readonly writes: string[] = [];
+      override async write(key: string, value: Uint8Array): Promise<void> {
+        this.writes.push(`begin:${key}`);
+        // Yield once so concurrent saves can interleave if not serialized.
+        await new Promise((r) => setTimeout(r, 0));
+        await super.write(key, value);
+        this.writes.push(`end:${key}`);
+      }
+    }
+    const vfs = new OrderTrackingVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('A');
+    await session.mutate(() => ({ type: 'sphere', params: { radius: 1 } }));
+
+    // Fire two saves concurrently. Without serialization, their writes
+    // would interleave (begin:meta, begin:meta, end:meta, end:meta, ...).
+    // With serialization, each save's writes complete before the next starts.
+    await Promise.all([session.save(), session.save()]);
+
+    // Find every "begin:X" / "end:X" pair and assert they bracket without
+    // another begin in between for the SAME key.
+    const balance = new Map<string, number>();
+    for (const entry of vfs.writes) {
+      const [kind, key] = entry.split(':');
+      const cur = balance.get(key!) ?? 0;
+      if (kind === 'begin') {
+        // Should not see another begin for this key while one is open.
+        expect(cur).toBe(0);
+        balance.set(key!, cur + 1);
+      } else {
+        balance.set(key!, cur - 1);
+      }
+    }
+  });
+
+  it('autosave failures are caught and logged, not propagated as unhandled rejection', async () => {
+    class FailingVfs extends MemoryVfs {
+      writeCount = 0;
+      override async write(key: string, value: Uint8Array): Promise<void> {
+        this.writeCount++;
+        // Allow first two writes (meta.json and document.json from create()).
+        // Fail on subsequent writes (during autosave).
+        if (this.writeCount > 2 && key.endsWith('document.json')) {
+          throw new Error('disk full');
+        }
+        await super.write(key, value);
+      }
+    }
+    const vfs = new FailingVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    // Override console.error for this test to capture the log.
+    const origErr = console.error;
+    const errors: unknown[] = [];
+    console.error = (...args: unknown[]) => errors.push(args);
+    try {
+      const session = await lib.create('A', undefined, { autosaveMs: 10 });
+      await session.mutate(() => ({ type: 'sphere', params: { radius: 1 } }));
+      // Wait for the autosave timer to fire and fail.
+      await new Promise((r) => setTimeout(r, 60));
+      expect(errors.length).toBeGreaterThan(0);
+      // The first console.error call's first arg should mention 'autosave failed'.
+      const firstCallMessage = String((errors[0] as unknown[])[0] ?? '');
+      expect(firstCallMessage).toMatch(/autosave failed/i);
+    } finally {
+      console.error = origErr;
+    }
+  });
 });

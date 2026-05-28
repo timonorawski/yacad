@@ -24,6 +24,7 @@ export class DocSession {
   private readonly subscribers = new Set<(evt: DocEvent) => void>();
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly autosaveMs: number;
+  private savingPromise: Promise<void> | undefined;
 
   private constructor(
     private readonly vfs: Vfs,
@@ -129,6 +130,21 @@ export class DocSession {
   }
 
   async save(): Promise<void> {
+    // If a save is already in flight, wait for it to finish. Then if the
+    // session has been mutated since that save started, run another save.
+    if (this.savingPromise) {
+      await this.savingPromise;
+      if (!this.dirty) return;
+    }
+    this.savingPromise = this._save();
+    try {
+      await this.savingPromise;
+    } finally {
+      this.savingPromise = undefined;
+    }
+  }
+
+  private async _save(): Promise<void> {
     if (this.autosaveTimer !== undefined) {
       clearTimeout(this.autosaveTimer);
       this.autosaveTimer = undefined;
@@ -162,7 +178,9 @@ export class DocSession {
     if (this.autosaveTimer !== undefined) clearTimeout(this.autosaveTimer);
     this.autosaveTimer = setTimeout(() => {
       this.autosaveTimer = undefined;
-      void this.save();
+      this.save().catch((err: unknown) => {
+        console.error('DocSession: autosave failed', err);
+      });
     }, this.autosaveMs);
   }
 
