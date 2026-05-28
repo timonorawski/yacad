@@ -233,3 +233,46 @@ describe('LuaNode Engine.evaluate performance guards', () => {
     expect(elapsed).toBeLessThan(20);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 2D evaluation — cold/warm perf guards
+// ---------------------------------------------------------------------------
+
+describe('Engine.evaluate 2D performance guards', () => {
+  it('cold 2D evaluate completes within 1500 ms', async () => {
+    const kernel2d = new ManifoldKernel(await loadManifold());
+    const graph = await buildGraph({
+      type: 'extrude',
+      params: { height: 10 },
+      children: [
+        {
+          type: 'spline',
+          params: {
+            points: Array.from({ length: 8 }, (_, i) => {
+              const a = (i / 8) * 2 * Math.PI;
+              return [10 * Math.cos(a), 10 * Math.sin(a)] as [number, number];
+            }),
+            segmentsPerCurve: 8,
+          },
+        },
+      ],
+    });
+    const t0 = Date.now();
+    await new Engine(new MemoryStore(), kernel2d).evaluate(graph);
+    expect(Date.now() - t0).toBeLessThan(1500);
+  });
+
+  it('warm 2D evaluate completes within 100 ms', async () => {
+    const kernel2d = new ManifoldKernel(await loadManifold());
+    const graph = await buildGraph({
+      type: 'extrude',
+      params: { height: 10 },
+      children: [{ type: 'circle', params: { radius: 10 } }],
+    });
+    const store = new MemoryStore();
+    await new Engine(store, kernel2d).evaluate(graph);
+    const t0 = Date.now();
+    await new Engine(store, kernel2d).evaluate(graph);
+    expect(Date.now() - t0).toBeLessThan(100);
+  });
+});
