@@ -45,11 +45,32 @@ export interface HasLuaDefinitionRequest {
   readonly hash: string;
 }
 
+/**
+ * Store a mesh blob (binary STL / 3MF / glTF / …) in the worker's blob map.
+ * The DAG references it by `params.blobHash` on an import-* node; decoders
+ * read the bytes back through the resolver at evaluation time.
+ */
+export interface PutMeshBlobRequest {
+  readonly id: number;
+  readonly kind: 'putMeshBlob';
+  readonly hash: string;
+  readonly bytes: Uint8Array;
+}
+
+/** Check whether a mesh blob is registered under the given hash. */
+export interface HasMeshBlobRequest {
+  readonly id: number;
+  readonly kind: 'hasMeshBlob';
+  readonly hash: string;
+}
+
 export type WorkerRequest =
   | InitRequest
   | EvaluateRequest
   | PutLuaDefinitionRequest
-  | HasLuaDefinitionRequest;
+  | HasLuaDefinitionRequest
+  | PutMeshBlobRequest
+  | HasMeshBlobRequest;
 
 export interface EvaluateOk {
   readonly id: number;

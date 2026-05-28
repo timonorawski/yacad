@@ -1,4 +1,5 @@
 import { DagError, type GeometryType, type Node, type NodeDoc } from './types';
+import type { Mesh } from '@yacad/geometry';
 import type { Hash } from '@yacad/hash';
 import { asRecord, optBool, optSegments, posNum, posVec3, vec3 } from './validate';
 
@@ -68,7 +69,22 @@ export interface InputRef {
   outputType(): GeometryType;
 }
 
-export type NodeTypeDef = KernelNodeType | ExpandableNodeType;
+/**
+ * Decoder-backed leaf node — reads an external blob (STL, 3MF, glTF, …) from
+ * the resolver and decodes it into a Mesh. Unlike a kernel, the decoder is
+ * async (blob fetch); unlike an expandable, it produces a Mesh directly with
+ * no sub-DAG. This is the shape for external-format imports.
+ */
+export interface DecoderNodeType {
+  readonly kind: 'decoder';
+  readonly type: string;
+  readonly output: GeometryType;
+  checkChildren(children: readonly Node[], path: string): void;
+  normalizeParams(params: unknown, path: string): Record<string, unknown>;
+  decode(params: Record<string, unknown>, resolver: DefinitionResolver): Promise<Mesh>;
+}
+
+export type NodeTypeDef = KernelNodeType | ExpandableNodeType | DecoderNodeType;
 
 function expectAllOfType(children: readonly Node[], type: GeometryType, path: string): void {
   children.forEach((child, i) => {

@@ -212,6 +212,18 @@ export class Engine {
       importMs = timings.importMs;
       opMs = timings.opMs;
       exportMs = timings.exportMs;
+    } else if (def.kind === 'decoder') {
+      // --- Decoder branch: blob-leaf node. No children walked; the decoder
+      // fetches its blob via the resolver and returns a Mesh directly. ---
+      const decodeStart = performance.now();
+      mesh = await def.decode(node.params as Record<string, unknown>, this.resolver);
+      const decodeMs = performance.now() - decodeStart;
+      // Account decode under opMs; blob fetch + parse aren't separable here
+      // without instrumenting the decoder itself (deferred).
+      kernelMs = decodeMs;
+      importMs = 0;
+      opMs = decodeMs;
+      exportMs = 0;
     } else {
       // --- Expandable branch: expand sub-DAG, resolve __input_ref sentinels, recurse ---
       const expandableDef = def as ExpandableNodeType;

@@ -8,6 +8,7 @@ export {
   type NodeTypeDef,
   type KernelNodeType,
   type ExpandableNodeType,
+  type DecoderNodeType,
   type DefinitionResolver,
   type InputRef,
 } from './registry';

@@ -109,6 +109,9 @@ importers:
       '@yacad/canonical':
         specifier: workspace:*
         version: link:../canonical
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../geometry
       '@yacad/hash':
         specifier: workspace:*
         version: link:../hash
@@ -137,6 +140,9 @@ importers:
       '@yacad/hash':
         specifier: workspace:*
         version: link:../hash
+      '@yacad/import-stl':
+        specifier: workspace:*
+        version: link:../import-stl
       '@yacad/kernel-manifold':
         specifier: workspace:*
         version: link:../kernel-manifold
@@ -194,6 +200,22 @@ importers:
       '@yacad/canonical':
         specifier: workspace:*
         version: link:../canonical
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
+  packages/import-stl:
+    dependencies:
+      '@yacad/dag':
+        specifier: workspace:*
+        version: link:../dag
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../geometry
+      '@yacad/hash':
+        specifier: workspace:*
+        version: link:../hash
     devDependencies:
       '@yacad/tsconfig':
         specifier: workspace:*
@@ -264,6 +286,9 @@ importers:
       '@yacad/geometry':
         specifier: workspace:*
         version: link:../geometry
+      '@yacad/import-stl':
+        specifier: workspace:*
+        version: link:../import-stl
       '@yacad/kernel-manifold':
         specifier: workspace:*
         version: link:../kernel-manifold

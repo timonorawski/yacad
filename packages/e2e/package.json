@@ -10,6 +10,7 @@
     "@yacad/export-stl": "workspace:*",
     "@yacad/geometry": "workspace:*",
     "@yacad/hash": "workspace:*",
+    "@yacad/import-stl": "workspace:*",
     "@yacad/kernel-manifold": "workspace:*",
     "@yacad/lua": "workspace:*"
   },

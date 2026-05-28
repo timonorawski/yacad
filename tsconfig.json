@@ -10,6 +10,7 @@
     { "path": "packages/engine" },
     { "path": "packages/worker" },
     { "path": "packages/render" },
-    { "path": "packages/export-stl" }
+    { "path": "packages/export-stl" },
+    { "path": "packages/import-stl" }
   ]
 }

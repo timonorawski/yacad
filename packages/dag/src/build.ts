@@ -57,7 +57,10 @@ export async function buildGraph(
     children.push(await buildGraph(childDocs[i], hasher, `${id}/${i}`, resolver));
   }
 
-  if (def.kind === 'kernel') {
+  if (def.kind === 'kernel' || def.kind === 'decoder') {
+    // Kernel- and decoder-backed nodes share a validation signature: their
+    // child/param checks don't need the resolver (decoder fetches its blob
+    // later, at eval time, via the engine-supplied resolver).
     def.checkChildren(children, id);
     const params = def.normalizeParams(record['params'] ?? {}, id);
     const hash = await hashNode(type, params, children, hasher);

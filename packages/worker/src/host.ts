@@ -1,6 +1,7 @@
 import { IndexedDbStore, MemoryStore, TieredStore } from '@yacad/cache';
-import { buildGraph, registerNodeType } from '@yacad/dag';
+import { buildGraph, getNodeType, registerNodeType, type DefinitionResolver } from '@yacad/dag';
 import { Engine } from '@yacad/engine';
+import { IMPORT_STL_NODE_TYPE, IMPORT_STL_TYPE } from '@yacad/import-stl';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 import {
   makeLuaNodeType,
@@ -11,8 +12,10 @@ import {
 import type {
   EvaluateRequest,
   HasLuaDefinitionRequest,
+  HasMeshBlobRequest,
   OkResponse,
   PutLuaDefinitionRequest,
+  PutMeshBlobRequest,
   WorkerRequest,
   WorkerResponse,
 } from './protocol';
@@ -52,6 +55,21 @@ export function startHost(scope: WorkerScope): void {
     luaRegistered = true;
   }
 
+  // Mesh-blob state — content-addressable bytes for binary mesh imports
+  // (STL today, 3MF/glTF later). The engine sees one composite resolver that
+  // consults both maps; consumers narrow on retrieval.
+  const meshBlobs = new Map<string, Uint8Array>();
+  const combinedResolver: DefinitionResolver = {
+    get: (h) => luaDefs.get(h) ?? meshBlobs.get(h),
+  };
+
+  // Decoder node types are static — register once per process, idempotently
+  // (the registry is global, so guard with getNodeType to survive multiple
+  // host instances in the same module).
+  if (!getNodeType(IMPORT_STL_TYPE)) {
+    registerNodeType(IMPORT_STL_NODE_TYPE);
+  }
+
   let backend: Promise<Backend> | undefined;
 
   scope.onmessage = (event) => {
@@ -66,7 +84,7 @@ export function startHost(scope: WorkerScope): void {
         const luaRuntime = new WasmoonLuaRuntime({ wasmUrl: req.luaWasmUrl });
         ensureLuaRegistered(luaRuntime);
       }
-      backend = createEngine(() => req.wasmUrl, luaResolver);
+      backend = createEngine(() => req.wasmUrl, combinedResolver);
       return;
     }
 
@@ -80,8 +98,18 @@ export function startHost(scope: WorkerScope): void {
       return;
     }
 
+    if (req.kind === 'putMeshBlob') {
+      handlePutMeshBlob(scope, meshBlobs, req);
+      return;
+    }
+
+    if (req.kind === 'hasMeshBlob') {
+      handleHasMeshBlob(scope, meshBlobs, req);
+      return;
+    }
+
     if (req.kind === 'evaluate') {
-      backend ??= createEngine(undefined, luaResolver);
+      backend ??= createEngine(undefined, combinedResolver);
       void handle(scope, backend, req);
     }
   };
@@ -94,12 +122,12 @@ interface Backend {
 
 async function createEngine(
   locateFile: (() => string) | undefined,
-  luaResolver: LuaDefinitionResolver,
+  resolver: DefinitionResolver,
 ): Promise<Backend> {
   const toplevel = await loadManifold(locateFile ? { locateFile } : {});
   const store = new TieredStore(new MemoryStore(), new IndexedDbStore());
   return {
-    engine: new Engine(store, new ManifoldKernel(toplevel), { resolver: luaResolver }),
+    engine: new Engine(store, new ManifoldKernel(toplevel), { resolver }),
     store,
   };
 }
@@ -120,6 +148,25 @@ function handleHasLuaDefinition(
   req: HasLuaDefinitionRequest,
 ): void {
   const res: OkResponse = { id: req.id, kind: 'ok', present: luaDefs.has(req.hash) };
+  scope.postMessage(res);
+}
+
+function handlePutMeshBlob(
+  scope: WorkerScope,
+  meshBlobs: Map<string, Uint8Array>,
+  req: PutMeshBlobRequest,
+): void {
+  meshBlobs.set(req.hash, req.bytes);
+  const res: OkResponse = { id: req.id, kind: 'ok' };
+  scope.postMessage(res);
+}
+
+function handleHasMeshBlob(
+  scope: WorkerScope,
+  meshBlobs: Map<string, Uint8Array>,
+  req: HasMeshBlobRequest,
+): void {
+  const res: OkResponse = { id: req.id, kind: 'ok', present: meshBlobs.has(req.hash) };
   scope.postMessage(res);
 }
 

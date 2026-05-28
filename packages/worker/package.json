@@ -24,6 +24,7 @@
     "@yacad/dag": "workspace:*",
     "@yacad/engine": "workspace:*",
     "@yacad/geometry": "workspace:*",
+    "@yacad/import-stl": "workspace:*",
     "@yacad/kernel-manifold": "workspace:*",
     "@yacad/lua": "workspace:*"
   },

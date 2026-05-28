@@ -93,6 +93,17 @@ export class WorkerClient {
     return (res as OkResponse).present === true;
   }
 
+  /** Upload a mesh blob (binary STL / 3MF / …) to the worker's blob map. */
+  async putMeshBlob(hash: string, bytes: Uint8Array): Promise<void> {
+    await this.send({ id: 0, kind: 'putMeshBlob', hash, bytes });
+  }
+
+  /** Check whether a mesh blob is registered under the given hash. */
+  async hasMeshBlob(hash: string): Promise<boolean> {
+    const res = await this.send({ id: 0, kind: 'hasMeshBlob', hash });
+    return (res as OkResponse).present === true;
+  }
+
   /**
    * Generic correlated request/response helper. Allocates an id, posts the
    * request (overwriting any `id` field on the supplied object), and resolves

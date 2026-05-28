@@ -1,5 +1,5 @@
 {
-  "name": "@yacad/dag",
+  "name": "@yacad/import-stl",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@yacad/canonical": "workspace:*",
+    "@yacad/dag": "workspace:*",
     "@yacad/geometry": "workspace:*",
     "@yacad/hash": "workspace:*"
   },

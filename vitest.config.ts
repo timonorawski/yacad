@@ -23,6 +23,7 @@ export default defineConfig({
       '@yacad/worker': pkg('worker'),
       '@yacad/render': pkg('render'),
       '@yacad/export-stl': pkg('export-stl'),
+      '@yacad/import-stl': pkg('import-stl'),
       // Sub-path alias for the shared E2E fixtures (used by bench/lua.bench.ts)
       '@yacad/e2e/fixtures': pkgFile('e2e', 'fixtures.ts'),
     },
