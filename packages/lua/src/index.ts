@@ -8,3 +8,7 @@ export * from './node-type';
 export * from './geo-docs';
 export * from './sandbox-globals';
 export * from './static-analyze';
+export { installLuaSandbox } from './sandbox';
+export type { LuaSandboxOptions, LuaRandomPolicy } from './sandbox';
+export { WasmoonWarpEvaluator } from './wasmoon-warp';
+export type { WasmoonWarpEvaluatorOptions } from './wasmoon-warp';

@@ -123,7 +123,7 @@ describe('import-stl e2e', () => {
     // Build a real cube via Manifold, encode as binary STL, re-import as a
     // leaf, and subtract a sphere. This proves the imported mesh re-welds
     // through Manifold's constructor cleanly enough for booleans.
-    const cubeGeometry = kernel.evaluate(
+    const cubeGeometry = await kernel.evaluate(
       await buildGraph({ type: 'box', params: { size: [20, 20, 20], center: true } }),
       [],
     );

@@ -69,7 +69,7 @@ import { validateLuaSource, LuaValidationError } from '@yacad/lua';
 interface ValidationStatus {
   ok: boolean;
   count: number; // issue count; 0 when ok
-  ms: number;    // last-run wall-clock duration
+  ms: number; // last-run wall-clock duration
 }
 
 let validation = $state<ValidationStatus>({ ok: true, count: 0, ms: 0 });

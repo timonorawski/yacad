@@ -12,6 +12,7 @@ import { addLuaDefinition } from './lua-sync';
 import { seedHouseShowcase } from '@yacad/e2e/showcase/house';
 import { seedCastleShowcase } from '@yacad/e2e/showcase/castle';
 import { seedTreeShowcase } from '@yacad/e2e/showcase/tree';
+import { seedTorusKnotShowcase } from '@yacad/e2e/showcase/torus-knot';
 import sceneBox from '../../../packages/e2e/scenes/primitives/box.json?raw';
 import sceneSphere from '../../../packages/e2e/scenes/primitives/sphere.json?raw';
 import sceneCylinder from '../../../packages/e2e/scenes/primitives/cylinder.json?raw';
@@ -374,4 +375,5 @@ export async function seedSceneLibrary(library: DocLibrary): Promise<void> {
   await seedHouseShowcase(library);
   await seedCastleShowcase(library);
   await seedTreeShowcase(library);
+  await seedTorusKnotShowcase(library);
 }

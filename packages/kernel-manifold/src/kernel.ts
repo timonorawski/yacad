@@ -8,6 +8,7 @@ import type { CrossSection, Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
 import { rotationToAlignWithZ } from './plane';
 import { catmullRomClosed } from './spline';
+import type { WarpEvaluator } from './warp-evaluator';
 
 /** Wall-clock breakdown of one kernel evaluation, in milliseconds. */
 export interface KernelTimings {
@@ -27,14 +28,18 @@ export interface KernelResult {
 /**
  * Evaluates one DAG node to a geometry, given its children's already-evaluated
  * geometries. Deterministic given its inputs (CLAUDE.md #2): no clock, RNG, or I/O.
+ *
+ * The methods are async because some node kinds (e.g. `warp`) need to await a
+ * Lua-runtime call during evaluation. Pure-geometry node kinds complete
+ * synchronously and the Promise resolves on the same microtask tick.
  */
 export interface Kernel {
   readonly name: string;
   readonly version: string;
   /** Evaluate to a geometry. */
-  evaluate(node: Node, childGeometries: readonly Geometry[]): Geometry;
+  evaluate(node: Node, childGeometries: readonly Geometry[]): Promise<Geometry>;
   /** Evaluate to a geometry plus a per-phase timing breakdown. */
-  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): KernelResult;
+  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): Promise<KernelResult>;
 }
 
 /** Thrown when a node receives a child geometry of the wrong kind. */
@@ -68,17 +73,87 @@ function asCrossSection(g: Geometry, nodeId: string, i: number): CrossSection {
  * timed separately because, when an ancestor recomputes, it pays to re-import
  * its children's cached meshes even though their geometry was cached.
  */
+export interface ManifoldKernelOptions {
+  /** Required for evaluating `warp` nodes; absent → warp throws at eval time. */
+  readonly warpEvaluator?: WarpEvaluator;
+}
+
 export class ManifoldKernel implements Kernel {
   readonly name = KERNEL_NAME;
   readonly version = KERNEL_VERSION;
 
-  constructor(private readonly api: ManifoldToplevel) {}
+  constructor(
+    private readonly api: ManifoldToplevel,
+    private readonly options: ManifoldKernelOptions = {},
+  ) {}
 
-  evaluate(node: Node, childGeometries: readonly Geometry[]): Geometry {
-    return this.evaluateTimed(node, childGeometries).geometry;
+  async evaluate(node: Node, childGeometries: readonly Geometry[]): Promise<Geometry> {
+    return (await this.evaluateTimed(node, childGeometries)).geometry;
   }
 
-  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+  async evaluateTimed(node: Node, childGeometries: readonly Geometry[]): Promise<KernelResult> {
+    // The only path that genuinely needs async is `warp` (calls into the Lua
+    // runtime to compile the deformation function). Every other node kind
+    // completes synchronously and resolves on this microtask tick.
+    if (node.type === 'warp') {
+      return this.evaluateWarp(node, childGeometries);
+    }
+    return this.evaluateTimedSync(node, childGeometries);
+  }
+
+  private async evaluateWarp(
+    node: Node,
+    childGeometries: readonly Geometry[],
+  ): Promise<KernelResult> {
+    if (!this.options.warpEvaluator) {
+      throw new KernelError(
+        `node ${node.id}: warp requires a WarpEvaluator, but none was supplied to the kernel`,
+      );
+    }
+    const mesh = asMesh(childGeometries[0]!, node.id, 0);
+    const code = node.params['code'] as string;
+    const values = (node.params['values'] as Record<string, unknown>) ?? {};
+
+    const compileStart = performance.now();
+    const cb = await this.options.warpEvaluator.compile(code, values);
+    const compileMs = performance.now() - compileStart;
+
+    const importStart = performance.now();
+    const solid = this.toSolid(mesh);
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    let result: Solid;
+    try {
+      result = solid.warp((v) => {
+        const [nx, ny, nz] = cb(v[0], v[1], v[2]);
+        v[0] = nx;
+        v[1] = ny;
+        v[2] = nz;
+      });
+    } finally {
+      solid.delete();
+    }
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    try {
+      const out = this.toMesh(result);
+      return {
+        geometry: { kind: '3d', mesh: out },
+        // Charge Lua compile to importMs since it's setup, not the core op.
+        timings: {
+          importMs: importMs + compileMs,
+          opMs,
+          exportMs: performance.now() - exportStart,
+        },
+      };
+    } finally {
+      result.delete();
+    }
+  }
+
+  private evaluateTimedSync(node: Node, childGeometries: readonly Geometry[]): KernelResult {
     // Dispatch to 2D handler for 2D node types (no import needed — no child meshes).
     if (node.type === 'circle') {
       return this.evaluateCircle(node);
@@ -317,7 +392,7 @@ export class ManifoldKernel implements Kernel {
     // Manifold.revolve takes a CrossSection or Polygons (array of SimplePolygon).
     // We pass the stored polygons directly, cast to the mutable form Manifold expects.
     const polygons = child.polygons as unknown as [number, number][][];
-    const axis = node.params['axis'] as 'y' | 'x';
+    const axis = node.params['axis'] as 'y' | 'x' | 'z';
     const segments = node.params['segments'] as number;
     const degrees = node.params['degrees'] as number;
 
@@ -329,6 +404,8 @@ export class ManifoldKernel implements Kernel {
     //   R_x(90°): (x,y,z) → (x,-z,y). Z vector (0,0,1) → (0,1,0) = +Y. ✓
     // For axis='x': we want ring axis = X. Rotate Z→X: rotate([0,-90,0]).
     //   R_y(-90°): (x,y,z) → (z,y,-x). Z vector (0,0,1) → (1,0,0) = +X. ✓
+    // For axis='z': leave Manifold's native frame untouched (ring axis = Z).
+    //   This is what vertex-deformation (warp) recipes are written against.
     const importMs = performance.now() - importStart;
 
     const opStart = performance.now();
@@ -337,7 +414,8 @@ export class ManifoldKernel implements Kernel {
       segments,
       degrees,
     );
-    // Post-rotate so the ring axis aligns with the requested 3D axis.
+    // Post-rotate so the ring axis aligns with the requested 3D axis. 'z' is
+    // the native frame — no rotation.
     const result = axis === 'x' ? m.rotate([0, -90, 0]) : axis === 'y' ? m.rotate([90, 0, 0]) : m;
     const opMs = performance.now() - opStart;
 

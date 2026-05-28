@@ -220,7 +220,7 @@ export class Engine {
         childGeometries.push(await this.walk(child, tier, perNode));
       }
       // Use evaluateTimed to preserve per-phase timings (constraint #1).
-      const { geometry: kernelGeometry, timings } = this.kernel.evaluateTimed(
+      const { geometry: kernelGeometry, timings } = await this.kernel.evaluateTimed(
         node,
         childGeometries,
       );

@@ -11,6 +11,7 @@ import {
   makeLuaNodeType,
   validateLuaSource,
   WasmoonLuaRuntime,
+  WasmoonWarpEvaluator,
   type LuaDefinition,
   type LuaDefinitionResolver,
 } from '@yacad/lua';
@@ -78,6 +79,9 @@ export function startHost(scope: WorkerScope): void {
   if (!getNodeType(IMPORT_GLTF_TYPE)) registerNodeType(IMPORT_GLTF_NODE_TYPE);
 
   let backend: Promise<Backend> | undefined;
+  // Stash for warp evaluator construction in createEngine; bundlers resolve
+  // the Lua WASM URL on the main thread and forward it via init.
+  let luaWasmUrl: string | undefined;
 
   scope.onmessage = (event) => {
     const req = event.data as WorkerRequest;
@@ -88,10 +92,11 @@ export function startHost(scope: WorkerScope): void {
       // defers actual Wasmoon loading until the first createEngine() call
       // (LuaFactory is lazy internally). Register the node type once.
       if (req.luaWasmUrl) {
+        luaWasmUrl = req.luaWasmUrl;
         const luaRuntime = new WasmoonLuaRuntime({ wasmUrl: req.luaWasmUrl });
         ensureLuaRegistered(luaRuntime);
       }
-      backend = createEngine(() => req.wasmUrl, combinedResolver);
+      backend = createEngine(() => req.wasmUrl, combinedResolver, luaWasmUrl);
       return;
     }
 
@@ -121,7 +126,7 @@ export function startHost(scope: WorkerScope): void {
     }
 
     if (req.kind === 'evaluate') {
-      backend ??= createEngine(undefined, combinedResolver);
+      backend ??= createEngine(undefined, combinedResolver, luaWasmUrl);
       void handle(scope, backend, req);
     }
   };
@@ -154,11 +159,16 @@ interface Backend {
 async function createEngine(
   locateFile: (() => string) | undefined,
   resolver: DefinitionResolver,
+  luaWasmUrl: string | undefined,
 ): Promise<Backend> {
   const toplevel = await loadManifold(locateFile ? { locateFile } : {});
   const store = new TieredStore(new MemoryStore(), new IndexedDbStore());
+  // The warp evaluator shares the Lua WASM URL with the LuaNode runtime so
+  // both go through the same Wasmoon factory. In Node tests luaWasmUrl is
+  // undefined and Wasmoon falls back to its default.
+  const warpEvaluator = new WasmoonWarpEvaluator(luaWasmUrl ? { wasmUrl: luaWasmUrl } : {});
   return {
-    engine: new Engine(store, new ManifoldKernel(toplevel), { resolver }),
+    engine: new Engine(store, new ManifoldKernel(toplevel, { warpEvaluator }), { resolver }),
     store,
   };
 }

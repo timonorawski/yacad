@@ -1,10 +1,10 @@
-import { LuaFactory, LuaLibraries, type LuaEngine } from 'wasmoon';
+import { LuaFactory, type LuaEngine } from 'wasmoon';
 import type { NodeDoc } from '@yacad/dag';
 import { canonicalize } from '@yacad/canonical';
 import { buildGeoApi } from './geo';
 import { LuaError, type InputRef, type LuaRuntime } from './runtime';
+import { installLuaSandbox } from './sandbox';
 import type { LuaDefinition } from './schema';
-import { SANDBOX_STRIP_SCRIPT } from './sandbox-globals';
 
 export interface WasmoonLuaRuntimeOptions {
   /** Custom WASM URL (worker / browser environments). Omit in Node. */
@@ -59,33 +59,19 @@ async function installSandbox(
   values: Record<string, unknown>,
   geoApi: ReturnType<typeof buildGeoApi>,
 ): Promise<void> {
-  // 1. Selectively open only the pure stdlib chunks we want:
-  //    - Base: provides pairs, ipairs, pcall, error, tostring, tonumber, select, type, etc.
-  //      We then strip dangerous base entries below.
-  //    - Math, String, Table: pure computation; no I/O or system access.
-  //    With openStandardLibs: false, os/io/package/coroutine/debug are never loaded.
-  await engine.global.loadLibrary(LuaLibraries.Base);
-  await engine.global.loadLibrary(LuaLibraries.Math);
-  await engine.global.loadLibrary(LuaLibraries.String);
-  await engine.global.loadLibrary(LuaLibraries.Table);
-
-  // 2. Seed math.random BEFORE stripping randomseed (ordering matters — the old
-  //    plan had a bug here where randomseed was cleared before being called).
-  //    Lua 5.4 math.randomseed expects signed int64 values. seedBitsFrom returns
-  //    sign-extended BigInt so Lua can accept them as integers (not floats).
+  // Delegate to the shared installer. LuaNode keeps math.random available with
+  // a deterministic seed derived from (canonical(def), canonical(values)) so
+  // authors can use random in DAG generation without breaking the cache.
   const seedLo = seedBitsFrom(def, values, 0);
   const seedHi = seedBitsFrom(def, values, 1);
-  await engine.doString(`math.randomseed(${seedLo.toString()}, ${seedHi.toString()})`);
-
-  // 3. Strip impure / unwanted entries AFTER seeding.
-  //    Single source of truth: SANDBOX_STRIP_SCRIPT is derived from
-  //    SANDBOX_GLOBALS, so runtime and validator cannot drift.
-  await engine.doString(SANDBOX_STRIP_SCRIPT);
-
-  // 4. Install our APIs.
-  engine.global.set('geo', geoApi);
-  engine.global.set('params', values);
-  engine.global.set('inputs', inputsTable(inputs));
+  await installLuaSandbox(engine, {
+    random: { mode: 'seeded', seedLo, seedHi },
+    globals: {
+      geo: geoApi,
+      params: values,
+      inputs: inputsTable(inputs),
+    },
+  });
 }
 
 /** Materialize a Lua-friendly inputs table keyed by name.
