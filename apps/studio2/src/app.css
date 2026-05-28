@@ -148,6 +148,24 @@ body {
   gap: 0.25rem;
   margin-bottom: 0.5rem;
 }
+.exclusive-group {
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  padding: 0.4rem 0.6rem 0.25rem;
+  margin: 0 0 0.5rem;
+}
+.exclusive-group > legend {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0 0.3rem;
+  font-size: 0.8rem;
+}
+.exclusive-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
 .form-field > span {
   font-size: 0.85rem;
   color: var(--fg);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getAt, setParam } from '@yacad/mutations';
+  import { getAt, setParam, setParams } from '@yacad/mutations';
   import { getNodeType } from '@yacad/dag';
   import { decodeLuaDefinitionBytes } from '../lua-sync';
   import KernelInspector from './inspectors/KernelInspector.svelte';
@@ -38,6 +38,15 @@
       console.error('mutate rejected:', err);
     }
   }
+
+  async function commitParams(patch: Record<string, unknown>) {
+    if (!selection.selectedId) return;
+    try {
+      await session.session.mutate((prev) => setParams(prev, selection.selectedId!, patch));
+    } catch (err) {
+      console.error('mutate rejected:', err);
+    }
+  }
 </script>
 
 {#if session.invalidationError}
@@ -45,7 +54,7 @@
 {:else if !selectedNode}
   <p><em>Select a node from the tree to edit its parameters.</em></p>
 {:else if selectedDef?.kind === 'kernel'}
-  <KernelInspector node={selectedNode} onCommit={commitParam} />
+  <KernelInspector node={selectedNode} onCommit={commitParam} onCommitMany={commitParams} />
 {:else if selectedDef?.kind === 'expandable'}
   <LuaInspector
     node={selectedNode}
