@@ -1,0 +1,26 @@
+{
+  "definitions": {
+    "@flower": {
+      "schema": {
+        "inputs": [],
+        "params": {
+          "petals": { "type": "int", "default": 6, "min": 3, "max": 16 },
+          "innerRadius": { "type": "number", "default": 4 },
+          "outerRadius": { "type": "number", "default": 10 }
+        },
+        "output": "2d"
+      },
+      "code": "\n    local pts = {}\n    local total = params.petals * 2\n    for i = 0, total - 1 do\n      local angle = (i / total) * 2 * math.pi\n      local r = (i % 2 == 0) and params.outerRadius or params.innerRadius\n      pts[#pts + 1] = { r * math.cos(angle), r * math.sin(angle) }\n    end\n    return geo.polygon({ points = pts })\n  "
+    }
+  },
+  "doc": {
+    "type": "extrude",
+    "params": { "height": 3 },
+    "children": [
+      {
+        "type": "lua",
+        "params": { "definitionHash": "@flower", "values": {} }
+      }
+    ]
+  }
+}
