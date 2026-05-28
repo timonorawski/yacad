@@ -187,14 +187,15 @@
     onTabChange={(t) => (docsTab = t)}
     onClose={() => (docsOpen = false)}
   />
-  <LuaEditor
-    open={luaEditorOpen}
-    definition={editingLuaDefinition}
-    onClose={() => (luaEditorOpen = false)}
-    onSave={saveLuaDefinition}
-    onOpenApiRef={() => {
-      docsTab = 'luaApi';
-      docsOpen = true;
-    }}
-  />
+  {#if luaEditorOpen && editingLuaDefinition}
+    <LuaEditor
+      definition={editingLuaDefinition}
+      onClose={() => (luaEditorOpen = false)}
+      onSave={saveLuaDefinition}
+      onOpenApiRef={() => {
+        docsTab = 'luaApi';
+        docsOpen = true;
+      }}
+    />
+  {/if}
 </div>

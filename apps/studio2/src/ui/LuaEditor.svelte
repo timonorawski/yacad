@@ -6,55 +6,36 @@
   import { ensureMonacoEnvironment } from '../lua-editor-setup';
 
   interface Props {
-    open: boolean;
-    definition: LuaDefinition | undefined;
+    definition: LuaDefinition;
     onClose: () => void;
     /** Called with the new hash + canonical bytes after a save. */
     onSave: (newHash: string, newBytes: Uint8Array, newDef: LuaDefinition) => Promise<void>;
     onOpenApiRef: () => void;
   }
 
-  let { open, definition, onClose, onSave, onOpenApiRef }: Props = $props();
+  let { definition, onClose, onSave, onOpenApiRef }: Props = $props();
 
   let container: HTMLDivElement | undefined = $state();
   let editor: ReturnType<typeof import('monaco-editor').editor.create> | undefined;
-  let codeBuffer = $state('');
+  let codeBuffer = $state(definition.code);
   let dirty = $state(false);
   let saving = $state(false);
-
-  /** Sync from incoming definition → editor (when the user switches nodes). */
-  $effect(() => {
-    if (!editor) return;
-    if (!definition) {
-      editor.setValue('');
-      codeBuffer = '';
-      dirty = false;
-      return;
-    }
-    const current = editor.getValue();
-    if (current !== definition.code) {
-      editor.setValue(definition.code);
-      codeBuffer = definition.code;
-      dirty = false;
-    }
-  });
 
   onMount(() => {
     if (!container) return;
     const monaco = ensureMonacoEnvironment();
     editor = monaco.editor.create(container, {
-      value: definition?.code ?? '',
+      value: definition.code,
       language: 'lua',
       theme: 'vs-dark',
       automaticLayout: true,
       minimap: { enabled: false },
       fontSize: 13,
     });
-    codeBuffer = definition?.code ?? '';
     editor.onDidChangeModelContent(() => {
       const next = editor!.getValue();
       codeBuffer = next;
-      dirty = definition !== undefined && next !== definition.code;
+      dirty = next !== definition.code;
     });
   });
 
@@ -64,7 +45,7 @@
   });
 
   async function save() {
-    if (!definition || !dirty || saving) return;
+    if (!dirty || saving) return;
     const nextDef: LuaDefinition = { schema: definition.schema, code: codeBuffer };
     const bytes = canonicalBytes(nextDef);
     const hash = await defaultHasher.hash(bytes);
@@ -78,14 +59,14 @@
   }
 
   function revert() {
-    if (!editor || !definition) return;
+    if (!editor) return;
     editor.setValue(definition.code);
     codeBuffer = definition.code;
     dirty = false;
   }
 </script>
 
-<aside class="lua-editor" class:open>
+<aside class="lua-editor open">
   <header class="lua-editor-header">
     <div class="lua-editor-title">
       Lua code
