@@ -57,6 +57,7 @@ export function validateLuaSource(def: LuaDefinition): void {
       locations: true,
       comments: false,
       scope: false,
+      encodingMode: 'pseudo-latin1',
     });
   } catch (e) {
     issues.push(mapParseError(e));
@@ -280,6 +281,30 @@ function walkPhase2(
         return;
       }
 
+      case 'IndexExpression': {
+        visit(node.base);
+        visit(node.index);
+        if (node.base?.type === 'Identifier' && !scope.isLocal(node.base.name)) {
+          const baseName = node.base.name as string;
+          if (baseName === 'params' || baseName === 'inputs' || baseName === 'geo') {
+            if (node.index?.type === 'StringLiteral') {
+              // Literal key — treat as MemberExpression with that name.
+              const member = node.index.value as string;
+              if (baseName === 'params') checkParamMember(member, node.index);
+              else if (baseName === 'inputs') checkInputMember(member, node.index);
+              // geo[<literal>] handled in Task 13's geo-member dispatch.
+            } else {
+              issues.push({
+                category: 'unanalyzable-access',
+                message: `'${baseName}[...]' with a non-literal key cannot be statically checked`,
+                ...locOf(node),
+              });
+            }
+          }
+        }
+        return;
+      }
+
       case 'MemberExpression': {
         // Walk base normally for nested checks (e.g., os.time → os is flagged
         // by the Identifier case).
@@ -297,8 +322,6 @@ function walkPhase2(
             }
           }
         }
-        // When indexer is '[', the index is an expression (free variable); visit it.
-        if (node.indexer === '[') visit(node.index);
         return;
       }
 

@@ -249,3 +249,46 @@ describe('Phase 2 — params/inputs member checks', () => {
     }
   });
 });
+
+describe('Phase 2 — params[K] / inputs[K] index access', () => {
+  const teethSchema = {
+    inputs: [],
+    params: { teeth: { type: 'int' as const, default: 8 } },
+    output: '3d' as const,
+  };
+
+  it('allows literal-key bracket access on params', () => {
+    expect(() =>
+      validateLuaSource({
+        schema: teethSchema,
+        code: 'return { type = "box", params = { x = params["teeth"] } }',
+      }),
+    ).not.toThrow();
+  });
+
+  it('flags non-literal-key bracket access as unanalyzable-access', () => {
+    try {
+      validateLuaSource({
+        schema: teethSchema,
+        code: 'local k = "teeth"\nreturn { type = "box", params = { x = params[k] } }',
+      });
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      expect(err.issues.some((i) => i.category === 'unanalyzable-access')).toBe(true);
+    }
+  });
+
+  it('flags literal bracket key not in schema as undeclared-param', () => {
+    try {
+      validateLuaSource({
+        schema: teethSchema,
+        code: 'return { type = "box", params = { x = params["tooth"] } }',
+      });
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      expect(err.issues.some((i) => i.category === 'undeclared-param')).toBe(true);
+    }
+  });
+});
