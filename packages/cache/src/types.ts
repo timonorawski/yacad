@@ -79,6 +79,8 @@ export interface ObjectStore {
   put(key: CacheKey, artifact: Artifact): Promise<void>;
   has(key: CacheKey, kind: ArtifactKind): Promise<boolean>;
   delete(key: CacheKey, kind: ArtifactKind): Promise<void>;
+  /** Drop every entry. Pinned hashes and other store state are also cleared. */
+  clear(): Promise<void>;
 }
 
 /** Stores that support pinning a working set against eviction (the L1 tier). */

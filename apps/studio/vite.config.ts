@@ -23,6 +23,9 @@ export default defineConfig({
       { find: '@yacad/kernel-manifold', replacement: src('kernel-manifold/src/index.ts') },
       { find: '@yacad/engine', replacement: src('engine/src/index.ts') },
       { find: '@yacad/render', replacement: src('render/src/index.ts') },
+      { find: '@yacad/export-dxf', replacement: src('export-dxf/src/index.ts') },
+      { find: '@yacad/export-svg', replacement: src('export-svg/src/index.ts') },
+      { find: '@yacad/export-png', replacement: src('export-png/src/browser.ts') },
       { find: '@yacad/export-stl', replacement: src('export-stl/src/index.ts') },
       { find: '@yacad/import-stl', replacement: src('import-stl/src/index.ts') },
       { find: '@yacad/import-obj', replacement: src('import-obj/src/index.ts') },
@@ -36,4 +39,7 @@ export default defineConfig({
   worker: { format: 'es' },
   // Emscripten-built WASM module doesn't pre-bundle cleanly.
   optimizeDeps: { exclude: ['manifold-3d'] },
+  server: {
+    allowedHosts: ['127.0.0.1', '::1', 'cad.yamplay.cc'],
+  },
 });

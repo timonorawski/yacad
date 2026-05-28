@@ -64,13 +64,23 @@ export interface HasMeshBlobRequest {
   readonly hash: string;
 }
 
+/**
+ * Drop every artifact from the worker's cache (L1 + L2). The worker echoes
+ * `{ id, kind: 'ok' }` once both tiers are empty.
+ */
+export interface ClearCacheRequest {
+  readonly id: number;
+  readonly kind: 'clearCache';
+}
+
 export type WorkerRequest =
   | InitRequest
   | EvaluateRequest
   | PutLuaDefinitionRequest
   | HasLuaDefinitionRequest
   | PutMeshBlobRequest
-  | HasMeshBlobRequest;
+  | HasMeshBlobRequest
+  | ClearCacheRequest;
 
 export interface EvaluateOk {
   readonly id: number;

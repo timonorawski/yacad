@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getAt, setParam } from '@yacad/mutations';
+  import { getAt, setParam, setParams } from '@yacad/mutations';
   import { getNodeType } from '@yacad/dag';
   import { decodeLuaDefinitionBytes } from '../lua-sync';
   import KernelInspector from './inspectors/KernelInspector.svelte';
@@ -12,9 +12,10 @@
   interface Props {
     session: SessionState;
     selection: SelectionState;
+    onEditLua: () => void;
   }
 
-  let { session, selection }: Props = $props();
+  let { session, selection, onEditLua }: Props = $props();
 
   const selectedNode = $derived.by(() => {
     if (!selection.selectedId) return undefined;
@@ -37,6 +38,15 @@
       console.error('mutate rejected:', err);
     }
   }
+
+  async function commitParams(patch: Record<string, unknown>) {
+    if (!selection.selectedId) return;
+    try {
+      await session.session.mutate((prev) => setParams(prev, selection.selectedId!, patch));
+    } catch (err) {
+      console.error('mutate rejected:', err);
+    }
+  }
 </script>
 
 {#if session.invalidationError}
@@ -44,12 +54,13 @@
 {:else if !selectedNode}
   <p><em>Select a node from the tree to edit its parameters.</em></p>
 {:else if selectedDef?.kind === 'kernel'}
-  <KernelInspector node={selectedNode} onCommit={commitParam} />
+  <KernelInspector node={selectedNode} onCommit={commitParam} onCommitMany={commitParams} />
 {:else if selectedDef?.kind === 'expandable'}
   <LuaInspector
     node={selectedNode}
     definitionResolver={(h) => decodeLuaDefinitionBytes(session.session.blobs.get(h))}
     onCommitValue={commitParam}
+    onEditCode={onEditLua}
   />
 {:else if selectedDef?.kind === 'decoder'}
   <DecoderInspector

@@ -55,6 +55,22 @@ export function wrapWith(
   return replaceWithin(doc, path, wrapped);
 }
 
+/**
+ * Replace the node at `path` with its sole child. Inverse of `wrapWith`.
+ * Throws if the node doesn't have exactly one child.
+ *
+ *   unwrap({ translate, [box] }, '$') → box
+ *   unwrap(tree, '$/0') replaces the first child of root with its grandchild.
+ */
+export function unwrap(doc: NodeDoc, path: string): NodeDoc {
+  const node = getAt(doc, path);
+  const children = node.children ?? [];
+  if (children.length !== 1) {
+    throw new Error(`unwrap requires exactly 1 child at ${path} (found ${children.length})`);
+  }
+  return replaceWithin(doc, path, children[0]!);
+}
+
 export function moveChild(doc: NodeDoc, fromPath: string, toPath: string): NodeDoc {
   if (fromPath === toPath) {
     throw new Error('moveChild source and destination are the same');

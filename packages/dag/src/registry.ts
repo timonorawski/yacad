@@ -559,7 +559,7 @@ const defs: NodeTypeDef[] = [
       paramSchema: [
         {
           name: 'points',
-          type: 'vec2',
+          type: 'vec2-array',
           required: true,
           doc: 'Array of [x, y] pairs (length ≥ 3); the polygon is automatically closed.',
         },
@@ -578,7 +578,7 @@ const defs: NodeTypeDef[] = [
       paramSchema: [
         {
           name: 'points',
-          type: 'vec2',
+          type: 'vec2-array',
           required: true,
           doc: 'Array of [x, y] control points (length ≥ 3); automatically closed loop.',
         },
@@ -639,6 +639,7 @@ const defs: NodeTypeDef[] = [
           name: 'height',
           type: 'number',
           required: true,
+          default: 10,
           doc: 'Positive height of the extrusion along the Z axis.',
         },
         {
@@ -762,12 +763,14 @@ const defs: NodeTypeDef[] = [
           name: 'origin',
           type: 'vec3',
           required: true,
+          default: [0, 0, 0],
           doc: 'Point on the slicing plane, in world coordinates.',
         },
         {
           name: 'normal',
           type: 'vec3',
           required: true,
+          default: [0, 0, 1],
           doc: 'Plane normal vector — must be non-zero. The plane orientation is determined by this vector.',
         },
       ],
@@ -832,13 +835,16 @@ const defs: NodeTypeDef[] = [
           name: 'n',
           type: 'int',
           required: false,
+          default: 2,
           doc: 'Subdivide each triangle edge into n segments (each triangle becomes n² triangles); mutually exclusive with maxEdgeLength.',
+          exclusiveGroup: 'refineMode',
         },
         {
           name: 'maxEdgeLength',
           type: 'number',
           required: false,
           doc: 'Refine until no edge exceeds this length; mutually exclusive with n.',
+          exclusiveGroup: 'refineMode',
         },
       ],
     },

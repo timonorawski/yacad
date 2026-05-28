@@ -71,6 +71,10 @@ export class IndexedDbStore implements ObjectStore {
     await this.run('readwrite', (s) => s.delete(storageKey(key, kind)));
   }
 
+  async clear(): Promise<void> {
+    await this.run('readwrite', (s) => s.clear());
+  }
+
   /** Close the backing connection (mainly for test isolation). */
   async close(): Promise<void> {
     if (this.dbPromise) {

@@ -7,6 +7,9 @@ import { meshToBinaryStl } from '@yacad/export-stl';
 import { hashStlBlob } from '@yacad/import-stl';
 import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION, FLOWER_DEFINITION } from '@yacad/e2e/fixtures';
 import { addLuaDefinition } from './lua-sync';
+import { seedHouseShowcase } from '@yacad/e2e/showcase/house';
+import { seedCastleShowcase } from '@yacad/e2e/showcase/castle';
+import { seedTreeShowcase } from '@yacad/e2e/showcase/tree';
 import sceneBox from '../../../packages/e2e/scenes/primitives/box.json?raw';
 import sceneSphere from '../../../packages/e2e/scenes/primitives/sphere.json?raw';
 import sceneCylinder from '../../../packages/e2e/scenes/primitives/cylinder.json?raw';
@@ -327,4 +330,11 @@ export async function seedSceneLibrary(library: DocLibrary): Promise<void> {
   await remixSession.addBlob(cubeBytes);
   await remixSession.save();
   await remixSession.close();
+
+  // Phase 2.1 — headline showcases. Each is its own subpackage exporting a
+  // seed function that knows how to construct its LuaDefinition, register
+  // any bundled blob assets, and persist the scene under the supplied library.
+  await seedHouseShowcase(library);
+  await seedCastleShowcase(library);
+  await seedTreeShowcase(library);
 }

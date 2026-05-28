@@ -21,6 +21,11 @@ export default defineConfig({
       { find: '@yacad/engine', replacement: src('engine/src/index.ts') },
       { find: '@yacad/render', replacement: src('render/src/index.ts') },
       { find: '@yacad/export-stl', replacement: src('export-stl/src/index.ts') },
+      { find: '@yacad/export-svg', replacement: src('export-svg/src/index.ts') },
+      { find: '@yacad/export-dxf', replacement: src('export-dxf/src/index.ts') },
+      // Use export-png/browser directly so the bundler doesn't pull the Node
+      // (@napi-rs/canvas) path, which can't be browserified.
+      { find: '@yacad/export-png', replacement: src('export-png/src/browser.ts') },
       { find: '@yacad/import-stl', replacement: src('import-stl/src/index.ts') },
       { find: '@yacad/import-obj', replacement: src('import-obj/src/index.ts') },
       { find: '@yacad/import-gltf', replacement: src('import-gltf/src/index.ts') },
@@ -30,6 +35,24 @@ export default defineConfig({
       { find: '@yacad/selection', replacement: src('selection/src/index.ts') },
       { find: '@yacad/mutations', replacement: src('mutations/src/index.ts') },
       { find: '@yacad/e2e/fixtures', replacement: srcFile('e2e', 'fixtures.ts') },
+      {
+        find: '@yacad/e2e/showcase/tree',
+        replacement: fileURLToPath(
+          new URL('../../packages/e2e/showcase/tree/index.ts', import.meta.url),
+        ),
+      },
+      {
+        find: '@yacad/e2e/showcase/house',
+        replacement: fileURLToPath(
+          new URL('../../packages/e2e/showcase/house/index.ts', import.meta.url),
+        ),
+      },
+      {
+        find: '@yacad/e2e/showcase/castle',
+        replacement: fileURLToPath(
+          new URL('../../packages/e2e/showcase/castle/index.ts', import.meta.url),
+        ),
+      },
     ],
   },
   worker: { format: 'es' },

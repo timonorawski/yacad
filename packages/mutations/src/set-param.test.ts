@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NodeDoc } from '@yacad/dag';
-import { setParam } from './set-param';
+import { setParam, setParams } from './set-param';
 
 const tree: NodeDoc = {
   type: 'difference',
@@ -33,5 +33,29 @@ describe('setParam', () => {
 
   it('throws when the path is invalid', () => {
     expect(() => setParam(tree, '$/9', 'x', 1)).toThrow();
+  });
+});
+
+describe('setParams', () => {
+  it('applies multiple updates in a single call', () => {
+    const next = setParams(tree, '$/1', { radius: 25, segments: 16 });
+    expect((next.children![1] as NodeDoc).params).toEqual({ radius: 25, segments: 16 });
+  });
+
+  it('deletes a key when its patch value is undefined', () => {
+    const seeded: NodeDoc = { type: 'refine', children: [], params: { n: 2 } };
+    const next = setParams(seeded, '$', { n: undefined, maxEdgeLength: 0.5 });
+    expect(next.params).toEqual({ maxEdgeLength: 0.5 });
+  });
+
+  it('preserves unmentioned keys', () => {
+    const seeded: NodeDoc = { type: 'sphere', params: { radius: 5, segments: 32 } };
+    const next = setParams(seeded, '$', { radius: 7 });
+    expect(next.params).toEqual({ radius: 7, segments: 32 });
+  });
+
+  it('does not mutate the original tree', () => {
+    setParams(tree, '$/0', { center: false });
+    expect((tree.children![0] as NodeDoc).params).toMatchObject({ center: true });
   });
 });
