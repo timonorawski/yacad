@@ -14,7 +14,7 @@
 ## Non-goals (deferred to Phase 3+)
 
 - `smooth` / `smoothByNormals` / `smoothOut` — 3D smoothing of an existing mesh. Refinement of geometry already buildable; not unlocking new capability classes.
-- `warp` (2D and 3D coordinate warp via a JS callback). The callback-driven API needs its own determinism design (the warp function is a node parameter that must serialize and hash); deferred until needed.
+- `warp` (2D and 3D coordinate warp). When this lands, the warp function will be a **Lua callback**, not a JS callback — Lua source is hashable and sandboxable (part of a content-addressable `LuaDefinition`), whereas JS closures are neither. The Phase 1 `LuaNode` infrastructure provides everything we need (sandboxed eval, deterministic seeding); `warp` becomes a kernel-backed node that takes a 3D (or 2D) child plus a Lua source string in its params, runs the source per-vertex inside the existing `WasmoonLuaRuntime`. Deferred because it requires per-vertex Lua dispatch performance work that's its own design pass.
 - `minkowski` sum/difference. No native Manifold 3.5.0 support; emulation via `extrude` + `union` is doable but design-y enough to belong in its own phase.
 - Holes in `polygon`. For v1 you compose holes via `difference(outer, inner)` — works correctly and stays declarative.
 - Open `path_2d` type plus sweep operations (`sweep_along_path`). Requires a new geometry kind in the type system and an entire new operations set; explicit Phase 3+ work.
