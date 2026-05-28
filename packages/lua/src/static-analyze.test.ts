@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { registerNodeType, unregisterNodeType, type DecoderNodeType } from '@yacad/dag';
 import { LuaValidationError, validateLuaSource, type ValidationIssue } from './static-analyze';
 import type { LuaDefinition } from './schema';
 
@@ -449,5 +450,33 @@ describe('multi-issue collection', () => {
       const sorted = [...lines].sort((a, b) => a - b);
       expect(lines).toEqual(sorted);
     }
+  });
+});
+
+describe('geo.<type> mirrors buildGeoApi (kernel + decoder, hyphen→underscore)', () => {
+  // A hyphenated decoder type, registered the way the import-* packages do.
+  // buildGeoApi exposes it in Lua as geo.syn_decoder (hyphens → underscores),
+  // so the validator must accept that name even though it's not a kernel type.
+  const synDecoder: DecoderNodeType = {
+    kind: 'decoder',
+    type: 'syn-decoder',
+    output: '3d',
+    checkChildren() {},
+    normalizeParams: (p) => (p ?? {}) as Record<string, unknown>,
+  };
+
+  it('accepts a decoder-backed geo binding (underscored)', () => {
+    registerNodeType(synDecoder);
+    try {
+      expect(() =>
+        validateLuaSource(def(`return geo.syn_decoder({ blobHash = 'abc' })`)),
+      ).not.toThrow();
+    } finally {
+      unregisterNodeType('syn-decoder');
+    }
+  });
+
+  it('still flags a genuinely unregistered geo type', () => {
+    expect(() => validateLuaSource(def('return geo.bogus({})'))).toThrow(LuaValidationError);
   });
 });

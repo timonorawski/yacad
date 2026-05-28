@@ -1,6 +1,7 @@
 import * as luaparse from 'luaparse';
-import { getKernelTypeDoc, listNodeTypes } from '@yacad/dag';
+import { getKernelTypeDoc } from '@yacad/dag';
 import type { LuaDefinition } from './schema';
+import { buildGeoApi } from './geo';
 import { SANDBOX_GLOBALS } from './sandbox-globals';
 
 export type ValidationCategory =
@@ -229,6 +230,14 @@ function walkPhase2(
   issues: ValidationIssue[],
   def: LuaDefinition,
 ): void {
+  // The set of valid `geo.<name>` bindings, taken from the same factory the
+  // runtime uses. This keeps the validator in lockstep with buildGeoApi —
+  // kernel AND decoder types, with hyphenated registry names exposed under
+  // their underscored Lua keys (e.g. import-gltf → geo.import_gltf). Computed
+  // once per validation against the live registry, so it reflects whatever
+  // node types are registered in the current context.
+  const geoNames = new Set(Object.keys(buildGeoApi()));
+
   // Re-walk; scope state is shared with Phase 1's stack but rebuilt as we
   // descend (Phase 1 left it at the root frame).
   visit(ast);
@@ -421,15 +430,13 @@ function walkPhase2(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function checkGeoType(typeName: string, node: any): void {
-    if (getKernelTypeDoc(typeName) !== undefined) return;
+    if (geoNames.has(typeName)) return;
     issues.push({
       category: 'unknown-geo-type',
-      message: `'geo.${typeName}' is not a registered kernel node type`,
+      message: `'geo.${typeName}' is not a registered geo node type`,
       ...locOf(node.identifier ?? node),
       identifier: typeName,
-      validNames: listNodeTypes()
-        .filter((d) => getKernelTypeDoc(d.type) !== undefined && !d.type.startsWith('__'))
-        .map((d) => d.type),
+      validNames: [...geoNames].filter((n) => n !== 'node').sort(),
     });
   }
 
