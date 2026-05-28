@@ -20,6 +20,8 @@
     uploadJson,
   } from './doc-io';
   import { getAt, setParam } from '@yacad/mutations';
+  import { computeOutputTypes } from './output-types';
+  import { runExport, type ExportFormat } from './exports';
   import DocPicker from './ui/DocPicker.svelte';
   import HeaderMenu from './ui/HeaderMenu.svelte';
   import DocsDrawer from './ui/DocsDrawer.svelte';
@@ -41,6 +43,38 @@
   let evalOutcome = $state<EvaluateOutcome | undefined>(undefined);
   let luaEditorOpen = $state(false);
   let editingLuaNodeId = $state<string | null>(null);
+  let outputTypes = $state<Map<string, '2d' | '3d'>>(new Map());
+
+  // Keep an outputType-per-path map in sync with the current session. Walks
+  // the validated graph; on invalidated docs the map empties and tree-row
+  // gadgets vanish until the document is fixed.
+  $effect(() => {
+    if (!session) {
+      outputTypes = new Map();
+      return;
+    }
+    const doc = session.doc;
+    const blobs = session.session.blobs;
+    let cancelled = false;
+    void computeOutputTypes(doc, blobs).then((map) => {
+      if (!cancelled) outputTypes = map;
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  async function exportNode(path: string, format: ExportFormat): Promise<void> {
+    if (!session || !client) return;
+    try {
+      const safeName = session.name || 'document';
+      const base =
+        path === '$' ? safeName : `${safeName}${path.replace(/\$/g, '').replace(/\//g, '-')}`;
+      await runExport(client, session.doc, path, format, base);
+    } catch (err) {
+      alert(`Export failed: ${(err as Error).message}`);
+    }
+  }
 
   async function refreshDocs() {
     if (!userLibrary || !sampleLibrary) return;
@@ -205,7 +239,7 @@
   </header>
   <aside class="tree-pane">
     {#if session && selection}
-      <TreePane {session} {selection} />
+      <TreePane {session} {selection} {outputTypes} onExport={exportNode} />
       <PerformancePanel outcome={evalOutcome} />
     {:else}
       <em>loading…</em>

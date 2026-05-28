@@ -70,6 +70,43 @@ test('wrap-with-translate adds a node and viewport stays valid', async ({ page }
   await expect(page.locator('.status')).toHaveText('idle', { timeout: 10_000 });
 });
 
+test('export gadget offers STL for 3D nodes', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('option', { hasText: /^Box$/ })).toHaveCount(1, {
+    timeout: FIRST_LOAD_TIMEOUT,
+  });
+  await page.getByLabel('Document').selectOption({ label: 'Box' });
+  await expect(page.locator('.tree-row').first()).toBeVisible({ timeout: FIRST_LOAD_TIMEOUT });
+  // The export gadget on the root box should appear and expose Export STL.
+  const gadget = page.locator('.tree-row').first().locator('.row-export summary');
+  await expect(gadget).toBeVisible({ timeout: 10_000 });
+  await gadget.click();
+  await expect(page.locator('.row-export-panel button', { hasText: /^Export STL$/ })).toBeVisible();
+  // 2D-only formats must not appear for a 3D node.
+  await expect(page.locator('.row-export-panel button', { hasText: /^Export SVG$/ })).toHaveCount(
+    0,
+  );
+});
+
+test('export gadget offers SVG/DXF/PNG for 2D nodes', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('option', { hasText: /^Circle \(2D\)$/ })).toHaveCount(1, {
+    timeout: FIRST_LOAD_TIMEOUT,
+  });
+  await page.getByLabel('Document').selectOption({ label: 'Circle (2D)' });
+  await expect(page.locator('.tree-row').first()).toBeVisible({ timeout: FIRST_LOAD_TIMEOUT });
+  const gadget = page.locator('.tree-row').first().locator('.row-export summary');
+  await expect(gadget).toBeVisible({ timeout: 10_000 });
+  await gadget.click();
+  await expect(page.locator('.row-export-panel button', { hasText: /^Export SVG$/ })).toBeVisible();
+  await expect(page.locator('.row-export-panel button', { hasText: /^Export DXF$/ })).toBeVisible();
+  await expect(page.locator('.row-export-panel button', { hasText: /^Export PNG$/ })).toBeVisible();
+  // STL must not appear for a 2D node.
+  await expect(page.locator('.row-export-panel button', { hasText: /^Export STL$/ })).toHaveCount(
+    0,
+  );
+});
+
 test('reload restores the open document', async ({ page }) => {
   await page.goto('/');
   // Wait for seeder — exact match to avoid matching "Rotated cylinder".

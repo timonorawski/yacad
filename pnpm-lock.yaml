@@ -111,9 +111,18 @@ importers:
       '@yacad/e2e':
         specifier: workspace:*
         version: link:../../packages/e2e
+      '@yacad/export-dxf':
+        specifier: workspace:*
+        version: link:../../packages/export-dxf
+      '@yacad/export-png':
+        specifier: workspace:*
+        version: link:../../packages/export-png
       '@yacad/export-stl':
         specifier: workspace:*
         version: link:../../packages/export-stl
+      '@yacad/export-svg':
+        specifier: workspace:*
+        version: link:../../packages/export-svg
       '@yacad/geometry':
         specifier: workspace:*
         version: link:../../packages/geometry
