@@ -30,6 +30,7 @@ The decision to ship full node-type coverage (kernel + Lua + decoder) from day o
 - Property inspector dispatching by node-type kind (kernel / Lua / decoder).
 - Curated structural-mutation tool palette (wrap-with, add-child, delete, duplicate).
 - Document picker (open / create / rename / delete via `DocLibrary`).
+- First-run seeding: when the VFS is empty, seed it with v1's example library (static scene JSON files, Lua-parametric definitions, sample mesh blobs, stress-test generators) so the picker starts populated.
 - Live evaluation mirroring v1 (debounced commit → worker.evaluate → viewport update).
 
 ### Out of scope (deferred)
@@ -44,7 +45,7 @@ The decision to ship full node-type coverage (kernel + Lua + decoder) from day o
 
 ## Architecture
 
-```
+```text
 @yacad/dag (existing, refactored)
   + paramSchema as a first-class KernelNodeType field
   + KERNEL_TYPE_DOCS content migrated in
@@ -78,8 +79,8 @@ export interface ParamDoc {
 
 export interface KernelNodeType {
   // ... existing fields ...
-  readonly summary: string;            // one-line description of the node type
-  readonly outputDoc: string;          // human-readable output description, e.g. "3D mesh"
+  readonly summary: string; // one-line description of the node type
+  readonly outputDoc: string; // human-readable output description, e.g. "3D mesh"
   readonly paramSchema: readonly ParamDoc[];
 }
 ```
@@ -128,7 +129,12 @@ export function setParam(doc: NodeDoc, path: string, key: string, value: unknown
 export function addChild(doc: NodeDoc, parentPath: string, child: NodeDoc, index?: number): NodeDoc;
 export function removeAt(doc: NodeDoc, path: string): NodeDoc;
 export function replaceAt(doc: NodeDoc, path: string, replacement: NodeDoc): NodeDoc;
-export function wrapWith(doc: NodeDoc, path: string, wrapperType: string, wrapperParams?: Record<string, unknown>): NodeDoc;
+export function wrapWith(
+  doc: NodeDoc,
+  path: string,
+  wrapperType: string,
+  wrapperParams?: Record<string, unknown>,
+): NodeDoc;
 export function moveChild(doc: NodeDoc, fromPath: string, toPath: string): NodeDoc;
 ```
 
@@ -144,7 +150,7 @@ Tests: pure-function tests against fixture DAGs. No I/O.
 
 Top-level: `App.svelte` wires the three panes and owns the doc-store / worker-client / viewport / selection lifecycle. The studio v2 app is the only DOM consumer.
 
-```
+```text
 apps/studio2/
   package.json
   vite.config.ts            # mirrors v1's aliases + worker config
@@ -152,6 +158,7 @@ apps/studio2/
   src/
     main.ts                 # mount; resolve manifold url
     worker.ts               # worker host bootstrap (mirrors v1's pattern)
+    seed-scenes.ts          # first-run library seeder (see § Seeding)
     App.svelte              # shell: doc picker, layout, status bar
     state/
       session.svelte.ts     # Svelte adapter wrapping DocSession (subscribes → re-derives)
@@ -226,11 +233,32 @@ Same model as v1. Every commit emits a `doc-changed` event from the session; the
 - "Import from JSON…" parses a pasted/uploaded NodeDoc, calls `library.create(name, seed)`.
 
 When the user switches docs:
+
 1. `await currentSession.close()` (flushes autosave).
 2. `currentSession = await library.open(newId)` — loads + worker-syncs (spec 1 behavior).
 3. Replace the Svelte adapters' subscriptions.
 4. `selection.clear()` — new doc starts unselected.
 5. Trigger the first `client.evaluate`.
+
+## Seeding the scene library on first run
+
+V1 ships with a curated picker of example scenes (primitives, transforms, booleans, 2D shapes, composites, Lua-parametric examples, mesh imports, edge cases, plus on-demand stress-test generators). Studio v2 preserves that library by **seeding the VFS** on first run instead of treating the examples as ephemeral imports.
+
+The trigger: when `App.svelte` mounts and `library.list()` returns an empty array, run a one-shot seeder. The seeder lives in `apps/studio2/src/seed-scenes.ts` and consumes the same source files v1 imports (`packages/e2e/scenes/*.json` via `?raw`, plus the GEAR / ARRAY_ALONG_X / FLOWER Lua definitions from `@yacad/e2e/fixtures`, plus the procedurally-generated tree / transform-chain / boolean-nest stress-test DAGs).
+
+For each seed entry the seeder:
+
+1. Parses the JSON or constructs the NodeDoc.
+2. For Lua-bearing seeds: calls `session.addBlob(canonicalBytes(luaDefinition))` (or the corresponding `putLuaDefinition` path) so the referenced definition is registered before the doc validates.
+3. For mesh-import seeds: hashes the sample blob bytes and calls `session.addBlob(bytes)`.
+4. Calls `library.create(name, seed)` — which writes meta + doc + (via the open path that follows) syncs to the worker.
+5. Closes the session.
+
+Idempotency: the seeder only runs when `list()` is empty. Once any document exists in the user's library — including a deleted-then-re-added scene — the seeder never runs again. Users can delete scenes they don't want without them coming back.
+
+The seeded documents are **canonical** NodeDoc representations — the same JSON files v1 imports today. No format conversion needed; spec 1's doc-store handles them as-is. The seeder is essentially a list of `(name, seed)` pairs plus a side-channel for blobs.
+
+Forward-looking: versioned seeding (a future studio release adds new examples retroactively) requires an indicator key in the VFS so the seeder knows which versions it has applied. Out of spec 2 scope — when we want this, add a `/seed-version` key under VFS and a per-version delta.
 
 ## Validation feedback
 
