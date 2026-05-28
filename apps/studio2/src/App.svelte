@@ -70,7 +70,9 @@
       const safeName = session.name || 'document';
       const base =
         path === '$' ? safeName : `${safeName}${path.replace(/\$/g, '').replace(/\//g, '-')}`;
-      await runExport(client, session.doc, path, format, base);
+      // $state.snapshot strips the Svelte proxy wrapper — postMessage needs
+      // plain structured-cloneable objects.
+      await runExport(client, $state.snapshot(session.doc), path, format, base);
     } catch (err) {
       alert(`Export failed: ${(err as Error).message}`);
     }

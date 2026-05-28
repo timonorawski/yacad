@@ -88,6 +88,23 @@ test('export gadget offers STL for 3D nodes', async ({ page }) => {
   );
 });
 
+test('clicking Export STL triggers a download', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('option', { hasText: /^Box$/ })).toHaveCount(1, {
+    timeout: FIRST_LOAD_TIMEOUT,
+  });
+  await page.getByLabel('Document').selectOption({ label: 'Box' });
+  await expect(page.locator('.tree-row').first()).toBeVisible({ timeout: FIRST_LOAD_TIMEOUT });
+  // Open the export menu on the root row.
+  await page.locator('.tree-row').first().locator('.row-export summary').click();
+  // Clicking Export STL must trigger a browser download — covers the
+  // $state-proxy postMessage regression where the worker rejected the doc.
+  const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });
+  await page.locator('.row-export-panel button', { hasText: /^Export STL$/ }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.stl$/);
+});
+
 test('export gadget offers SVG/DXF/PNG for 2D nodes', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('option', { hasText: /^Circle \(2D\)$/ })).toHaveCount(1, {
