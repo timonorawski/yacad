@@ -45,9 +45,30 @@
 <label class="form-field vec-field" class:error={!!error} title={schema.doc}>
   <span>{schema.name}</span>
   <div class="vec-inputs">
-    <input type="number" bind:value={editing[0]} onblur={commit} onkeydown={onKey} />
-    <input type="number" bind:value={editing[1]} onblur={commit} onkeydown={onKey} />
-    <input type="number" bind:value={editing[2]} onblur={commit} onkeydown={onKey} />
+    <label class="vec-axis"
+      ><span>x</span><input
+        type="number"
+        bind:value={editing[0]}
+        onblur={commit}
+        onkeydown={onKey}
+      /></label
+    >
+    <label class="vec-axis"
+      ><span>y</span><input
+        type="number"
+        bind:value={editing[1]}
+        onblur={commit}
+        onkeydown={onKey}
+      /></label
+    >
+    <label class="vec-axis"
+      ><span>z</span><input
+        type="number"
+        bind:value={editing[2]}
+        onblur={commit}
+        onkeydown={onKey}
+      /></label
+    >
   </div>
   {#if error}<small class="field-error">{error}</small>{/if}
 </label>
