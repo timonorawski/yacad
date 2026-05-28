@@ -38,3 +38,31 @@ describe('SANDBOX_GLOBALS.topLevel', () => {
     expect(SANDBOX_GLOBALS.topLevel.has('_ENV')).toBe(false);
   });
 });
+
+describe('SANDBOX_GLOBALS.libraryMembers', () => {
+  it('math allows common functions but excludes randomseed', () => {
+    const math = SANDBOX_GLOBALS.libraryMembers.get('math');
+    expect(math).toBeDefined();
+    for (const name of ['abs', 'ceil', 'cos', 'floor', 'max', 'min', 'pi', 'random', 'sin', 'sqrt']) {
+      expect(math!.has(name)).toBe(true);
+    }
+    expect(math!.has('randomseed')).toBe(false);
+  });
+
+  it('string allows common functions but excludes dump', () => {
+    const str = SANDBOX_GLOBALS.libraryMembers.get('string');
+    expect(str).toBeDefined();
+    for (const name of ['byte', 'char', 'find', 'format', 'gmatch', 'gsub', 'len', 'sub']) {
+      expect(str!.has(name)).toBe(true);
+    }
+    expect(str!.has('dump')).toBe(false);
+  });
+
+  it('table allows all standard members', () => {
+    const tbl = SANDBOX_GLOBALS.libraryMembers.get('table');
+    expect(tbl).toBeDefined();
+    for (const name of ['concat', 'insert', 'remove', 'sort', 'unpack']) {
+      expect(tbl!.has(name)).toBe(true);
+    }
+  });
+});

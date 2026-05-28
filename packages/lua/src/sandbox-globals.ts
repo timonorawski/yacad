@@ -22,5 +22,21 @@ export const SANDBOX_GLOBALS: {
     'setmetatable', 'tonumber', 'tostring', 'type', 'unpack', 'xpcall',
     '_VERSION',
   ]),
-  libraryMembers: new Map(), // filled in Task 2
+  libraryMembers: new Map<string, ReadonlySet<string>>([
+    ['math', new Set([
+      // Lua 5.3+ math, minus randomseed (seeded by the runtime, then nilled)
+      'abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'deg', 'exp', 'floor',
+      'fmod', 'huge', 'log', 'max', 'maxinteger', 'min', 'mininteger',
+      'modf', 'pi', 'rad', 'random', 'sin', 'sqrt', 'tan', 'tointeger',
+      'type', 'ult',
+    ])],
+    ['string', new Set([
+      // Lua 5.3+ string, minus dump (bytecode export — sandbox escape risk)
+      'byte', 'char', 'find', 'format', 'gmatch', 'gsub', 'len', 'lower',
+      'match', 'pack', 'packsize', 'rep', 'reverse', 'sub', 'unpack', 'upper',
+    ])],
+    ['table', new Set([
+      'concat', 'insert', 'move', 'pack', 'remove', 'sort', 'unpack',
+    ])],
+  ]),
 };
