@@ -27,7 +27,7 @@ describe.each(impls)('Vfs contract — $name', ({ factory, teardown }) => {
   let vfs: Vfs;
 
   afterEach(async () => {
-    if (teardown) await teardown(vfs);
+    if (vfs && teardown) await teardown(vfs);
   });
 
   it('write then read round-trips bytes', async () => {
@@ -48,6 +48,14 @@ describe.each(impls)('Vfs contract — $name', ({ factory, teardown }) => {
     await vfs.write('/k', ENC.encode('first'));
     await vfs.write('/k', ENC.encode('second'));
     expect(DEC.decode((await vfs.read('/k'))!)).toBe('second');
+  });
+
+  it('mutating a returned buffer does not affect the stored value', async () => {
+    vfs = factory();
+    await vfs.write('/k', ENC.encode('original'));
+    const got = (await vfs.read('/k'))!;
+    got[0] = 0xff;
+    expect(DEC.decode((await vfs.read('/k'))!)).toBe('original');
   });
 
   it('delete removes the key; subsequent read returns undefined', async () => {
@@ -74,6 +82,15 @@ describe.each(impls)('Vfs contract — $name', ({ factory, teardown }) => {
 
     const docsKeys = [...(await vfs.list('/docs/'))].sort();
     expect(docsKeys).toEqual(['/docs/a/document.json', '/docs/a/meta.json', '/docs/b/meta.json']);
+  });
+
+  it('list with an empty prefix returns every key', async () => {
+    vfs = factory();
+    await vfs.write('/a', ENC.encode('1'));
+    await vfs.write('/b', ENC.encode('2'));
+    await vfs.write('/c/d', ENC.encode('3'));
+    const keys = [...(await vfs.list(''))].sort();
+    expect(keys).toEqual(['/a', '/b', '/c/d']);
   });
 
   it('list returns an empty array for a prefix with no matches', async () => {
