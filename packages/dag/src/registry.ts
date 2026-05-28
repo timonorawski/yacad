@@ -168,17 +168,31 @@ function transform2d(
   };
 }
 
-/** An n-ary boolean: one or more 3D children, 3D output, no params. */
-function boolean(type: string): KernelNodeType {
+/** An N-ary operation that accepts ≥minChildren children, all of the same
+ *  output type (either all-2D or all-3D). Output type matches the children's
+ *  type. No params. Used by union, difference, intersection, hull. */
+function overloaded(type: string, minChildren: number): KernelNodeType {
   return {
     kind: 'kernel',
     type,
-    output: '3d',
+    output: (children) => children[0]!.outputType,
     checkChildren(children, path) {
-      if (children.length < 1) {
-        throw new DagError(`"${type}" requires at least one child`, path);
+      if (children.length < minChildren) {
+        throw new DagError(
+          `"${type}" requires at least ${minChildren} child${minChildren > 1 ? 'ren' : ''}`,
+          path,
+        );
       }
-      expectAllOfType(children, '3d', path);
+      const first = children[0]!.outputType;
+      for (let i = 1; i < children.length; i++) {
+        if (children[i]!.outputType !== first) {
+          throw new DagError(
+            `"${type}" expects all children of the same dimension; ` +
+              `got ${children.map((c) => c.outputType).join(', ')}`,
+            path,
+          );
+        }
+      }
     },
     normalizeParams(params, path) {
       asRecord(params, path);
@@ -217,8 +231,10 @@ const defs: NodeTypeDef[] = [
     // Euler angles in degrees, applied X then Y then Z (Manifold convention).
     return { angles: vec3(p, 'angles', path) };
   }),
-  boolean('union'),
-  boolean('difference'),
+  overloaded('union', 1),
+  overloaded('difference', 1),
+  overloaded('intersection', 2),
+  overloaded('hull', 1),
   primitive2d('circle', (params, path) => {
     const p = asRecord(params, path);
     return {

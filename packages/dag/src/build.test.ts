@@ -305,6 +305,91 @@ describe('rotate_2d node type', () => {
   });
 });
 
+describe('type-overloaded ops', () => {
+  describe('union', () => {
+    it('accepts all-3D children', async () => {
+      const node = await buildGraph({
+        type: 'union',
+        children: [
+          { type: 'box', params: { size: [1, 1, 1] } },
+          { type: 'sphere', params: { radius: 1 } },
+        ],
+      });
+      expect(node.outputType).toBe('3d');
+    });
+
+    it('accepts all-2D children', async () => {
+      const node = await buildGraph({
+        type: 'union',
+        children: [
+          { type: 'circle', params: { radius: 1 } },
+          { type: 'rectangle', params: { size: [2, 2] } },
+        ],
+      });
+      expect(node.outputType).toBe('2d');
+    });
+
+    it('rejects mixed children', async () => {
+      await expect(
+        buildGraph({
+          type: 'union',
+          children: [
+            { type: 'box', params: { size: [1, 1, 1] } },
+            { type: 'circle', params: { radius: 1 } },
+          ],
+        }),
+      ).rejects.toThrow(/same dimension/);
+    });
+  });
+
+  describe('intersection', () => {
+    it('requires ≥2 children', async () => {
+      await expect(
+        buildGraph({
+          type: 'intersection',
+          children: [{ type: 'circle', params: { radius: 1 } }],
+        }),
+      ).rejects.toThrow(/at least 2/);
+    });
+
+    it('works for 2D and 3D', async () => {
+      const n3d = await buildGraph({
+        type: 'intersection',
+        children: [
+          { type: 'box', params: { size: [10, 10, 10] } },
+          { type: 'sphere', params: { radius: 6 } },
+        ],
+      });
+      expect(n3d.outputType).toBe('3d');
+
+      const n2d = await buildGraph({
+        type: 'intersection',
+        children: [
+          { type: 'circle', params: { radius: 5 } },
+          { type: 'rectangle', params: { size: [8, 8], center: true } },
+        ],
+      });
+      expect(n2d.outputType).toBe('2d');
+    });
+  });
+
+  describe('hull', () => {
+    it('works for 2D and 3D', async () => {
+      const n3d = await buildGraph({
+        type: 'hull',
+        children: [{ type: 'sphere', params: { radius: 1 } }],
+      });
+      expect(n3d.outputType).toBe('3d');
+
+      const n2d = await buildGraph({
+        type: 'hull',
+        children: [{ type: 'circle', params: { radius: 1 } }],
+      });
+      expect(n2d.outputType).toBe('2d');
+    });
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',
