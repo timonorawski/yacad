@@ -10,6 +10,7 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 - **Phase 1 (LuaNode)** — Sandboxed Lua code nodes with `ExpandableNodeType` abstraction. See [specs/2026-05-27-luanode-design.md](superpowers/specs/2026-05-27-luanode-design.md).
 - **Phase 2 (2D layer)** — 14 new node types: 2D primitives, transforms, ops, bridges, refinement. See [specs/2026-05-27-2d-layer-design.md](superpowers/specs/2026-05-27-2d-layer-design.md).
 - **Section node** — 3D→2D bridge (arbitrary-plane slicing). See [specs/2026-05-28-section-design.md](superpowers/specs/2026-05-28-section-design.md).
+- **Lua static validation** — AST-level rejection of undeclared schema refs, sandbox violations, and malformed `geo.<type>` calls before `putLuaDefinition`. See [specs/2026-05-28-lua-static-validation-design.md](superpowers/specs/2026-05-28-lua-static-validation-design.md).
 
 ## Deferred — 2D / 3D geometry
 
@@ -28,7 +29,6 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 
 - **BREP fillets (real edge rounding)** — _surfaced by vision._ Manifold can't do true BREP fillets; this is the explicit OCCT.js escape hatch (spec invariant #7). OCCT integration is a phase of its own.
 - **CPU / wall-clock budgets on `expand`** — _surfaced by LuaNode spec._ A wall-clock budget per expandable-node expansion. Lives on `ExpandableNodeType`, not in the Lua runtime specifically — applies uniformly.
-- **AST validation of Lua code against schema** — _surfaced by LuaNode spec._ Static check that Lua source references only declared `params.<name>` and `inputs.<name>`. Currently surfaces as runtime errors.
 
 ## Deferred — import / export
 
