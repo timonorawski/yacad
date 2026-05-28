@@ -23,6 +23,9 @@ export async function crossSectionToPngBrowser(
   if (ctx === null) {
     throw new ExportError('failed to acquire 2d context from OffscreenCanvas');
   }
+  // OffscreenCanvasRenderingContext2D.canvas is OffscreenCanvas (not
+  // HTMLCanvasElement), so a direct cast fails the structural check — widen
+  // through unknown.
   renderCrossSectionToContext(cs, ctx as unknown as CanvasRenderingContext2D, opts);
   const blob = await canvas.convertToBlob({ type: 'image/png' });
   const buffer = await blob.arrayBuffer();

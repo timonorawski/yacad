@@ -19,6 +19,8 @@ export function crossSectionToPngNode(cs: CrossSection, opts: PngOptions): Uint8
   }
   const canvas = createCanvas(opts.width, opts.height);
   const ctx = canvas.getContext('2d');
+  // SKRSContext2D.canvas is napi Canvas (not HTMLCanvasElement), so a direct
+  // cast fails the structural check — widen through unknown.
   renderCrossSectionToContext(cs, ctx as unknown as CanvasRenderingContext2D, opts);
   const buffer = canvas.toBuffer('image/png');
   // Buffer is a Uint8Array subclass; return as Uint8Array for API uniformity.
