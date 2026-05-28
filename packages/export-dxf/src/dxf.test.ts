@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import DxfParser from 'dxf-parser';
+import DxfParser, { type IDxf } from 'dxf-parser';
 import type { CrossSection } from '@yacad/geometry';
 import { crossSectionToDxf, ExportError } from './dxf';
 
@@ -132,9 +132,11 @@ describe('crossSectionToDxf', () => {
 });
 
 describe('crossSectionToDxf (structural validation via dxf-parser)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parse = (bytes: Uint8Array): any =>
-    new DxfParser().parseSync(new TextDecoder().decode(bytes));
+  const parse = (bytes: Uint8Array): IDxf => {
+    const result = new DxfParser().parseSync(new TextDecoder().decode(bytes));
+    if (result === null) throw new Error('dxf-parser returned null');
+    return result;
+  };
 
   it('produces a parseable DXF for an empty CrossSection (no entities)', () => {
     const parsed = parse(crossSectionToDxf(emptyCs));
