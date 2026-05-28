@@ -1,0 +1,22 @@
+{
+  "type": "extrude",
+  "params": { "height": 5 },
+  "children": [
+    {
+      "type": "union",
+      "children": [
+        { "type": "circle", "params": { "radius": 10 } },
+        {
+          "type": "polygon",
+          "params": {
+            "points": [
+              [10, -1.5],
+              [12, 0],
+              [10, 1.5]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

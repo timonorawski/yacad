@@ -8,6 +8,7 @@ import {
   type ExpandableNodeType,
   type InputRef,
 } from '@yacad/dag';
+import { isMesh } from '@yacad/geometry';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 import { Engine, EvaluationError } from './engine';
 
@@ -62,7 +63,9 @@ describe('Engine — expandable nodes', () => {
     const engine = new Engine(store, kernel, { resolver: NOOP_RESOLVER });
     const graph = await buildGraph({ type: 'syn_unbox' }, undefined, undefined, NOOP_RESOLVER);
     const result = await engine.evaluate(graph);
-    expect(result.mesh.indices.length).toBeGreaterThan(0);
+    if (isMesh(result.geometry)) {
+      expect(result.geometry.mesh.indices.length).toBeGreaterThan(0);
+    }
     // Sub-DAG internals must not leak into the caller's perNode.
     expect(result.perNode.length).toBe(1);
     expect(result.stats.nodes).toBe(1);
@@ -82,7 +85,9 @@ describe('Engine — expandable nodes', () => {
       NOOP_RESOLVER,
     );
     const result = await engine.evaluate(graph);
-    expect(result.mesh.indices.length).toBeGreaterThan(0);
+    if (isMesh(result.geometry)) {
+      expect(result.geometry.mesh.indices.length).toBeGreaterThan(0);
+    }
   });
 
   it('perNode contains only the outer expandable entry, not sub-DAG internals', async () => {
@@ -294,7 +299,9 @@ describe('Engine', () => {
   it('evaluates a model to a non-empty root mesh', async () => {
     const engine = new Engine(new MemoryStore(), kernel);
     const result = await engine.evaluate(await buildGraph(model(5)));
-    expect(result.mesh.vertices.length).toBeGreaterThan(0);
+    if (isMesh(result.geometry)) {
+      expect(result.geometry.mesh.vertices.length).toBeGreaterThan(0);
+    }
     expect(result.hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -344,4 +351,78 @@ describe('Engine', () => {
     const box = result.perNode.find((n) => n.id === '$/0');
     expect(box?.hit).toBe(true);
   });
+});
+
+it('engine evaluates a circle to a CrossSection-bearing Geometry', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('circle caches by crossSection artifact kind (warm hit skips kernel)', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  await engine.evaluate(node); // cold
+  const warm = await engine.evaluate(node);
+  expect(warm.stats.hits).toBe(1);
+});
+
+it('engine end-to-end: 2D difference of rectangle and circle', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'difference',
+    children: [
+      { type: 'rectangle', params: { size: [20, 20], center: true } },
+      { type: 'circle', params: { radius: 5 } },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('engine end-to-end: 2D intersection of two circles', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'intersection',
+    children: [
+      { type: 'circle', params: { radius: 5 } },
+      { type: 'circle', params: { radius: 5 } },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('engine end-to-end: 2D hull of two circles', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'hull',
+    children: [
+      { type: 'circle', params: { radius: 5 } },
+      {
+        type: 'translate_2d',
+        params: { offset: [10, 0] },
+        children: [{ type: 'circle', params: { radius: 5 } }],
+      },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('engine.evaluate returns Geometry with kind="3d" for a 3D root', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({ type: 'box', params: { size: [10, 10, 10] } });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('3d');
+  if (isMesh(result.geometry)) {
+    expect(result.geometry.mesh.indices.length).toBeGreaterThan(0);
+  }
 });

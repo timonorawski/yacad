@@ -1,6 +1,17 @@
 import { DagError, type GeometryType, type Node, type NodeDoc } from './types';
 import type { Hash } from '@yacad/hash';
-import { asRecord, optBool, optSegments, posNum, posVec3, vec3 } from './validate';
+import {
+  asRecord,
+  num,
+  optBool,
+  optSegments,
+  posNum,
+  posVec2,
+  posVec3,
+  vec2,
+  vec2Array,
+  vec3,
+} from './validate';
 
 const DEFAULT_SEGMENTS = 32;
 
@@ -18,7 +29,9 @@ export interface DefinitionResolver {
 export interface KernelNodeType {
   readonly kind: 'kernel';
   readonly type: string;
-  readonly output: GeometryType;
+  /** Static output type OR a function resolving it from the (already-built)
+   *  children. The function form is used by type-overloaded ops like `union`. */
+  readonly output: GeometryType | ((children: readonly Node[]) => GeometryType);
   checkChildren(children: readonly Node[], path: string): void;
   normalizeParams(params: unknown, path: string): Record<string, unknown>;
 }
@@ -99,6 +112,24 @@ function primitive(
   };
 }
 
+/** A 2D leaf primitive: no children, '2d' output. */
+function primitive2d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '2d',
+    checkChildren(children, path) {
+      if (children.length !== 0) {
+        throw new DagError(`"${type}" takes no children`, path);
+      }
+    },
+    normalizeParams,
+  };
+}
+
 /** A unary transform: exactly one 3D child, 3D output. */
 function transform(
   type: string,
@@ -118,17 +149,107 @@ function transform(
   };
 }
 
-/** An n-ary boolean: one or more 3D children, 3D output, no params. */
-function boolean(type: string): KernelNodeType {
+/** A 2D→3D bridge: exactly one 2D child, '3d' output. */
+function bridge2dTo3d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
   return {
     kind: 'kernel',
     type,
     output: '3d',
     checkChildren(children, path) {
-      if (children.length < 1) {
-        throw new DagError(`"${type}" requires at least one child`, path);
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '2d', path);
+    },
+    normalizeParams,
+  };
+}
+
+/** A unary 2D transform: exactly one 2D child, '2d' output. */
+function transform2d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '2d',
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '2d', path);
+    },
+    normalizeParams,
+  };
+}
+
+/** A 2D→2D refinement: exactly one 2D child, '2d' output. */
+function refinement2d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '2d',
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '2d', path);
+    },
+    normalizeParams,
+  };
+}
+
+/** A 3D→3D refinement: exactly one 3D child, '3d' output. */
+function refinement3d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '3d',
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
       }
       expectAllOfType(children, '3d', path);
+    },
+    normalizeParams,
+  };
+}
+
+/** An N-ary operation that accepts ≥minChildren children, all of the same
+ *  output type (either all-2D or all-3D). Output type matches the children's
+ *  type. No params. Used by union, difference, intersection, hull. */
+function overloaded(type: string, minChildren: number): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: (children) => children[0]!.outputType,
+    checkChildren(children, path) {
+      if (children.length < minChildren) {
+        throw new DagError(
+          `"${type}" requires at least ${minChildren} child${minChildren > 1 ? 'ren' : ''}`,
+          path,
+        );
+      }
+      const first = children[0]!.outputType;
+      for (let i = 1; i < children.length; i++) {
+        if (children[i]!.outputType !== first) {
+          throw new DagError(
+            `"${type}" expects all children of the same dimension; ` +
+              `got ${children.map((c) => c.outputType).join(', ')}`,
+            path,
+          );
+        }
+      }
     },
     normalizeParams(params, path) {
       asRecord(params, path);
@@ -167,8 +288,175 @@ const defs: NodeTypeDef[] = [
     // Euler angles in degrees, applied X then Y then Z (Manifold convention).
     return { angles: vec3(p, 'angles', path) };
   }),
-  boolean('union'),
-  boolean('difference'),
+  overloaded('union', 1),
+  overloaded('difference', 1),
+  overloaded('intersection', 2),
+  overloaded('hull', 1),
+  primitive2d('circle', (params, path) => {
+    const p = asRecord(params, path);
+    return {
+      radius: posNum(p, 'radius', path),
+      segments: optSegments(p, 'segments', path, DEFAULT_SEGMENTS),
+    };
+  }),
+  primitive2d('rectangle', (params, path) => {
+    const p = asRecord(params, path);
+    return {
+      size: posVec2(p, 'size', path),
+      center: optBool(p, 'center', path, false),
+    };
+  }),
+  primitive2d('polygon', (params, path) => {
+    const p = asRecord(params, path);
+    return { points: vec2Array(p, 'points', path, 3) };
+  }),
+  primitive2d('spline', (params, path) => {
+    const p = asRecord(params, path);
+    const segmentsPerCurve = p['segmentsPerCurve'];
+    const tension = p['tension'];
+    return {
+      points: vec2Array(p, 'points', path, 3),
+      segmentsPerCurve:
+        segmentsPerCurve === undefined
+          ? 16
+          : (() => {
+              if (
+                typeof segmentsPerCurve !== 'number' ||
+                !Number.isInteger(segmentsPerCurve) ||
+                segmentsPerCurve < 1
+              ) {
+                throw new DagError(`"segmentsPerCurve" must be a positive integer`, path);
+              }
+              return segmentsPerCurve;
+            })(),
+      tension:
+        tension === undefined
+          ? 0.5
+          : (() => {
+              if (typeof tension !== 'number' || !Number.isFinite(tension)) {
+                throw new DagError(`"tension" must be a finite number`, path);
+              }
+              return tension;
+            })(),
+    };
+  }),
+  bridge2dTo3d('extrude', (params, path) => {
+    const p = asRecord(params, path);
+    const twist = p['twist'];
+    const segments = p['segments'];
+    return {
+      height: posNum(p, 'height', path),
+      twist:
+        twist === undefined
+          ? 0
+          : (() => {
+              if (typeof twist !== 'number' || !Number.isFinite(twist)) {
+                throw new DagError(`"twist" must be a finite number`, path);
+              }
+              return twist;
+            })(),
+      scaleTop:
+        p['scaleTop'] === undefined ? [1, 1] : vec2(p as Record<string, unknown>, 'scaleTop', path),
+      segments:
+        segments === undefined
+          ? 1
+          : (() => {
+              if (typeof segments !== 'number' || !Number.isInteger(segments) || segments < 1) {
+                throw new DagError(`"segments" must be a positive integer`, path);
+              }
+              return segments;
+            })(),
+    };
+  }),
+  bridge2dTo3d('revolve', (params, path) => {
+    const p = asRecord(params, path);
+    const axisRaw = p['axis'] ?? 'y';
+    if (axisRaw !== 'y' && axisRaw !== 'x') {
+      throw new DagError(`"axis" must be 'y' or 'x'`, path);
+    }
+    const segmentsRaw = p['segments'];
+    const degreesRaw = p['degrees'];
+    return {
+      axis: axisRaw,
+      segments:
+        segmentsRaw === undefined
+          ? DEFAULT_SEGMENTS
+          : optSegments(p, 'segments', path, DEFAULT_SEGMENTS),
+      degrees:
+        degreesRaw === undefined
+          ? 360
+          : (() => {
+              if (typeof degreesRaw !== 'number' || !Number.isFinite(degreesRaw)) {
+                throw new DagError(`"degrees" must be a finite number`, path);
+              }
+              return degreesRaw;
+            })(),
+    };
+  }),
+  transform2d('translate_2d', (params, path) => {
+    const p = asRecord(params, path);
+    return { offset: vec2(p, 'offset', path) };
+  }),
+  transform2d('rotate_2d', (params, path) => {
+    const p = asRecord(params, path);
+    return { angle: num(p, 'angle', path) };
+  }),
+  refinement3d('refine', (params, path) => {
+    const p = asRecord(params, path);
+    const n = p['n'];
+    const maxEdgeLength = p['maxEdgeLength'];
+    if (n === undefined && maxEdgeLength === undefined) {
+      throw new DagError(`"refine" requires either "n" or "maxEdgeLength"`, path);
+    }
+    if (n !== undefined && maxEdgeLength !== undefined) {
+      throw new DagError(`"refine" must specify exactly one of "n" or "maxEdgeLength"`, path);
+    }
+    if (n !== undefined) {
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
+        throw new DagError(`"n" must be a positive integer`, path);
+      }
+      return { n };
+    }
+    if (
+      typeof maxEdgeLength !== 'number' ||
+      !Number.isFinite(maxEdgeLength) ||
+      maxEdgeLength <= 0
+    ) {
+      throw new DagError(`"maxEdgeLength" must be a positive finite number`, path);
+    }
+    return { maxEdgeLength };
+  }),
+  (() => {
+    const OFFSET_JOIN_TYPES = ['round', 'square', 'miter'] as const;
+    type OffsetJoinType = (typeof OFFSET_JOIN_TYPES)[number];
+    return refinement2d('offset_2d', (params, path) => {
+      const p = asRecord(params, path);
+      const deltaRaw = p['delta'];
+      if (typeof deltaRaw !== 'number' || !Number.isFinite(deltaRaw)) {
+        throw new DagError(`"delta" must be a finite number`, path);
+      }
+      const joinTypeRaw = p['joinType'] ?? 'round';
+      if (!OFFSET_JOIN_TYPES.includes(joinTypeRaw as OffsetJoinType)) {
+        throw new DagError(`"joinType" must be one of ${OFFSET_JOIN_TYPES.join(' | ')}`, path);
+      }
+      const miterLimitRaw = p['miterLimit'];
+      const segmentsRaw = p['segments'];
+      return {
+        delta: deltaRaw,
+        joinType: joinTypeRaw as OffsetJoinType,
+        miterLimit:
+          miterLimitRaw === undefined
+            ? 2
+            : (() => {
+                if (typeof miterLimitRaw !== 'number' || !Number.isFinite(miterLimitRaw)) {
+                  throw new DagError(`"miterLimit" must be a finite number`, path);
+                }
+                return miterLimitRaw;
+              })(),
+        segments: segmentsRaw === undefined ? 16 : optSegments(p, 'segments', path, 16),
+      };
+    });
+  })(),
 ];
 
 const registry = new Map<string, NodeTypeDef>(defs.map((def) => [def.type, def]));
@@ -196,6 +484,6 @@ export function unregisterNodeType(type: string): void {
 export function listNodeTypes(): { type: string; output: GeometryType | '?' }[] {
   return [...registry.values()].map((def) => ({
     type: def.type,
-    output: def.kind === 'kernel' ? def.output : '?',
+    output: def.kind === 'kernel' ? (typeof def.output === 'function' ? '?' : def.output) : '?',
   }));
 }

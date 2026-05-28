@@ -29,6 +29,33 @@ export const GEAR_DEFINITION: LuaDefinition = {
 };
 
 /**
+ * Procedural flower: alternating outer/inner radii produce `petals` petal-points
+ * as a 2D polygon. Output is 2D — compose with an `extrude` node for 3D.
+ * Shared by the lua-2d-flower E2E scene and the studio's Lua flower sample scene.
+ */
+export const FLOWER_DEFINITION: LuaDefinition = {
+  schema: {
+    inputs: [],
+    params: {
+      petals: { type: 'int', default: 6, min: 3, max: 16 },
+      innerRadius: { type: 'number', default: 4 },
+      outerRadius: { type: 'number', default: 10 },
+    },
+    output: '2d',
+  },
+  code: [
+    'local pts = {}',
+    'local total = params.petals * 2',
+    'for i = 0, total - 1 do',
+    '  local angle = (i / total) * 2 * math.pi',
+    '  local r = (i % 2 == 0) and params.outerRadius or params.innerRadius',
+    '  pts[#pts + 1] = { r * math.cos(angle), r * math.sin(angle) }',
+    'end',
+    'return geo.polygon({ points = pts })',
+  ].join('\n'),
+};
+
+/**
  * Array-along-X: repeats a child body `count` times along the X axis with
  * `spacing` between each copy. Shared by the lua-with-input E2E scene and the
  * studio's "lua-array-of-spheres" sample scene.

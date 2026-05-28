@@ -1,6 +1,6 @@
 # 2D layer design
 
-**Status**: design approved, awaiting implementation plan
+**Status**: implemented
 **Date**: 2026-05-27
 **Scope**: Phase 2 of the parametric CAD roadmap — extend the dual-type system (declared but unused in Phase 1) with a working 2D layer: primitives, ops, 2D→3D bridges (extrude, revolve), and one 3D refinement (refine). Takes the platform from "MVP 3D object assembly" to "MVP CAD."
 

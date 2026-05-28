@@ -1,17 +1,22 @@
-import type { CacheKey, ObjectStore, Pinnable } from '@yacad/cache';
+import type { ArtifactKind, CacheKey, ObjectStore, Pinnable } from '@yacad/cache';
 import {
   buildGraph,
   getNodeType,
   NOOP_RESOLVER,
   type DefinitionResolver,
   type ExpandableNodeType,
+  type GeometryType,
   type InputRef,
   type Node,
   type NodeDoc,
 } from '@yacad/dag';
-import type { Mesh } from '@yacad/geometry';
+import type { Geometry } from '@yacad/geometry';
 import type { Hash } from '@yacad/hash';
 import type { Kernel } from '@yacad/kernel-manifold';
+
+function artifactKindFor(geometryType: GeometryType): ArtifactKind {
+  return geometryType === '2d' ? 'crossSection' : 'mesh';
+}
 
 /** Engine version recorded in cache keys' `produced_by`. */
 export const ENGINE_VERSION = '0.0.0';
@@ -58,7 +63,7 @@ export interface EvalStats {
 }
 
 export interface EvaluateResult {
-  readonly mesh: Mesh;
+  readonly geometry: Geometry;
   readonly hash: Hash;
   readonly stats: EvalStats;
   readonly perNode: readonly NodeEval[];
@@ -127,9 +132,9 @@ export class Engine {
     const evalStart = performance.now();
     this.pinWorkingSet(root);
     const perNode: NodeEval[] = [];
-    let mesh: Mesh;
+    let geometry: Geometry;
     try {
-      mesh = await this.walk(root, qualityTier, perNode);
+      geometry = await this.walk(root, qualityTier, perNode);
     } catch (err) {
       // Wrap at the evaluate() boundary only (constraint 6): the caller sees
       // EvaluationError; nested expandable failures inside walk() just rethrow
@@ -145,7 +150,7 @@ export class Engine {
     const sum = (pick: (e: NodeEval) => number) => perNode.reduce((n, e) => n + pick(e), 0);
     const hits = perNode.reduce((n, e) => n + (e.hit ? 1 : 0), 0);
     return {
-      mesh,
+      geometry,
       hash: root.hash,
       stats: {
         nodes: perNode.length,
@@ -165,15 +170,24 @@ export class Engine {
     };
   }
 
-  private async walk(node: Node, tier: string, perNode: NodeEval[]): Promise<Mesh> {
+  private async walk(node: Node, tier: string, perNode: NodeEval[]): Promise<Geometry> {
     const nodeStart = performance.now();
     const key = this.keyFor(node, tier);
 
     // --- Outer cache lookup (covers both kernel and expandable nodes) ---
+    const kindForThisNode = artifactKindFor(node.outputType);
     const lookupStart = performance.now();
-    const cached = await this.store.get(key, 'mesh');
+    const cached = await this.store.get(key, kindForThisNode);
     const lookupMs = performance.now() - lookupStart;
-    if (cached?.kind === 'mesh') {
+    if (cached) {
+      let cachedGeometry: Geometry;
+      if (cached.kind === 'mesh') {
+        cachedGeometry = { kind: '3d', mesh: cached.mesh };
+      } else if (cached.kind === 'crossSection') {
+        cachedGeometry = { kind: '2d', section: cached.section };
+      } else {
+        throw new Error(`unexpected artifact kind ${cached.kind} for node ${node.id}`);
+      }
       const totalMs = performance.now() - nodeStart;
       perNode.push({
         id: node.id,
@@ -188,12 +202,12 @@ export class Engine {
         exportMs: 0,
         storeMs: 0,
       });
-      return cached.mesh;
+      return cachedGeometry;
     }
 
     // --- Discriminate on node kind ---
     const def = getNodeType(node.type);
-    let mesh: Mesh;
+    let geometry: Geometry;
     let kernelMs: number;
     let importMs: number;
     let opMs: number;
@@ -201,13 +215,16 @@ export class Engine {
 
     if (!def || def.kind === 'kernel') {
       // --- Kernel branch: evaluate children then call the geometry kernel ---
-      const childMeshes: Mesh[] = [];
+      const childGeometries: Geometry[] = [];
       for (const child of node.children) {
-        childMeshes.push(await this.walk(child, tier, perNode));
+        childGeometries.push(await this.walk(child, tier, perNode));
       }
       // Use evaluateTimed to preserve per-phase timings (constraint #1).
-      const { mesh: kernelMesh, timings } = this.kernel.evaluateTimed(node, childMeshes);
-      mesh = kernelMesh;
+      const { geometry: kernelGeometry, timings } = this.kernel.evaluateTimed(
+        node,
+        childGeometries,
+      );
+      geometry = kernelGeometry;
       kernelMs = timings.importMs + timings.opMs + timings.exportMs;
       importMs = timings.importMs;
       opMs = timings.opMs;
@@ -239,7 +256,7 @@ export class Engine {
         // details and must not pollute the caller's perNode array (their IDs start at
         // '$' and would collide with user-graph IDs, inflating stats.nodes).
         const innerPerNode: NodeEval[] = [];
-        mesh = await this.walk(subRoot, tier, innerPerNode);
+        geometry = await this.walk(subRoot, tier, innerPerNode);
 
         // Aggregate inner timings into this node's accounting so the outer NodeEval
         // faithfully represents the total cost of the expandable node.
@@ -278,7 +295,11 @@ export class Engine {
     }
 
     const storeStart = performance.now();
-    await this.store.put(key, { kind: 'mesh', mesh });
+    if (geometry.kind === '3d') {
+      await this.store.put(key, { kind: 'mesh', mesh: geometry.mesh });
+    } else {
+      await this.store.put(key, { kind: 'crossSection', section: geometry.section });
+    }
     const storeMs = performance.now() - storeStart;
 
     const totalMs = performance.now() - nodeStart;
@@ -295,7 +316,7 @@ export class Engine {
       exportMs,
       storeMs,
     });
-    return mesh;
+    return geometry;
   }
 
   private keyFor(node: Node, qualityTier: string): CacheKey {

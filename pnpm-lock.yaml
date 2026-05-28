@@ -109,6 +109,9 @@ importers:
       '@yacad/canonical':
         specifier: workspace:*
         version: link:../canonical
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../geometry
       '@yacad/hash':
         specifier: workspace:*
         version: link:../hash

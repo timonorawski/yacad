@@ -14,8 +14,9 @@ import {
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { BBox, Mesh } from '@yacad/geometry';
-import { meshToBufferGeometry } from './geometry';
+import type { BBox, Geometry, Mesh } from '@yacad/geometry';
+import { geometryToObject3D, meshToBufferGeometry } from './geometry';
+import type { TriangulateApi } from './cross-section-mesh';
 
 /**
  * A self-contained three.js viewport. The renderer walks no DAG itself — the
@@ -60,6 +61,23 @@ export class Viewport {
   /** Swap in the final geometry. */
   setMesh(mesh: Mesh): void {
     this.replace(new ThreeMesh(meshToBufferGeometry(mesh), this.material));
+  }
+
+  /**
+   * Swap in any evaluated geometry — dispatches on `kind` so both 3D meshes
+   * and 2D cross-sections are handled. The Manifold API is required for the
+   * 2D triangulation path.
+   */
+  setGeometry(geometry: Geometry, api: TriangulateApi): void {
+    this.replace(geometryToObject3D(geometry, api));
+  }
+
+  /**
+   * Swap in a pre-built Object3D directly. Use this when the caller has
+   * already converted geometry to a scene object (e.g. via `geometryToObject3D`).
+   */
+  setObject3D(object: Object3D): void {
+    this.replace(object);
   }
 
   /** Show a bounding-box wireframe placeholder while evaluation runs. */

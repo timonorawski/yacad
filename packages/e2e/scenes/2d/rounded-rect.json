@@ -1,0 +1,5 @@
+{
+  "type": "offset_2d",
+  "params": { "delta": 1, "joinType": "round", "segments": 16 },
+  "children": [{ "type": "rectangle", "params": { "size": [10, 20], "center": true } }]
+}

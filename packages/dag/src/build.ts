@@ -60,8 +60,9 @@ export async function buildGraph(
   if (def.kind === 'kernel') {
     def.checkChildren(children, id);
     const params = def.normalizeParams(record['params'] ?? {}, id);
+    const outputType = typeof def.output === 'function' ? def.output(children) : def.output;
     const hash = await hashNode(type, params, children, hasher);
-    return { id, type, params, children, outputType: def.output, hash };
+    return { id, type, params, children, outputType, hash };
   } else {
     // Expandable node: validate and normalise via the definition, then hash.
     def.checkChildren(children, (record['params'] as Record<string, unknown>) ?? {}, resolver, id);

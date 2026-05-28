@@ -5,8 +5,13 @@
   import type { Mesh } from '@yacad/geometry';
   import { defaultHasher } from '@yacad/hash';
   import { hashLuaDefinition } from '@yacad/lua';
-  import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION } from '@yacad/e2e/fixtures';
-  import { Viewport } from '@yacad/render';
+  import {
+    GEAR_DEFINITION,
+    ARRAY_ALONG_X_DEFINITION,
+    FLOWER_DEFINITION,
+  } from '@yacad/e2e/fixtures';
+  import { Viewport, geometryToObject3D } from '@yacad/render';
+  import { loadManifold } from '@yacad/kernel-manifold';
   import { WorkerClient, type EvaluateOutcome } from '@yacad/worker';
   import type { NodeDoc } from '@yacad/dag';
   import wasmUrl from 'manifold-3d/manifold.wasm?url';
@@ -19,6 +24,11 @@
   import sceneUnionStack from '../../../packages/e2e/scenes/booleans/union-stack.json?raw';
   import sceneBoxMinusSphere from '../../../packages/e2e/scenes/booleans/box-minus-sphere.json?raw';
   import sceneCoredBlock from '../../../packages/e2e/scenes/composite/cored-block.json?raw';
+  import sceneCircle from '../../../packages/e2e/scenes/2d/circle.json?raw';
+  import sceneSplineStar from '../../../packages/e2e/scenes/2d/spline-star.json?raw';
+  import sceneRoundedRect from '../../../packages/e2e/scenes/2d/rounded-rect.json?raw';
+  import sceneExtrudedGear from '../../../packages/e2e/scenes/composite/extruded-gear.json?raw';
+  import sceneRevolvedVase from '../../../packages/e2e/scenes/composite/revolved-vase.json?raw';
   import sceneTangent from '../../../packages/e2e/scenes/edge-cases/tangent-sphere-box.json?raw';
   import sceneSharedFace from '../../../packages/e2e/scenes/edge-cases/shared-face-cubes.json?raw';
   import sceneInteriorVoid from '../../../packages/e2e/scenes/edge-cases/interior-void.json?raw';
@@ -51,19 +61,22 @@
   let client: WorkerClient;
   let viewport: Viewport;
   let lastMesh = $state<Mesh | undefined>(undefined);
+  // Lazily loaded on first 2D geometry render; cached thereafter.
+  let manifoldApi: Awaited<ReturnType<typeof loadManifold>> | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let evalSeq = 0;
 
   // Lua definition hashes — populated once on mount (async hash of canonical form).
   let gearHash = $state('');
   let arrayAlongXHash = $state('');
+  let flowerHash = $state('');
   // Tracks which definition hashes have already been pushed to the worker.
   const pushedDefinitions = new Set<string>();
 
   /** Push a Lua definition to the worker exactly once per hash. */
   async function ensureLuaDefinition(
     hash: string,
-    def: typeof GEAR_DEFINITION | typeof ARRAY_ALONG_X_DEFINITION,
+    def: typeof GEAR_DEFINITION | typeof ARRAY_ALONG_X_DEFINITION | typeof FLOWER_DEFINITION,
   ): Promise<void> {
     if (!hash || pushedDefinitions.has(hash)) return;
     pushedDefinitions.add(hash);
@@ -257,6 +270,17 @@
       defHash: arrayAlongXHash,
       def: ARRAY_ALONG_X_DEFINITION,
     },
+    {
+      id: 'lua-flower-extruded',
+      label: 'Lua → 2D → extrude (flower)',
+      text: pretty({
+        type: 'extrude',
+        params: { height: 3 },
+        children: [{ type: 'lua', params: { definitionHash: flowerHash, values: {} } }],
+      } as NodeDoc),
+      defHash: flowerHash,
+      def: FLOWER_DEFINITION,
+    },
   ]);
 
   const sceneLibrary = [
@@ -269,6 +293,15 @@
     { id: 'union-stack', label: 'Boolean: union stack', text: sceneUnionStack },
     { id: 'box-minus-sphere', label: 'Boolean: box minus sphere', text: sceneBoxMinusSphere },
     { id: 'cored-block', label: 'Composite: cored block', text: sceneCoredBlock },
+    { id: '2d-circle', label: '2D: circle (r=10)', text: sceneCircle },
+    { id: '2d-spline-star', label: '2D: spline star', text: sceneSplineStar },
+    { id: '2d-rounded-rect', label: '2D: rounded rectangle', text: sceneRoundedRect },
+    { id: '3d-extruded-gear', label: '3D: extruded gear (declarative)', text: sceneExtrudedGear },
+    {
+      id: '3d-revolved-vase',
+      label: '3D: revolved vase (spline profile)',
+      text: sceneRevolvedVase,
+    },
     { id: 'edge-tangent', label: 'Edge case: tangent sphere/box', text: sceneTangent },
     { id: 'edge-shared-face', label: 'Edge case: shared-face cubes', text: sceneSharedFace },
     { id: 'edge-interior-void', label: 'Edge case: interior void', text: sceneInteriorVoid },
@@ -336,6 +369,9 @@
     void hashLuaDefinition(ARRAY_ALONG_X_DEFINITION, defaultHasher).then((h) => {
       arrayAlongXHash = h;
     });
+    void hashLuaDefinition(FLOWER_DEFINITION, defaultHasher).then((h) => {
+      flowerHash = h;
+    });
 
     void evaluate();
 
@@ -398,8 +434,15 @@
     try {
       const outcome = await client.evaluate(doc, 'final');
       if (seq !== evalSeq) return; // a newer edit superseded this one
-      lastMesh = outcome.mesh;
-      viewport.setMesh(outcome.mesh);
+      if (outcome.geometry.kind === '2d') {
+        manifoldApi ??= await loadManifold({ locateFile: () => wasmUrl });
+        viewport.setGeometry(outcome.geometry, manifoldApi);
+        lastMesh = undefined;
+      } else {
+        const mesh = outcome.geometry.mesh;
+        lastMesh = mesh;
+        viewport.setMesh(mesh);
+      }
       stats = outcome.stats;
       perf = outcome.perf;
       perNode = outcome.perNode;

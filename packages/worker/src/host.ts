@@ -1,6 +1,7 @@
 import { IndexedDbStore, MemoryStore, TieredStore } from '@yacad/cache';
 import { buildGraph, registerNodeType } from '@yacad/dag';
 import { Engine } from '@yacad/engine';
+import { type Geometry } from '@yacad/geometry';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 import {
   makeLuaNodeType,
@@ -141,11 +142,25 @@ async function handle(
     const result = await engine.evaluate(root, req.tier);
     const engineMs = performance.now() - evalStart;
 
-    // Copy out of the cached mesh so transferring (neutering) the buffers does
-    // not detach the artifact still held in L1.
+    // Copy out of the cached geometry so transferring (neutering) the buffers
+    // does not detach the artifact still held in L1.
     const copyStart = performance.now();
-    const vertices = result.mesh.vertices.slice();
-    const indices = result.mesh.indices.slice();
+    let outGeometry: Geometry;
+    if (result.geometry.kind === '3d') {
+      outGeometry = {
+        kind: '3d',
+        mesh: {
+          vertices: result.geometry.mesh.vertices.slice(),
+          indices: result.geometry.mesh.indices.slice(),
+        },
+      };
+    } else {
+      // CrossSection is plain nested arrays — spread copy is sufficient.
+      outGeometry = {
+        kind: '2d',
+        section: { polygons: result.geometry.section.polygons.map((p) => [...p]) },
+      };
+    }
     const copyMeshMs = performance.now() - copyStart;
 
     const workerTotalMs = performance.now() - workerStart;
@@ -153,13 +168,17 @@ async function handle(
       id: req.id,
       kind: 'result',
       ok: true,
-      mesh: { vertices, indices },
+      geometry: outGeometry,
       hash: result.hash,
       stats: result.stats,
       perNode: result.perNode,
       perf: { workerTotalMs, buildGraphMs, engineMs, copyMeshMs },
     };
-    scope.postMessage(ok, [vertices.buffer, indices.buffer] as Transferable[]);
+    const transferables: Transferable[] =
+      outGeometry.kind === '3d'
+        ? [outGeometry.mesh.vertices.buffer, outGeometry.mesh.indices.buffer]
+        : [];
+    scope.postMessage(ok, transferables);
 
     // Persist artifacts to IndexedDB after the result is sent — write-behind,
     // off the response critical path.

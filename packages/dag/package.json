@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@yacad/canonical": "workspace:*",
+    "@yacad/geometry": "workspace:*",
     "@yacad/hash": "workspace:*"
   },
   "devDependencies": {

@@ -135,8 +135,11 @@ describe('boolean-of-booleans depth', () => {
 
   it('evaluates a 5-level union/difference nest to a watertight solid', async () => {
     const run = await runScene(boolTree(LEVELS));
-    expect(triangleCount(run.mesh)).toBeGreaterThan(0);
-    expect(isWatertight(run.mesh)).toBe(true);
+    expect(run.geometry.kind).toBe('3d');
+    if (run.geometry.kind === '3d') {
+      expect(triangleCount(run.geometry.mesh)).toBeGreaterThan(0);
+      expect(isWatertight(run.geometry.mesh)).toBe(true);
+    }
   });
 
   it('editing the deepest primitive recomputes only the boolean spine', async () => {
@@ -148,7 +151,10 @@ describe('boolean-of-booleans depth', () => {
     // Off-spine operands (spheres, translated boxes) at every level stay cached,
     // proving intermediate boolean results are reused.
     expect(edited.stats.hits).toBeGreaterThan(0);
-    expect(isWatertight(edited.mesh)).toBe(true);
+    expect(edited.geometry.kind).toBe('3d');
+    if (edited.geometry.kind === '3d') {
+      expect(isWatertight(edited.geometry.mesh)).toBe(true);
+    }
   });
 });
 
@@ -170,7 +176,10 @@ function wideUnion(n: number): NodeDoc {
 describe('wide n-ary union (50 children)', () => {
   it('unions 50 overlapping boxes into a watertight solid', async () => {
     const run = await runScene(wideUnion(50));
-    expect(isWatertight(run.mesh)).toBe(true);
+    expect(run.geometry.kind).toBe('3d');
+    if (run.geometry.kind === '3d') {
+      expect(isWatertight(run.geometry.mesh)).toBe(true);
+    }
   });
 
   it('adding one child reuses the existing 50 — only the n-ary union op recomputes', async () => {
@@ -197,8 +206,11 @@ describe('high-mesh-count primitives', () => {
         { type: 'box', params: { size: [20, 20, 40], center: true } },
       ],
     });
-    expect(triangleCount(run.mesh)).toBeGreaterThan(50_000);
-    expect(isWatertight(run.mesh)).toBe(true);
+    expect(run.geometry.kind).toBe('3d');
+    if (run.geometry.kind === '3d') {
+      expect(triangleCount(run.geometry.mesh)).toBeGreaterThan(50_000);
+      expect(isWatertight(run.geometry.mesh)).toBe(true);
+    }
   });
 });
 
@@ -302,7 +314,10 @@ describe('procedural tree (real-world stress)', () => {
     // produce hits.
     expect(run.stats.nodes).toBeLessThan(50);
     expect(run.stats.misses).toBeLessThan(40);
-    expect(isWatertight(run.mesh)).toBe(true);
+    expect(run.geometry.kind).toBe('3d');
+    if (run.geometry.kind === '3d') {
+      expect(isWatertight(run.geometry.mesh)).toBe(true);
+    }
   });
 
   it('real-world tree: wobble breaks dedup so the walk expands several-fold', async () => {
@@ -310,7 +325,10 @@ describe('procedural tree (real-world stress)', () => {
     const wobbly = await evaluate(freshEngine(), procTree({ ...treeBase, wobble: 1, seed: 42 }));
     expect(wobbly.stats.nodes).toBeGreaterThan(symmetric.stats.nodes * 3);
     expect(wobbly.stats.misses).toBeGreaterThan(symmetric.stats.misses * 3);
-    expect(isWatertight(wobbly.mesh)).toBe(true);
+    expect(wobbly.geometry.kind).toBe('3d');
+    if (wobbly.geometry.kind === '3d') {
+      expect(isWatertight(wobbly.geometry.mesh)).toBe(true);
+    }
   });
 });
 
@@ -323,26 +341,35 @@ describe('geometric edge cases', () => {
 
   it('shared-face cubes union → watertight box spanning both', async () => {
     const run = await runScene(sceneDoc('edge-cases/shared-face-cubes'));
-    expect(isWatertight(run.mesh)).toBe(true);
-    expect(computeBBox(run.mesh)).toEqual({ min: [-5, -5, -5], max: [15, 5, 5] });
+    expect(run.geometry.kind).toBe('3d');
+    if (run.geometry.kind === '3d') {
+      expect(isWatertight(run.geometry.mesh)).toBe(true);
+      expect(computeBBox(run.geometry.mesh)).toEqual({ min: [-5, -5, -5], max: [15, 5, 5] });
+    }
   });
 
   it('difference with an operand fully inside → watertight solid with an inner void', async () => {
     const run = await runScene(sceneDoc('edge-cases/interior-void'));
-    expect(isWatertight(run.mesh)).toBe(true);
-    // The void leaves the outer bbox unchanged but adds an inner shell.
-    expect(computeBBox(run.mesh)).toEqual({ min: [-10, -10, -10], max: [10, 10, 10] });
-    expect(triangleCount(run.mesh)).toBeGreaterThan(12);
+    expect(run.geometry.kind).toBe('3d');
+    if (run.geometry.kind === '3d') {
+      expect(isWatertight(run.geometry.mesh)).toBe(true);
+      // The void leaves the outer bbox unchanged but adds an inner shell.
+      expect(computeBBox(run.geometry.mesh)).toEqual({ min: [-10, -10, -10], max: [10, 10, 10] });
+      expect(triangleCount(run.geometry.mesh)).toBeGreaterThan(12);
+    }
   });
 
   it('point-tangent sphere/box: produces output; capture manifold-edge behavior', async () => {
     const run = await runScene(sceneDoc('edge-cases/tangent-sphere-box'));
-    expect(triangleCount(run.mesh)).toBeGreaterThan(0);
-    // Point contact is genuinely degenerate; capture the behavior in a snapshot
-    // rather than hard-asserting watertightness, so any change is visible.
-    expect({
-      triangles: triangleCount(run.mesh),
-      nonManifoldEdges: nonManifoldEdges(run.mesh),
-    }).toMatchSnapshot();
+    expect(run.geometry.kind).toBe('3d');
+    if (run.geometry.kind === '3d') {
+      expect(triangleCount(run.geometry.mesh)).toBeGreaterThan(0);
+      // Point contact is genuinely degenerate; capture the behavior in a snapshot
+      // rather than hard-asserting watertightness, so any change is visible.
+      expect({
+        triangles: triangleCount(run.geometry.mesh),
+        nonManifoldEdges: nonManifoldEdges(run.geometry.mesh),
+      }).toMatchSnapshot();
+    }
   });
 });
