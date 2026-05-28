@@ -13,6 +13,7 @@
     { "path": "packages/export-stl" },
     { "path": "packages/export-dxf" },
     { "path": "packages/export-svg" },
+    { "path": "packages/export-png" },
     { "path": "packages/import-stl" },
     { "path": "packages/import-obj" },
     { "path": "packages/import-gltf" }
