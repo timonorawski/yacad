@@ -19,6 +19,7 @@
     "@yacad/geometry": "workspace:*"
   },
   "devDependencies": {
-    "@yacad/tsconfig": "workspace:*"
+    "@yacad/tsconfig": "workspace:*",
+    "dxf-parser": "^1.1.2"
   }
 }

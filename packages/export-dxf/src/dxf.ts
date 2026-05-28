@@ -20,9 +20,12 @@ export function crossSectionToDxf(cs: CrossSection, opts: DxfOptions = {}): Uint
   const layer = opts.layer ?? '0';
   const units = opts.units ?? 4; // millimeters
 
-  // Defensive scan for non-finite coordinates.
+  // Defensive scan: degenerate polygons and non-finite coordinates.
   for (let p = 0; p < cs.polygons.length; p++) {
     const polygon = cs.polygons[p]!;
+    if (polygon.length < 3) {
+      throw new ExportError(`polygon ${p} has fewer than 3 vertices (got ${polygon.length})`);
+    }
     for (let v = 0; v < polygon.length; v++) {
       const [x, y] = polygon[v]!;
       if (!Number.isFinite(x) || !Number.isFinite(y)) {
@@ -74,7 +77,9 @@ export function crossSectionToDxf(cs: CrossSection, opts: DxfOptions = {}): Uint
   emit(2, 'ENTITIES');
   for (const polygon of cs.polygons) {
     emit(0, 'LWPOLYLINE');
+    emit(100, 'AcDbEntity');
     emit(8, layer);
+    emit(100, 'AcDbPolyline');
     emit(90, polygon.length);
     emit(70, 1); // 1 = closed
     for (const [x, y] of polygon) {
@@ -114,8 +119,5 @@ function boundsOf(cs: CrossSection): { minX: number; minY: number; maxX: number;
 /** Format a number for DXF: avoid scientific notation, trim trailing zeros. */
 function fmtNum(n: number): string {
   // toFixed(9) gives sub-nanometer precision in mm; trim trailing zeros.
-  return n
-    .toFixed(9)
-    .replace(/0+$/, '')
-    .replace(/\.$/, '.0');
+  return n.toFixed(9).replace(/0+$/, '').replace(/\.$/, '.0');
 }

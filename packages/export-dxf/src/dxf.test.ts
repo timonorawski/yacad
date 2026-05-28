@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import DxfParser from 'dxf-parser';
 import type { CrossSection } from '@yacad/geometry';
 import { crossSectionToDxf, ExportError } from './dxf';
 
@@ -82,11 +83,13 @@ describe('crossSectionToDxf', () => {
 
   it('throws ExportError on non-finite coordinates', () => {
     const bad: CrossSection = {
-      polygons: [[
-        [0, 0],
-        [Infinity, 0],
-        [1, 1],
-      ]],
+      polygons: [
+        [
+          [0, 0],
+          [Infinity, 0],
+          [1, 1],
+        ],
+      ],
     };
     expect(() => crossSectionToDxf(bad)).toThrow(ExportError);
   });
@@ -95,5 +98,78 @@ describe('crossSectionToDxf', () => {
     const a = crossSectionToDxf(squareCs);
     const b = crossSectionToDxf(squareCs);
     expect(a).toEqual(b);
+  });
+
+  it('throws ExportError on NaN coordinates', () => {
+    const bad: CrossSection = {
+      polygons: [
+        [
+          [0, 0],
+          [NaN, 0],
+          [1, 1],
+        ],
+      ],
+    };
+    expect(() => crossSectionToDxf(bad)).toThrow(ExportError);
+  });
+
+  it('throws ExportError on a polygon with fewer than 3 vertices', () => {
+    const degenerate: CrossSection = {
+      polygons: [
+        [
+          [0, 0],
+          [1, 1],
+        ],
+      ],
+    };
+    expect(() => crossSectionToDxf(degenerate)).toThrow(ExportError);
+  });
+
+  it('throws ExportError on an empty polygon (zero vertices)', () => {
+    const empty: CrossSection = { polygons: [[]] };
+    expect(() => crossSectionToDxf(empty)).toThrow(ExportError);
+  });
+});
+
+describe('crossSectionToDxf (structural validation via dxf-parser)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parse = (bytes: Uint8Array): any =>
+    new DxfParser().parseSync(new TextDecoder().decode(bytes));
+
+  it('produces a parseable DXF for an empty CrossSection (no entities)', () => {
+    const parsed = parse(crossSectionToDxf(emptyCs));
+    expect(parsed.entities).toEqual([]);
+  });
+
+  it('produces exactly one LWPOLYLINE entity for a single-polygon CrossSection', () => {
+    const parsed = parse(crossSectionToDxf(squareCs));
+    expect(parsed.entities).toHaveLength(1);
+    const e = parsed.entities[0];
+    expect(e.type).toBe('LWPOLYLINE');
+    expect(e.shape).toBe(true); // closed
+    expect(e.vertices).toHaveLength(4);
+    expect(e.vertices[0]).toMatchObject({ x: 0, y: 0 });
+    expect(e.vertices[1]).toMatchObject({ x: 10, y: 0 });
+    expect(e.vertices[2]).toMatchObject({ x: 10, y: 10 });
+    expect(e.vertices[3]).toMatchObject({ x: 0, y: 10 });
+  });
+
+  it('produces two LWPOLYLINE entities for a multi-polygon CrossSection', () => {
+    const parsed = parse(crossSectionToDxf(squareWithHoleCs));
+    expect(parsed.entities).toHaveLength(2);
+    for (const e of parsed.entities) {
+      expect(e.type).toBe('LWPOLYLINE');
+      expect(e.shape).toBe(true);
+    }
+  });
+
+  it('places entities on the configured layer name', () => {
+    const parsed = parse(crossSectionToDxf(squareCs, { layer: 'profile' }));
+    expect(parsed.entities[0].layer).toBe('profile');
+  });
+
+  it('defaults layer to "0"', () => {
+    const parsed = parse(crossSectionToDxf(squareCs));
+    expect(parsed.entities[0].layer).toBe('0');
   });
 });
