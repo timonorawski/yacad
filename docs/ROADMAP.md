@@ -10,6 +10,7 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 - **Phase 1 (LuaNode)** — Sandboxed Lua code nodes with `ExpandableNodeType` abstraction. See [specs/2026-05-27-luanode-design.md](superpowers/specs/2026-05-27-luanode-design.md).
 - **Phase 2 (2D layer)** — 14 new node types: 2D primitives, transforms, ops, bridges, refinement. See [specs/2026-05-27-2d-layer-design.md](superpowers/specs/2026-05-27-2d-layer-design.md).
 - **Section node** — 3D→2D bridge (arbitrary-plane slicing). See [specs/2026-05-28-section-design.md](superpowers/specs/2026-05-28-section-design.md).
+- **2D vector exports** — DXF/SVG/PNG exporters for any 2D-root scene. See [specs/2026-05-28-2d-vector-exports-design.md](superpowers/specs/2026-05-28-2d-vector-exports-design.md).
 
 ## Deferred — 2D / 3D geometry
 
