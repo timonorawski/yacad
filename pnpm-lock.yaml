@@ -462,6 +462,9 @@ importers:
       '@yacad/hash':
         specifier: workspace:*
         version: link:../hash
+      '@yacad/kernel-manifold':
+        specifier: workspace:*
+        version: link:../kernel-manifold
       wasmoon:
         specifier: 1.16.0
         version: 1.16.0
