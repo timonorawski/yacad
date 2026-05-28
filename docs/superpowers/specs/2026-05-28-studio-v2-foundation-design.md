@@ -136,6 +136,8 @@ interface DocSession {
   readonly canRedo: boolean;
   readonly isDirty: boolean;
   readonly state: 'live' | 'invalidated';
+  /** Populated when `state === 'invalidated'`; otherwise undefined. */
+  readonly invalidationError?: Error;
 
   mutate(fn: (prev: NodeDoc) => NodeDoc): Promise<void>;
   addBlob(bytes: Uint8Array): Promise<Hash>;   // hashes, stores, uploads to worker
@@ -195,9 +197,11 @@ On `library.open(id)`:
 3. Push the blobs the worker is missing, via `hasMeshBlob` / `putMeshBlob` (and the Lua equivalents).
 4. Run `buildGraph` on the loaded `document.json`. On success the session enters `'live'` state and an initial evaluation can run. On failure, the session enters `'invalidated'` state:
    - `state === 'invalidated'`
+   - `invalidationError` exposes the underlying `Error` from `buildGraph` so the UI can render diagnostics
    - `mutate` rejects
    - `doc` still exposes the raw parsed JSON for inspection by the UI (spec 2 will surface this)
-   - A `{ kind: 'invalidated', error }` event is emitted to subscribers
+
+`open` does **not** emit an `invalidated` event — subscribers cannot have attached yet at construction time, so the field-based API (`state` + `invalidationError`) is what the UI reads. The `invalidated` event in `DocEvent` is reserved for **mid-session** transitions (e.g., a future worker-failure path) where subscribers may already exist.
 
 Doc-store rejects gracefully; it never throws into the constructor's call chain past `open`.
 
