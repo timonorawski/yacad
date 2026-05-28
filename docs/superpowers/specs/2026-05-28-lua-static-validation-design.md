@@ -1,6 +1,6 @@
 # Lua static validation design
 
-**Status**: design approved 2026-05-28. Implementation pending.
+**Status**: shipped 2026-05-28.
 **Date**: 2026-05-28
 **Scope**: AST-level static validation of `LuaDefinition.code` against the declared schema, the sandbox identifier whitelist, and the kernel-node registry's `paramSchema`. Closes the "AST validation of Lua code against schema" item deferred by the [LuaNode design](2026-05-27-luanode-design.md) and tracked in [docs/ROADMAP.md](../../ROADMAP.md).
 

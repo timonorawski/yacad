@@ -8,6 +8,7 @@ import { hashStlBlob } from '@yacad/import-stl';
 import { hashObjBlob } from '@yacad/import-obj';
 import { SAMPLE_OBJ_BYTES } from './sample-obj';
 import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION, FLOWER_DEFINITION } from '@yacad/e2e/fixtures';
+import { addLuaDefinition } from './lua-sync';
 import { seedHouseShowcase } from '@yacad/e2e/showcase/house';
 import { seedCastleShowcase } from '@yacad/e2e/showcase/castle';
 import { seedTreeShowcase } from '@yacad/e2e/showcase/tree';
@@ -297,12 +298,13 @@ export async function seedSceneLibrary(library: DocLibrary): Promise<void> {
   for (const luaScene of luaScenes) {
     const defBytes = canonicalBytes(luaScene.defConstant);
     const hash = await defaultHasher.hash(defBytes);
-    // Skip validation: blobs are not yet in the resolver at create time.
-    // addBlob() below persists them before the session is closed.
+    // Skip doc-graph validation: blobs are not yet in the resolver at create
+    // time — addLuaDefinition() below persists them before the session is
+    // closed.  The Lua source itself is validated inside addLuaDefinition.
     const session = await library.create(luaScene.name, luaScene.buildDoc(hash), {
       skipValidation: true,
     });
-    await session.addBlob(defBytes);
+    await addLuaDefinition(session, luaScene.defConstant);
     await session.save();
     await session.close();
   }

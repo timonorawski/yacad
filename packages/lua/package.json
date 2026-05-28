@@ -20,9 +20,11 @@
     "@yacad/dag": "workspace:*",
     "@yacad/hash": "workspace:*",
     "@yacad/kernel-manifold": "workspace:*",
+    "luaparse": "^0.3.1",
     "wasmoon": "1.16.0"
   },
   "devDependencies": {
+    "@types/luaparse": "^0.2.12",
     "@yacad/tsconfig": "workspace:*"
   }
 }

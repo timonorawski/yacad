@@ -5,6 +5,7 @@ export type {
   EvaluateOk,
   EvaluateErr,
   InitRequest,
+  ValidationErrorResponse,
   WorkerRequest,
   WorkerResponse,
 } from './protocol';

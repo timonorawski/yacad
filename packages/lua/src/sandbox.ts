@@ -1,4 +1,5 @@
 import { LuaLibraries, type LuaEngine } from 'wasmoon';
+import { SANDBOX_STRIP_SCRIPT } from './sandbox-globals';
 
 /**
  * RNG policy for the sandbox.
@@ -27,49 +28,48 @@ export interface LuaSandboxOptions {
  * yacad system goes through this installer so the determinism + sandbox
  * guarantees (CLAUDE.md #2) hold uniformly across LuaNode and warp.
  *
+ * The strip step delegates to `SANDBOX_STRIP_SCRIPT`, which is derived from the
+ * `SANDBOX_GLOBALS` whitelist that the static validator also consumes — so the
+ * runtime sandbox and the validator cannot drift. `SANDBOX_STRIP_SCRIPT` keeps
+ * `math.random` (whitelisted) and nils `math.randomseed`; the random *policy*
+ * here layers on top of that baseline.
+ *
  * The caller is responsible for creating the engine with `openStandardLibs:
  * false` — that's where `os`/`io`/`package`/`coroutine`/`debug` are kept out.
  * This function then selectively opens only the pure stdlib chunks (Base,
- * Math, String, Table) and strips dangerous entries from each.
+ * Math, String, Table).
  */
 export async function installLuaSandbox(
   engine: LuaEngine,
   options: LuaSandboxOptions,
 ): Promise<void> {
   // 1. Pure-only stdlib chunks. Base brings pcall/error/type/tostring/
-  //    tonumber/select/pairs/ipairs; its dangerous entries get stripped below.
+  //    tonumber/select/pairs/ipairs; the strip script nils its dangerous entries.
   await engine.global.loadLibrary(LuaLibraries.Base);
   await engine.global.loadLibrary(LuaLibraries.Math);
   await engine.global.loadLibrary(LuaLibraries.String);
   await engine.global.loadLibrary(LuaLibraries.Table);
 
-  // 2. RNG policy. Seed BEFORE stripping randomseed — clearing it first would
-  //    leave math.random in its uninitialised default state. For `disabled`
-  //    we just go straight to the strip step.
+  // 2. RNG policy — seeded mode reseeds BEFORE the strip removes randomseed.
+  //    (Stripping first would leave math.random uninitialised.)
   if (options.random.mode === 'seeded') {
     await engine.doString(
       `math.randomseed(${options.random.seedLo.toString()}, ${options.random.seedHi.toString()})`,
     );
   }
 
-  // 3. Strip impure / source-loading entries. math.random is removed only in
-  //    'disabled' mode; math.randomseed is always removed (so user code can't
-  //    re-seed and defeat determinism).
-  const stripRandom = options.random.mode === 'disabled';
-  await engine.doString(`
-    math.randomseed = nil
-    ${stripRandom ? 'math.random = nil' : ''}
-    string.dump = nil
-    dofile = nil
-    loadfile = nil
-    load = nil
-    loadstring = nil
-    require = nil
-    print = nil
-    collectgarbage = nil
-  `);
+  // 3. Whitelist-derived strip (single source of truth shared with the
+  //    validator). This nils math.randomseed, string.dump, load/loadfile/
+  //    dofile/require/print/collectgarbage, etc., and keeps math.random.
+  await engine.doString(SANDBOX_STRIP_SCRIPT);
 
-  // 4. Install caller-supplied globals.
+  // 4. Disabled mode additionally removes math.random — the strip script keeps
+  //    it (it's whitelisted for LuaNode), but warp requires per-vertex purity.
+  if (options.random.mode === 'disabled') {
+    await engine.doString('math.random = nil');
+  }
+
+  // 5. Install caller-supplied globals.
   if (options.globals) {
     for (const [name, value] of Object.entries(options.globals)) {
       engine.global.set(name, value);

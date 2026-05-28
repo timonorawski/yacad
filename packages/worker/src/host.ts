@@ -7,7 +7,9 @@ import { IMPORT_OBJ_NODE_TYPE, IMPORT_OBJ_TYPE } from '@yacad/import-obj';
 import { IMPORT_STL_NODE_TYPE, IMPORT_STL_TYPE } from '@yacad/import-stl';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 import {
+  LuaValidationError,
   makeLuaNodeType,
+  validateLuaSource,
   WasmoonLuaRuntime,
   WasmoonWarpEvaluator,
   type LuaDefinition,
@@ -21,6 +23,7 @@ import type {
   OkResponse,
   PutLuaDefinitionRequest,
   PutMeshBlobRequest,
+  ValidationErrorResponse,
   WorkerRequest,
   WorkerResponse,
 } from './protocol';
@@ -175,6 +178,20 @@ function handlePutLuaDefinition(
   luaDefs: Map<string, LuaDefinition>,
   req: PutLuaDefinitionRequest,
 ): void {
+  try {
+    validateLuaSource(req.definition);
+  } catch (err) {
+    if (err instanceof LuaValidationError) {
+      const res: ValidationErrorResponse = {
+        id: req.id,
+        kind: 'validation-error',
+        issues: err.issues,
+      };
+      scope.postMessage(res);
+      return;
+    }
+    throw err;
+  }
   luaDefs.set(req.hash, req.definition);
   const res: OkResponse = { id: req.id, kind: 'ok' };
   scope.postMessage(res);
