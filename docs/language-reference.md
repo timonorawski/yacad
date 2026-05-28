@@ -1,6 +1,6 @@
 # YACAD DAG Language Reference
 
-This reference describes the JSON DAG document consumed by `buildGraph` and used by the studio editor. It covers all 23 node types shipping today: the seven Phase 0 primitives, the LuaNode (Phase 1), the fourteen 2D-layer node types (Phase 2), and the `import-stl` decoder (Phase 2.5).
+This reference describes the JSON DAG document consumed by `buildGraph` and used by the studio editor. It covers all 21 node types shipping today: the seven Phase 0 primitives, the LuaNode (Phase 1), twelve 2D-layer node types (Phase 2), and the `section` 3D→2D bridge.
 
 ## Document shape
 
