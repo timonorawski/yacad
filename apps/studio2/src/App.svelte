@@ -9,6 +9,7 @@
   import { SessionState } from './state/session.svelte';
   import { SelectionState } from './state/selection.svelte';
   import { seedSceneLibrary } from './seed-scenes';
+  import { syncLuaDefinitionsToWorker } from './lua-sync';
   import DocPicker from './ui/DocPicker.svelte';
   import TreePane from './ui/TreePane.svelte';
   import InspectorPane from './ui/InspectorPane.svelte';
@@ -32,6 +33,9 @@
       session.dispose();
     }
     const opened = await library.open(id);
+    if (client) {
+      await syncLuaDefinitionsToWorker(opened, client);
+    }
     session = new SessionState(opened);
     selection = new SelectionState();
   }
