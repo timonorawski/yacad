@@ -3,7 +3,8 @@ import { MemoryStore } from '@yacad/cache';
 import { buildGraph, getNodeType, registerNodeType, type DefinitionResolver } from '@yacad/dag';
 import { Engine } from '@yacad/engine';
 import { meshToBinaryStl } from '@yacad/export-stl';
-import { computeBBox, triangleCount, vertexCount } from '@yacad/geometry';
+import { computeBBox, triangleCount, vertexCount, type Mesh } from '@yacad/geometry';
+import type { EvaluateResult } from '@yacad/engine';
 import { defaultHasher } from '@yacad/hash';
 import { hashStlBlob, IMPORT_STL_NODE_TYPE, IMPORT_STL_TYPE } from '@yacad/import-stl';
 import type { ManifoldKernel } from '@yacad/kernel-manifold';
@@ -45,6 +46,13 @@ function blobResolver(map: Map<string, Uint8Array>): DefinitionResolver {
   return { get: (hash) => map.get(hash) };
 }
 
+function expectMesh(result: EvaluateResult): Mesh {
+  if (result.geometry.kind !== '3d') {
+    throw new Error(`expected 3d geometry, got ${result.geometry.kind}`);
+  }
+  return result.geometry.mesh;
+}
+
 describe('import-stl e2e', () => {
   it('decodes a binary STL through buildGraph + Engine.evaluate', async () => {
     const triangle: [number, number, number][] = [
@@ -66,9 +74,9 @@ describe('import-stl e2e', () => {
     );
     const result = await engine.evaluate(root);
 
-    expect(triangleCount(result.mesh)).toBe(1);
-    expect(vertexCount(result.mesh)).toBe(3); // 3 distinct positions, 1 triangle
-    expect(computeBBox(result.mesh)).toEqual({ min: [0, 0, 0], max: [2, 1, 0] });
+    expect(triangleCount(expectMesh(result))).toBe(1);
+    expect(vertexCount(expectMesh(result))).toBe(3); // 3 distinct positions, 1 triangle
+    expect(computeBBox(expectMesh(result))).toEqual({ min: [0, 0, 0], max: [2, 1, 0] });
     expect(result.stats.misses).toBe(1);
     expect(result.stats.hits).toBe(0);
   });
@@ -115,11 +123,12 @@ describe('import-stl e2e', () => {
     // Build a real cube via Manifold, encode as binary STL, re-import as a
     // leaf, and subtract a sphere. This proves the imported mesh re-welds
     // through Manifold's constructor cleanly enough for booleans.
-    const cubeMesh = kernel.evaluate(
+    const cubeGeometry = kernel.evaluate(
       await buildGraph({ type: 'box', params: { size: [20, 20, 20], center: true } }),
       [],
     );
-    const cubeBytes = meshToBinaryStl(cubeMesh);
+    if (cubeGeometry.kind !== '3d') throw new Error('box must produce a 3d mesh');
+    const cubeBytes = meshToBinaryStl(cubeGeometry.mesh);
     const hash = await hashStlBlob(cubeBytes);
     const blobs = new Map([[hash, cubeBytes]]);
     const resolver = blobResolver(blobs);
@@ -137,7 +146,7 @@ describe('import-stl e2e', () => {
 
     // The cube (12 tris) with a spherical bite missing should have more tris
     // than the cube alone — proving the boolean ran on the imported mesh.
-    expect(triangleCount(result.mesh)).toBeGreaterThan(12);
-    expect(computeBBox(result.mesh)).toEqual({ min: [-10, -10, -10], max: [10, 10, 10] });
+    expect(triangleCount(expectMesh(result))).toBeGreaterThan(12);
+    expect(computeBBox(expectMesh(result))).toEqual({ min: [-10, -10, -10], max: [10, 10, 10] });
   });
 });

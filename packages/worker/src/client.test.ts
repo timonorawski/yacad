@@ -29,7 +29,10 @@ const okResponse = (id: number): WorkerResponse => ({
   id,
   kind: 'result',
   ok: true,
-  mesh: { vertices: new Float32Array([1, 2, 3]), indices: new Uint32Array([0]) },
+  geometry: {
+    kind: '3d',
+    mesh: { vertices: new Float32Array([1, 2, 3]), indices: new Uint32Array([0]) },
+  },
   hash: 'abc',
   stats: {
     nodes: 1,

@@ -1,10 +1,10 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
-import type { Mesh } from '@yacad/geometry';
+import type { Geometry } from '@yacad/geometry';
 import type { LuaDefinition } from '@yacad/lua';
 import type { OkResponse, WorkerResponse } from './protocol';
 
 export interface EvaluateOutcome {
-  readonly mesh: Mesh;
+  readonly geometry: Geometry;
   readonly hash: string;
   readonly stats: EvalStats;
   readonly perNode: readonly NodeEval[];
@@ -82,7 +82,7 @@ export class WorkerClient {
             return;
           }
           resolve({
-            mesh: res.mesh,
+            geometry: res.geometry,
             hash: res.hash,
             stats: res.stats,
             perNode: res.perNode,

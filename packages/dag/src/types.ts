@@ -13,6 +13,8 @@ export type NodeId = string;
 /** A 3-component vector parameter (offset, size, angles). */
 export type Vec3 = [number, number, number];
 
+export type { Vec2 } from '@yacad/geometry';
+
 /**
  * The authoring/document shape: plain JSON, no ids, no hashes. This is what the
  * JSON editor produces and what `buildGraph` consumes.

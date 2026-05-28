@@ -136,6 +136,10 @@ describe('Engine.evaluate performance guards', () => {
 
     expect(result.stats.hits).toBe(1);
     expect(result.stats.misses).toBe(0);
+    expect(result.geometry.kind).toBe('3d');
+    if (result.geometry.kind === '3d') {
+      expect(result.geometry.mesh.indices.length).toBeGreaterThan(0);
+    }
     expect(elapsed).toBeLessThan(100);
   });
 
@@ -227,5 +231,55 @@ describe('LuaNode Engine.evaluate performance guards', () => {
     expect(result.stats.hits).toBe(1);
     expect(result.stats.misses).toBe(0);
     expect(elapsed).toBeLessThan(20);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2D evaluation — cold/warm perf guards
+// ---------------------------------------------------------------------------
+
+describe('Engine.evaluate 2D performance guards', () => {
+  it('cold 2D evaluate completes within 300 ms', async () => {
+    // Cold path: fresh store, spline evaluation + extrude kernel.
+    // Benchmark (post-JIT): ~0.32 ms per op. Full execution with WASM init
+    // overhead estimated at ~200 ms on CI, 300 ms gives 1.5× margin.
+    const kernel2d = new ManifoldKernel(await loadManifold());
+    const graph = await buildGraph({
+      type: 'extrude',
+      params: { height: 10 },
+      children: [
+        {
+          type: 'spline',
+          params: {
+            points: Array.from({ length: 8 }, (_, i) => {
+              const a = (i / 8) * 2 * Math.PI;
+              return [10 * Math.cos(a), 10 * Math.sin(a)] as [number, number];
+            }),
+            segmentsPerCurve: 8,
+          },
+        },
+      ],
+    });
+    const t0 = Date.now();
+    await new Engine(new MemoryStore(), kernel2d).evaluate(graph);
+    expect(Date.now() - t0).toBeLessThan(300);
+  });
+
+  it('warm 2D evaluate completes within 50 ms', async () => {
+    // Warm path: root mesh already cached; one lookup.
+    // Benchmark (post-JIT): ~0.0017 ms per op. Full execution estimated at
+    // ~33 ms on CI, 50 ms gives 1.5× margin. This validates incremental-recompute
+    // architectural bet for 2D operations.
+    const kernel2d = new ManifoldKernel(await loadManifold());
+    const graph = await buildGraph({
+      type: 'extrude',
+      params: { height: 10 },
+      children: [{ type: 'circle', params: { radius: 10 } }],
+    });
+    const store = new MemoryStore();
+    await new Engine(store, kernel2d).evaluate(graph);
+    const t0 = Date.now();
+    await new Engine(store, kernel2d).evaluate(graph);
+    expect(Date.now() - t0).toBeLessThan(50);
   });
 });

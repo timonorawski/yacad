@@ -5,3 +5,4 @@ export * from './runtime';
 export * from './geo';
 export * from './wasmoon-runtime';
 export * from './node-type';
+export * from './geo-docs';

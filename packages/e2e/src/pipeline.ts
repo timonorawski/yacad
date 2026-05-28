@@ -4,7 +4,7 @@ import { MemoryStore } from '@yacad/cache';
 import { buildGraph, registerNodeType, unregisterNodeType } from '@yacad/dag';
 import { Engine, type EvaluateResult } from '@yacad/engine';
 import { meshToBinaryStl } from '@yacad/export-stl';
-import { computeBBox, triangleCount, vertexCount, type Mesh } from '@yacad/geometry';
+import { computeBBox, triangleCount, vertexCount, type Geometry } from '@yacad/geometry';
 import { defaultHasher } from '@yacad/hash';
 import { loadManifold, ManifoldKernel } from '@yacad/kernel-manifold';
 import {
@@ -83,8 +83,8 @@ function substituteSentinels(value: unknown, sentinelMap: Map<string, string>): 
 
 export interface SceneRun {
   readonly result: EvaluateResult;
-  readonly mesh: Mesh;
-  readonly stl: Uint8Array<ArrayBuffer>;
+  readonly geometry: Geometry;
+  readonly stl: Uint8Array<ArrayBuffer> | null; // null for 2D scenes
 }
 
 /**
@@ -136,25 +136,38 @@ export async function runScene(doc: unknown): Promise<SceneRun> {
     const result = await engine.evaluate(
       await buildGraph(unwrapped, undefined, undefined, resolver),
     );
-    return { result, mesh: result.mesh, stl: meshToBinaryStl(result.mesh) };
+    const stl = result.geometry.kind === '3d' ? meshToBinaryStl(result.geometry.mesh) : null;
+    return { result, geometry: result.geometry, stl };
   }
 
   // --- Plain scene: existing behavior unchanged ---
   const engine = new Engine(new MemoryStore(), kernel);
   const result = await engine.evaluate(await buildGraph(doc));
-  return { result, mesh: result.mesh, stl: meshToBinaryStl(result.mesh) };
+  const stl = result.geometry.kind === '3d' ? meshToBinaryStl(result.geometry.mesh) : null;
+  return { result, geometry: result.geometry, stl };
 }
 
 const round = (n: number): number => Math.round(n * 1000) / 1000;
 
 /** Stable, captureable geometry summary — the golden record for a scene. */
-export function summarize({ result, mesh, stl }: SceneRun): Record<string, unknown> {
-  const bbox = computeBBox(mesh);
+export function summarize({ result, geometry, stl }: SceneRun): Record<string, unknown> {
+  if (geometry.kind === '3d') {
+    const bbox = computeBBox(geometry.mesh);
+    return {
+      nodes: result.stats.nodes,
+      triangles: triangleCount(geometry.mesh),
+      vertices: vertexCount(geometry.mesh),
+      bbox: bbox && { min: bbox.min.map(round), max: bbox.max.map(round) },
+      stlBytes: stl ? stl.byteLength : 0,
+    };
+  }
+  // 2D path — used by chunk 3+ scenes
+  const polygonCount = geometry.section.polygons.length;
+  const vertexCount2d = geometry.section.polygons.reduce((n, p) => n + p.length, 0);
   return {
     nodes: result.stats.nodes,
-    triangles: triangleCount(mesh),
-    vertices: vertexCount(mesh),
-    bbox: bbox && { min: bbox.min.map(round), max: bbox.max.map(round) },
-    stlBytes: stl.byteLength,
+    polygons: polygonCount,
+    vertices: vertexCount2d,
+    stlBytes: 0,
   };
 }

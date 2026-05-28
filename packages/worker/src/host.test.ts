@@ -31,7 +31,10 @@ describe('startHost', () => {
     const res = messages[0] as EvaluateOk;
     expect(res.ok).toBe(true);
     expect(res.id).toBe(1);
-    expect(res.mesh.vertices.length).toBeGreaterThan(0);
+    expect(res.geometry.kind).toBe('3d');
+    if (res.geometry.kind === '3d') {
+      expect(res.geometry.mesh.vertices.length).toBeGreaterThan(0);
+    }
     expect(res.stats.misses).toBe(1);
   });
 

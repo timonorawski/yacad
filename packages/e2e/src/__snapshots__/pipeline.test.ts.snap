@@ -1,5 +1,32 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`scene → STL pipeline > 2d/circle > matches the captured geometry summary 1`] = `
+{
+  "nodes": 1,
+  "polygons": 1,
+  "stlBytes": 0,
+  "vertices": 48,
+}
+`;
+
+exports[`scene → STL pipeline > 2d/rounded-rect > matches the captured geometry summary 1`] = `
+{
+  "nodes": 2,
+  "polygons": 1,
+  "stlBytes": 0,
+  "vertices": 20,
+}
+`;
+
+exports[`scene → STL pipeline > 2d/spline-star > matches the captured geometry summary 1`] = `
+{
+  "nodes": 1,
+  "polygons": 1,
+  "stlBytes": 0,
+  "vertices": 96,
+}
+`;
+
 exports[`scene → STL pipeline > booleans/box-minus-sphere > matches the captured geometry summary 1`] = `
 {
   "bbox": {
@@ -60,6 +87,69 @@ exports[`scene → STL pipeline > composite/cored-block > matches the captured g
   "stlBytes": 44984,
   "triangles": 898,
   "vertices": 449,
+}
+`;
+
+exports[`scene → STL pipeline > composite/extruded-gear > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      12,
+      10,
+      5,
+    ],
+    "min": [
+      -10,
+      -10,
+      0,
+    ],
+  },
+  "nodes": 4,
+  "stlBytes": 10184,
+  "triangles": 202,
+  "vertices": 105,
+}
+`;
+
+exports[`scene → STL pipeline > composite/lua-2d-flower > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      10,
+      8.66,
+      3,
+    ],
+    "min": [
+      -10,
+      -8.66,
+      0,
+    ],
+  },
+  "nodes": 2,
+  "stlBytes": 3484,
+  "triangles": 68,
+  "vertices": 36,
+}
+`;
+
+exports[`scene → STL pipeline > composite/revolved-vase > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      5,
+      0,
+      5,
+    ],
+    "min": [
+      -5,
+      -20,
+      -5,
+    ],
+  },
+  "nodes": 2,
+  "stlBytes": 32084,
+  "triangles": 640,
+  "vertices": 322,
 }
 `;
 
