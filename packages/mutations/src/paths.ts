@@ -57,7 +57,9 @@ function rebuild(
   const idx = indices[depth]!;
   const children = node.children ?? [];
   if (idx >= children.length) {
-    throw new Error(`path out of range at depth ${depth}: index ${idx}, children ${children.length}`);
+    throw new Error(
+      `path out of range at depth ${depth}: index ${idx}, children ${children.length}`,
+    );
   }
   const child = children[idx]!;
   const newChild =
