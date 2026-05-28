@@ -98,7 +98,7 @@
     return params;
   }
 
-  interface WrapCandidate {
+  interface TypeCandidate {
     readonly type: string;
     readonly summary: string;
     readonly params: Record<string, unknown>;
@@ -107,7 +107,7 @@
   /** Iterate registered kernel types; keep those that accept the selected node
    *  as their sole child. The check synthesizes a Node-shaped object with the
    *  selected node's outputType, then runs the kernel's checkChildren. */
-  const candidates = $derived.by<readonly WrapCandidate[]>(() => {
+  const wrapCandidates = $derived.by<readonly TypeCandidate[]>(() => {
     if (!selectedNode || !selectedOutputType) return [];
 
     const synthetic: Node = {
@@ -119,12 +119,79 @@
       hash: '',
     };
 
-    const out: WrapCandidate[] = [];
+    const out: TypeCandidate[] = [];
     for (const entry of listNodeTypes()) {
       const def = getNodeType(entry.type);
       if (!def || def.kind !== 'kernel') continue;
       try {
         def.checkChildren([synthetic], '$');
+      } catch {
+        continue;
+      }
+      const doc = getKernelTypeDoc(entry.type);
+      out.push({
+        type: entry.type,
+        summary: doc?.summary ?? '',
+        params: defaultParams(doc?.paramSchema ?? []),
+      });
+    }
+    out.sort((a, b) => a.type.localeCompare(b.type));
+    return out;
+  });
+
+  /** Iterate registered kernel types; keep those that:
+   *   1. Are themselves leaf-able (their checkChildren accepts an empty array,
+   *      so the new child node is structurally valid on its own).
+   *   2. The selected parent's checkChildren accepts when appended to the
+   *      parent's existing children list.
+   *  Yields the "+ child" picker's content. Returns [] when the selection has
+   *  no checkChildren constraint we can probe (non-kernel parents). */
+  const childCandidates = $derived.by<readonly TypeCandidate[]>(() => {
+    if (!selectedNode) return [];
+    const parentDef = getNodeType(selectedNode.type);
+    if (!parentDef || parentDef.kind !== 'kernel') return [];
+
+    // Materialize existing children as synthetic Nodes so the parent's
+    // checkChildren can be invoked on the augmented list.
+    const existingChildren: Node[] = (selectedNode.children ?? []).map((c, i) => {
+      const outputType = staticOutputType(c.type) ?? '3d';
+      return {
+        id: `${selection.selectedId}/${i}`,
+        type: c.type,
+        params: (c.params ?? {}) as Record<string, unknown>,
+        children: [],
+        outputType,
+        hash: '',
+      };
+    });
+
+    const out: TypeCandidate[] = [];
+    for (const entry of listNodeTypes()) {
+      const def = getNodeType(entry.type);
+      if (!def || def.kind !== 'kernel') continue;
+      // 1) The candidate child type must accept zero children (leaf-able);
+      //    a fresh node has [].
+      try {
+        def.checkChildren([], '$/_probe');
+      } catch {
+        continue;
+      }
+      // 2) The candidate's static output type — primitives have a fixed
+      //    output; overloaded types (function output) we can't probe with []
+      //    so they're already filtered above.
+      const candidateOutput = typeof def.output === 'function' ? undefined : def.output;
+      if (!candidateOutput) continue;
+      // 3) Parent must accept the candidate appended.
+      const synthetic: Node = {
+        id: `${selection.selectedId}/_new`,
+        type: entry.type,
+        params: {},
+        children: [],
+        outputType: candidateOutput,
+        hash: '',
+      };
+      try {
+        parentDef.checkChildren([...existingChildren, synthetic], selection.selectedId ?? '$');
       } catch {
         continue;
       }
@@ -177,11 +244,12 @@
     }
   }
 
-  async function addPrimitiveChild() {
+  async function addChildOfType(type: string, params: Record<string, unknown>) {
     if (!selection.selectedId) return;
-    const seed = { type: 'box', params: { size: [10, 10, 10], center: true } };
     try {
-      await session.session.mutate((prev) => addChild(prev, selection.selectedId!, seed));
+      await session.session.mutate((prev) =>
+        addChild(prev, selection.selectedId!, { type, params }),
+      );
     } catch (err) {
       console.error(err);
     }
@@ -191,17 +259,30 @@
 <div class="tool-palette">
   <details>
     <summary>Wrap with…</summary>
-    {#if candidates.length === 0}
+    {#if wrapCandidates.length === 0}
       <div class="wrap-empty">no wrappers accept this node</div>
     {:else}
-      {#each candidates as w (w.type)}
+      {#each wrapCandidates as w (w.type)}
         <button type="button" title={w.summary} onclick={() => void wrapWithType(w.type, w.params)}
           >{w.type}</button
         >
       {/each}
     {/if}
   </details>
-  <button onclick={addPrimitiveChild} disabled={!selectedNode}>+ child (box)</button>
+  <details>
+    <summary>+ child…</summary>
+    {#if childCandidates.length === 0}
+      <div class="wrap-empty">no children accepted here</div>
+    {:else}
+      {#each childCandidates as c (c.type)}
+        <button
+          type="button"
+          title={c.summary}
+          onclick={() => void addChildOfType(c.type, c.params)}>{c.type}</button
+        >
+      {/each}
+    {/if}
+  </details>
   <button
     type="button"
     onclick={() => void unwrapSelected()}

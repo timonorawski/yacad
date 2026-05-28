@@ -60,9 +60,10 @@ test('wrap-with-translate adds a node and viewport stays valid', async ({ page }
   await expect(page.locator('.tree-row').first()).toBeVisible({ timeout: FIRST_LOAD_TIMEOUT });
   // Select the root box node.
   await page.locator('.tree-row').first().locator('.row-label').click();
-  // Open the wrap-with dropdown and click 'translate'.
-  await page.locator('.tool-palette details summary').click();
-  await page.locator('.tool-palette details button', { hasText: 'translate' }).click();
+  // Open the wrap-with dropdown and click 'translate'. The palette now has
+  // multiple <details> dropdowns (Wrap with… and + child…); target by text.
+  await page.locator('.tool-palette details summary', { hasText: 'Wrap with' }).click();
+  await page.locator('.tool-palette details button', { hasText: /^translate$/ }).click();
   // The tree now has two rows (translate → box).
   await expect(page.locator('.tree-row')).toHaveCount(2, { timeout: 5_000 });
   // Viewport is still idle (eval succeeded).
