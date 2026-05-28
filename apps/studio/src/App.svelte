@@ -54,6 +54,11 @@
   let viewport: Viewport;
   let lastMesh = $state<Mesh | undefined>(undefined);
   let debounce: ReturnType<typeof setTimeout> | undefined;
+  // Status-flip timer: defer 'evaluating' until ~50ms in so warm-cache hits
+  // don't trigger a Svelte DOM update during the await window (which otherwise
+  // blocks the main thread and shows up as worker→main transport latency).
+  let statusTimer: ReturnType<typeof setTimeout> | undefined;
+  const STATUS_DEFER_MS = 50;
   let evalSeq = 0;
 
   // Lua definition hashes — populated once on mount (async hash of canonical form).
@@ -439,6 +444,8 @@
       ro.disconnect();
       viewport.dispose();
       worker.terminate();
+      clearTimeout(debounce);
+      clearTimeout(statusTimer);
     };
   });
 
@@ -483,6 +490,10 @@
   }
 
   async function evaluate(): Promise<void> {
+    // Any previously-scheduled status-flip timer from a still-in-flight eval
+    // would otherwise race this one and clobber the status we set below.
+    clearTimeout(statusTimer);
+
     let doc: unknown;
     try {
       doc = JSON.parse(text);
@@ -492,13 +503,20 @@
       return;
     }
 
-    status = 'evaluating';
     error = '';
+    // Defer the "Evaluating…" indicator: only flip status if the eval is still
+    // pending after STATUS_DEFER_MS. Warm-cache hits resolve well below that
+    // bar so the DOM never churns during the await — see the perf finding
+    // surfaced via the transport-out metric.
+    statusTimer = setTimeout(() => {
+      status = 'evaluating';
+    }, STATUS_DEFER_MS);
     const seq = ++evalSeq;
     const requestStart = performance.now();
     try {
       const outcome = await client.evaluate(doc, 'final');
       if (seq !== evalSeq) return; // a newer edit superseded this one
+      clearTimeout(statusTimer);
       // Time the main-thread post-response work: BufferGeometry build,
       // vertex-normal compute, scene swap, and Svelte state assignments.
       // (Browser repaint happens later, on the next rAF — outside this number.)
@@ -513,6 +531,7 @@
       status = 'idle';
     } catch (e) {
       if (seq !== evalSeq) return;
+      clearTimeout(statusTimer);
       status = 'error';
       error = (e as Error).message;
     }
