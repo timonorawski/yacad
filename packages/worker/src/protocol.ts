@@ -1,6 +1,6 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
 import type { Geometry } from '@yacad/geometry';
-import type { LuaDefinition } from '@yacad/lua';
+import type { LuaDefinition, ValidationIssue } from '@yacad/lua';
 
 /**
  * One-shot initialization carrying the `manifold.wasm` URL, which the main
@@ -113,4 +113,14 @@ export interface OkResponse {
   readonly present?: boolean;
 }
 
-export type WorkerResponse = EvaluateOk | EvaluateErr | OkResponse;
+/**
+ * Reply sent by `handlePutLuaDefinition` when `validateLuaSource` rejects the
+ * definition. The definition is NOT stored in this case.
+ */
+export interface ValidationErrorResponse {
+  readonly id: number;
+  readonly kind: 'validation-error';
+  readonly issues: readonly ValidationIssue[];
+}
+
+export type WorkerResponse = EvaluateOk | EvaluateErr | OkResponse | ValidationErrorResponse;

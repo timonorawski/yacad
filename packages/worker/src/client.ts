@@ -1,7 +1,7 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
 import type { Geometry } from '@yacad/geometry';
-import type { LuaDefinition } from '@yacad/lua';
-import type { OkResponse, WorkerResponse } from './protocol';
+import { LuaValidationError, type LuaDefinition } from '@yacad/lua';
+import type { OkResponse, ValidationErrorResponse, WorkerResponse } from './protocol';
 
 export interface EvaluateOutcome {
   readonly geometry: Geometry;
@@ -102,9 +102,13 @@ export class WorkerClient {
     });
   }
 
-  /** Upload a Lua definition to the worker's in-memory map. */
+  /** Upload a Lua definition to the worker's in-memory map.
+   *  Throws `LuaValidationError` if the worker rejects the definition. */
   async putLuaDefinition(hash: string, definition: LuaDefinition): Promise<void> {
-    await this.send({ id: 0, kind: 'putLuaDefinition', hash, definition });
+    const res = await this.send({ id: 0, kind: 'putLuaDefinition', hash, definition });
+    if ((res as ValidationErrorResponse).kind === 'validation-error') {
+      throw new LuaValidationError((res as ValidationErrorResponse).issues);
+    }
   }
 
   /** Check whether a Lua definition is present in the worker's in-memory map. */

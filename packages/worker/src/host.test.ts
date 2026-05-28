@@ -1,8 +1,8 @@
 import { defaultHasher } from '@yacad/hash';
-import { hashLuaDefinition, type LuaDefinition } from '@yacad/lua';
+import { hashLuaDefinition, LuaValidationError, type LuaDefinition } from '@yacad/lua';
 import { describe, expect, it, vi } from 'vitest';
 import { startHost, type WorkerScope } from './host';
-import type { EvaluateErr, EvaluateOk, OkResponse } from './protocol';
+import type { EvaluateErr, EvaluateOk, OkResponse, ValidationErrorResponse } from './protocol';
 
 function fakeScope() {
   const messages: unknown[] = [];
@@ -125,5 +125,54 @@ describe('putLuaDefinition / hasLuaDefinition', () => {
     scope.onmessage!({ data: { id: 32, kind: 'hasLuaDefinition', hash } });
     await vi.waitFor(() => expect(messages.length).toBe(3), { timeout: 5000 });
     expect((messages[2] as OkResponse).present).toBe(true);
+  });
+});
+
+describe('putLuaDefinition validation', () => {
+  it('rejects a definition with an undeclared param reference', async () => {
+    const { scope, messages } = fakeScope();
+    startHost(scope);
+
+    // References params.teeth but the schema has an empty params object.
+    const bad: LuaDefinition = {
+      schema: { inputs: [], params: {}, output: '3d' },
+      code: 'return { type = "box", params = { size = { params.teeth, 1, 1 } } }',
+    };
+    const hash = await hashLuaDefinition(bad, defaultHasher);
+
+    scope.onmessage!({ data: { id: 40, kind: 'putLuaDefinition', hash, definition: bad } });
+    await vi.waitFor(() => expect(messages.length).toBe(1), { timeout: 5000 });
+
+    const res = messages[0] as ValidationErrorResponse;
+    expect(res.kind).toBe('validation-error');
+    expect(res.id).toBe(40);
+    expect(res.issues.length).toBeGreaterThan(0);
+    expect(res.issues.some((i) => i.category === 'undeclared-param')).toBe(true);
+
+    // The bad definition must NOT have been stored.
+    scope.onmessage!({ data: { id: 41, kind: 'hasLuaDefinition', hash } });
+    await vi.waitFor(() => expect(messages.length).toBe(2), { timeout: 5000 });
+    expect((messages[1] as OkResponse).present).toBe(false);
+  });
+
+  it('stores valid definitions and responds ok (validation does not break the happy path)', async () => {
+    const { scope, messages } = fakeScope();
+    startHost(scope);
+
+    const good: LuaDefinition = {
+      schema: { inputs: [], params: { side: { type: 'number', default: 1 } }, output: '3d' },
+      code: 'return geo.box({size = {params.side, params.side, params.side}})',
+    };
+    const hash = await hashLuaDefinition(good, defaultHasher);
+
+    scope.onmessage!({ data: { id: 50, kind: 'putLuaDefinition', hash, definition: good } });
+    await vi.waitFor(() => expect(messages.length).toBe(1), { timeout: 5000 });
+    expect((messages[0] as OkResponse).kind).toBe('ok');
+    expect((messages[0] as OkResponse).id).toBe(50);
+
+    // Confirm it was actually stored.
+    scope.onmessage!({ data: { id: 51, kind: 'hasLuaDefinition', hash } });
+    await vi.waitFor(() => expect(messages.length).toBe(2), { timeout: 5000 });
+    expect((messages[1] as OkResponse).present).toBe(true);
   });
 });
