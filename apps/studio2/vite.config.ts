@@ -30,6 +30,24 @@ export default defineConfig({
       { find: '@yacad/selection', replacement: src('selection/src/index.ts') },
       { find: '@yacad/mutations', replacement: src('mutations/src/index.ts') },
       { find: '@yacad/e2e/fixtures', replacement: srcFile('e2e', 'fixtures.ts') },
+      {
+        find: '@yacad/e2e/showcase/tree',
+        replacement: fileURLToPath(
+          new URL('../../packages/e2e/showcase/tree/index.ts', import.meta.url),
+        ),
+      },
+      {
+        find: '@yacad/e2e/showcase/house',
+        replacement: fileURLToPath(
+          new URL('../../packages/e2e/showcase/house/index.ts', import.meta.url),
+        ),
+      },
+      {
+        find: '@yacad/e2e/showcase/castle',
+        replacement: fileURLToPath(
+          new URL('../../packages/e2e/showcase/castle/index.ts', import.meta.url),
+        ),
+      },
     ],
   },
   worker: { format: 'es' },

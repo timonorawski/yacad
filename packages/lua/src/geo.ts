@@ -31,8 +31,14 @@ export function buildGeoApi(): GeoApi {
   for (const { type } of listNodeTypes()) {
     if (type.startsWith('__')) continue;
     const def = getNodeType(type);
-    if (def?.kind !== 'kernel') continue;
-    api[type] = (params, children) => node(type, params, children);
+    if (!def) continue;
+    if (def.kind === 'expandable') continue;
+    // Kernel and decoder types are both constructible via geo.
+    // Decoder types (import-stl, import-obj, import-gltf) use a hyphenated
+    // type string; expose them in Lua with underscores so they are valid
+    // Lua identifiers (e.g. geo.import_gltf).
+    const luaKey = type.replace(/-/g, '_');
+    api[luaKey] = (params, children) => node(type, params, children);
   }
   return api;
 }
