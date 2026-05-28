@@ -126,6 +126,19 @@ it('kernel evaluates circle to a CrossSection', async () => {
   }
 });
 
+it('kernel evaluates rectangle to a 4-vertex CrossSection', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const node = await buildGraph({
+    type: 'rectangle',
+    params: { size: [10, 20], center: true },
+  });
+  const { geometry } = kernel.evaluateTimed(node, []);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons[0]!.length).toBe(4);
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({

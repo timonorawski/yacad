@@ -170,6 +170,25 @@ describe('circle node type', () => {
   });
 });
 
+describe('rectangle node type', () => {
+  it('builds with required size', async () => {
+    const node = await buildGraph({ type: 'rectangle', params: { size: [10, 20] } });
+    expect(node.outputType).toBe('2d');
+    expect(node.params['size']).toEqual([10, 20]);
+  });
+
+  it('defaults center: false', async () => {
+    const node = await buildGraph({ type: 'rectangle', params: { size: [1, 1] } });
+    expect(node.params['center']).toBe(false);
+  });
+
+  it('rejects non-positive sizes', async () => {
+    await expect(buildGraph({ type: 'rectangle', params: { size: [0, 5] } })).rejects.toThrow(
+      /greater than 0/,
+    );
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',

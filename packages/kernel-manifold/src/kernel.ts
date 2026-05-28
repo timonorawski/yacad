@@ -70,6 +70,9 @@ export class ManifoldKernel implements Kernel {
     if (node.type === 'circle') {
       return this.evaluateCircle(node);
     }
+    if (node.type === 'rectangle') {
+      return this.evaluateRectangle(node);
+    }
 
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
@@ -104,6 +107,25 @@ export class ManifoldKernel implements Kernel {
     const radius = node.params['radius'] as number;
     const segments = node.params['segments'] as number;
     const cs = this.api.CrossSection.circle(radius, segments);
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    cs.delete?.();
+    const exportMs = performance.now() - exportStart;
+
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs },
+    };
+  }
+
+  private evaluateRectangle(node: Node): KernelResult {
+    const importMs = 0; // leaf: no child meshes to import
+    const opStart = performance.now();
+    const size = node.params['size'] as [number, number];
+    const center = node.params['center'] as boolean;
+    const cs = this.api.CrossSection.square(size, center);
     const opMs = performance.now() - opStart;
 
     const exportStart = performance.now();
