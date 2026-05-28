@@ -164,6 +164,12 @@ body {
   width: 100%;
   text-align: left;
 }
+.wrap-empty {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.6;
+  font-style: italic;
+}
 .viewport-canvas {
   display: block;
   width: 100%;
