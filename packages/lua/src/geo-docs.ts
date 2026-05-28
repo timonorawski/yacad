@@ -431,4 +431,26 @@ return geo.extrude({ height = 10, twist = 45, segments = 16 }, { profile })`,
 })
 return geo.revolve({ axis = "y", segments = 64, degrees = 360 }, { profile })`,
   },
+
+  // ── 3D→2D bridge ──────────────────────────────────────────────────────────
+  {
+    type: 'section',
+    summary: 'Cut a 3D solid with an arbitrary plane; produces the 2D cross-section at that plane.',
+    outputDoc: '2D cross-section',
+    params: [
+      {
+        name: 'origin',
+        type: 'vec3',
+        required: true,
+        doc: 'A point on the cut plane.',
+      },
+      {
+        name: 'normal',
+        type: 'vec3',
+        required: true,
+        doc: 'Plane normal (non-zero; need not be unit length).',
+      },
+    ],
+    example: `geo.section({origin = {0, 0, 5}, normal = {0, 0, 1}}, { <3D child> })`,
+  },
 ];

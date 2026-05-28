@@ -1,0 +1,5 @@
+{
+  "type": "section",
+  "params": { "origin": [0, 0, 0], "normal": [1, 1, 1] },
+  "children": [{ "type": "box", "params": { "size": [4, 4, 4], "center": true } }]
+}

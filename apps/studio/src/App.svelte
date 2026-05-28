@@ -401,6 +401,38 @@
       label: '3D: revolved vase (spline profile)',
       text: sceneRevolvedVase,
     },
+    {
+      id: 'composite-section-extrude',
+      label: '3D: section + extrude',
+      text: pretty({
+        type: 'extrude',
+        params: { height: 2 },
+        children: [
+          {
+            type: 'section',
+            params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+            children: [
+              {
+                type: 'difference',
+                children: [
+                  { type: 'box', params: { size: [10, 10, 10], center: true } },
+                  { type: 'sphere', params: { radius: 4, segments: 32 } },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    },
+    {
+      id: 'composite-diagonal-section',
+      label: '2D: hexagonal body-diagonal section',
+      text: pretty({
+        type: 'section',
+        params: { origin: [0, 0, 0], normal: [1, 1, 1] },
+        children: [{ type: 'box', params: { size: [4, 4, 4], center: true } }],
+      }),
+    },
     { id: 'edge-tangent', label: 'Edge case: tangent sphere/box', text: sceneTangent },
     { id: 'edge-shared-face', label: 'Edge case: shared-face cubes', text: sceneSharedFace },
     { id: 'edge-interior-void', label: 'Edge case: interior void', text: sceneInteriorVoid },

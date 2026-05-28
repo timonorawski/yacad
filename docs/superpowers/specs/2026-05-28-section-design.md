@@ -1,6 +1,6 @@
 # `section` node design
 
-**Status**: design approved, awaiting implementation plan
+**Status**: implemented
 **Date**: 2026-05-28
 **Scope**: Add a `section` node — the 3D→2D bridge — completing the inverse of `extrude`/`revolve`. Cast an arbitrary plane through a 3D solid and get the resulting `CrossSection`. Smallest CAD-meaningful node-type addition since Phase 2.
 

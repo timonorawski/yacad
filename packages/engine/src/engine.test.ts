@@ -426,3 +426,57 @@ it('engine.evaluate returns Geometry with kind="3d" for a 3D root', async () => 
     expect(result.geometry.mesh.indices.length).toBeGreaterThan(0);
   }
 });
+
+it('engine end-to-end: section of (box - sphere) at z=0 produces a 2D output', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+    children: [
+      {
+        type: 'difference',
+        children: [
+          { type: 'box', params: { size: [10, 10, 10], center: true } },
+          { type: 'sphere', params: { radius: 4 } },
+        ],
+      },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('section caches by crossSection artifact kind (warm hit skips kernel)', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+    children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
+  });
+  await engine.evaluate(node); // cold
+  const warm = await engine.evaluate(node);
+  expect(warm.stats.hits).toBe(1);
+});
+
+it('composition: extrude(section(box), height=2) produces a 3D mesh', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'extrude',
+    params: { height: 2 },
+    children: [
+      {
+        type: 'section',
+        params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+        children: [{ type: 'box', params: { size: [4, 4, 4], center: true } }],
+      },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('3d');
+  if (result.geometry.kind === '3d') {
+    expect(result.geometry.mesh.indices.length).toBeGreaterThan(0);
+  }
+});

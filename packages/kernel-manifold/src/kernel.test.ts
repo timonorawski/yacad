@@ -521,3 +521,146 @@ it('kernel: offset_2d(round, +2) on rectangle produces more vertices', async () 
     expect(geometry.section.polygons[0]!.length).toBeGreaterThan(4);
   }
 });
+
+/** Count vertices that are actual corners (non-collinear with their neighbours). */
+function countCorners(pts: ReadonlyArray<readonly [number, number]>): number {
+  let corners = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[(i - 1 + pts.length) % pts.length]!;
+    const b = pts[i]!;
+    const c = pts[(i + 1) % pts.length]!;
+    const cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    if (Math.abs(cross) > 1e-4) corners++;
+  }
+  return corners;
+}
+
+it('section: unit cube cut at z=0 with normal +Z produces a square cross-section', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const box = kernel.evaluateTimed(
+    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+    children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [box]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBe(1);
+    // Manifold's box mesh triangulation may insert collinear midpoints; count
+    // non-collinear corners to verify the shape is a 4-corner square.
+    expect(countCorners(geometry.section.polygons[0]!)).toBe(4);
+    // Bounds: each axis spans [-1, 1]
+    const xs = geometry.section.polygons[0]!.map((p) => p[0]);
+    const ys = geometry.section.polygons[0]!.map((p) => p[1]);
+    expect(Math.min(...xs)).toBeCloseTo(-1, 9);
+    expect(Math.max(...xs)).toBeCloseTo(1, 9);
+    expect(Math.min(...ys)).toBeCloseTo(-1, 9);
+    expect(Math.max(...ys)).toBeCloseTo(1, 9);
+  }
+});
+
+it('section: plane above the solid produces an empty CrossSection', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const box = kernel.evaluateTimed(
+    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 5], normal: [0, 0, 1] },
+    children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [box]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBe(0);
+  }
+});
+
+it('section: sphere(r=5) at z=3 produces a circle of bounds ≈ ±4', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const sphere = kernel.evaluateTimed(
+    await buildGraph({ type: 'sphere', params: { radius: 5, segments: 64 } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 3], normal: [0, 0, 1] },
+    children: [{ type: 'sphere', params: { radius: 5, segments: 64 } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [sphere]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBe(1);
+    const xs = geometry.section.polygons[0]!.map((p) => p[0]);
+    const ys = geometry.section.polygons[0]!.map((p) => p[1]);
+    // sqrt(25 - 9) = 4
+    expect(Math.max(...xs)).toBeCloseTo(4, 0); // loose: tessellation rounds it
+    expect(Math.min(...xs)).toBeCloseTo(-4, 0);
+    expect(Math.max(...ys)).toBeCloseTo(4, 0);
+    expect(Math.min(...ys)).toBeCloseTo(-4, 0);
+  }
+});
+
+it('section: diagonal cut of a cube with normal [1,1,0] produces a rectangular section', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const box = kernel.evaluateTimed(
+    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 0], normal: [1, 1, 0] },
+    children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [box]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBe(1);
+    // Manifold's mesh triangulation may add collinear midpoints; assert on
+    // non-collinear corner count to confirm a 4-corner rectangle.
+    expect(countCorners(geometry.section.polygons[0]!)).toBe(4);
+  }
+});
+
+it('section: body-diagonal cut of a cube produces a hexagonal section', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const box = kernel.evaluateTimed(
+    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 0], normal: [1, 1, 1] },
+    children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [box]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBe(1);
+    // Body-diagonal cut through the center of a cube produces a regular hexagon
+    // (6 distinct corners). Manifold may add collinear midpoints from mesh
+    // triangulation, so assert non-collinear corner count rather than raw length.
+    expect(countCorners(geometry.section.polygons[0]!)).toBe(6);
+  }
+});
+
+it('section: same inputs produce byte-identical polygons (determinism)', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const box = kernel.evaluateTimed(
+    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'section',
+    params: { origin: [0, 0, 0.5], normal: [1, 1, 1] },
+    children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
+  });
+  const a = kernel.evaluateTimed(node, [box]).geometry;
+  const b = kernel.evaluateTimed(node, [box]).geometry;
+  expect(a).toEqual(b);
+});

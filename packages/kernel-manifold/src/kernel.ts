@@ -6,6 +6,7 @@ import {
 import type { Node, Vec3 } from '@yacad/dag';
 import type { CrossSection, Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
+import { rotationToAlignWithZ } from './plane';
 import { catmullRomClosed } from './spline';
 
 /** Wall-clock breakdown of one kernel evaluation, in milliseconds. */
@@ -111,6 +112,11 @@ export class ManifoldKernel implements Kernel {
       childGeometries[0]!.kind === '2d'
     ) {
       return this.evaluate2dOp(node, childGeometries);
+    }
+
+    // 3D→2D bridge: slice a Manifold solid with an arbitrary plane.
+    if (node.type === 'section') {
+      return this.evaluateSection(node, childGeometries);
     }
 
     // 2D→3D bridge: extrude a CrossSection into a 3D Manifold.
@@ -346,6 +352,37 @@ export class ManifoldKernel implements Kernel {
       // axis='x' and axis='y' both produce a post-rotated result distinct from m.
       if (m !== result) m.delete?.();
       result.delete?.();
+    }
+  }
+
+  private evaluateSection(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    const mesh = asMesh(childGeometries[0]!, node.id, 0);
+    const origin = node.params['origin'] as Vec3;
+    const normal = node.params['normal'] as Vec3;
+
+    const importStart = performance.now();
+    const m = this.toSolid(mesh);
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    const translated = m.translate([-origin[0], -origin[1], -origin[2]]);
+    const eulerXYZ = rotationToAlignWithZ(normal);
+    const rotated = translated.rotate(eulerXYZ);
+    const cs = rotated.slice(0);
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    try {
+      const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+      return {
+        geometry: { kind: '2d', section: { polygons } },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
+    } finally {
+      m.delete?.();
+      translated.delete?.();
+      rotated.delete?.();
+      cs.delete?.();
     }
   }
 
