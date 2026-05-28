@@ -11,9 +11,10 @@
   import DocPicker from './ui/DocPicker.svelte';
   import TreePane from './ui/TreePane.svelte';
   import InspectorPane from './ui/InspectorPane.svelte';
+  import ViewportPane from './ui/ViewportPane.svelte';
 
   let library: DocLibrary;
-  let client: WorkerClient;
+  let client = $state<WorkerClient | undefined>(undefined);
   let session = $state<SessionState | undefined>(undefined);
   let selection = $state<SelectionState | undefined>(undefined);
   let docs = $state<{ id: string; name: string }[]>([]);
@@ -42,9 +43,10 @@
 
   onMount(() => {
     const worker = new EvalWorker();
-    client = new WorkerClient(worker, { wasmUrl, luaWasmUrl });
+    const newClient = new WorkerClient(worker, { wasmUrl, luaWasmUrl });
+    client = newClient;
     const vfs = new IndexedDbVfs();
-    library = new DocLibrary(vfs, client);
+    library = new DocLibrary(vfs, newClient);
     void (async () => {
       await refreshDocs();
       if (docs.length === 0) {
@@ -73,7 +75,11 @@
       <em>loading…</em>
     {/if}
   </aside>
-  <main class="viewport-pane">viewport</main>
+  <main class="viewport-pane">
+    {#if session && client}
+      <ViewportPane {session} {client} />
+    {/if}
+  </main>
   <aside class="inspector-pane">
     {#if session && selection}
       <InspectorPane {session} {selection} />

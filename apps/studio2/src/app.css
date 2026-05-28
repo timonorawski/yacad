@@ -142,3 +142,26 @@ body {
   width: 100%;
   text-align: left;
 }
+.viewport-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.viewport-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.4rem 0.75rem;
+  background: rgba(20, 20, 20, 0.7);
+  font-size: 0.85rem;
+  display: flex;
+  gap: 1rem;
+  pointer-events: none;
+}
+.status[data-status='evaluating'] {
+  color: var(--accent);
+}
+.status[data-status='error'] {
+  color: var(--error);
+}
