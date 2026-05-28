@@ -8,6 +8,7 @@ import type { CrossSection, Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
 import { rotationToAlignWithZ } from './plane';
 import { catmullRomClosed } from './spline';
+import type { WarpEvaluator } from './warp-evaluator';
 
 /** Wall-clock breakdown of one kernel evaluation, in milliseconds. */
 export interface KernelTimings {
@@ -72,18 +73,84 @@ function asCrossSection(g: Geometry, nodeId: string, i: number): CrossSection {
  * timed separately because, when an ancestor recomputes, it pays to re-import
  * its children's cached meshes even though their geometry was cached.
  */
+export interface ManifoldKernelOptions {
+  /** Required for evaluating `warp` nodes; absent → warp throws at eval time. */
+  readonly warpEvaluator?: WarpEvaluator;
+}
+
 export class ManifoldKernel implements Kernel {
   readonly name = KERNEL_NAME;
   readonly version = KERNEL_VERSION;
 
-  constructor(private readonly api: ManifoldToplevel) {}
+  constructor(
+    private readonly api: ManifoldToplevel,
+    private readonly options: ManifoldKernelOptions = {},
+  ) {}
 
   async evaluate(node: Node, childGeometries: readonly Geometry[]): Promise<Geometry> {
     return (await this.evaluateTimed(node, childGeometries)).geometry;
   }
 
   async evaluateTimed(node: Node, childGeometries: readonly Geometry[]): Promise<KernelResult> {
+    // The only path that genuinely needs async is `warp` (calls into the Lua
+    // runtime to compile the deformation function). Every other node kind
+    // completes synchronously and resolves on this microtask tick.
+    if (node.type === 'warp') {
+      return this.evaluateWarp(node, childGeometries);
+    }
     return this.evaluateTimedSync(node, childGeometries);
+  }
+
+  private async evaluateWarp(
+    node: Node,
+    childGeometries: readonly Geometry[],
+  ): Promise<KernelResult> {
+    if (!this.options.warpEvaluator) {
+      throw new KernelError(
+        `node ${node.id}: warp requires a WarpEvaluator, but none was supplied to the kernel`,
+      );
+    }
+    const mesh = asMesh(childGeometries[0]!, node.id, 0);
+    const code = node.params['code'] as string;
+    const values = (node.params['values'] as Record<string, unknown>) ?? {};
+
+    const compileStart = performance.now();
+    const cb = await this.options.warpEvaluator.compile(code, values);
+    const compileMs = performance.now() - compileStart;
+
+    const importStart = performance.now();
+    const solid = this.toSolid(mesh);
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    let result: Solid;
+    try {
+      result = solid.warp((v) => {
+        const [nx, ny, nz] = cb(v[0], v[1], v[2]);
+        v[0] = nx;
+        v[1] = ny;
+        v[2] = nz;
+      });
+    } finally {
+      solid.delete();
+    }
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    try {
+      const out = this.toMesh(result);
+      return {
+        geometry: { kind: '3d', mesh: out },
+        // Charge Lua compile to importMs since it's setup, not the core op.
+        timings: {
+          importMs: importMs + compileMs,
+          opMs,
+          exportMs: performance.now() - exportStart,
+        },
+      };
+    } finally {
+      result.delete();
+    }
   }
 
   private evaluateTimedSync(node: Node, childGeometries: readonly Geometry[]): KernelResult {
