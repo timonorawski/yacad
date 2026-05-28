@@ -78,3 +78,38 @@ describe('parse errors', () => {
     expect(() => validateLuaSource(def('return { type = "box" }'))).not.toThrow();
   });
 });
+
+describe('Phase 1 — direct aliases', () => {
+  it('rejects local p = params', () => {
+    try {
+      validateLuaSource(def('local p = params\nreturn { type = "box" }'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const aliases = err.issues.filter((i) => i.category === 'unanalyzable-alias');
+      expect(aliases.length).toBe(1);
+      expect(aliases[0]!.identifier).toBe('p');
+      expect(aliases[0]!.line).toBe(1);
+    }
+  });
+
+  it('rejects local i = inputs and local g = geo', () => {
+    try {
+      validateLuaSource(def(['local i = inputs', 'local g = geo', 'return { type = "box" }'].join('\n')));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const aliases = err.issues.filter((i) => i.category === 'unanalyzable-alias');
+      expect(aliases.length).toBe(2);
+      expect(aliases.map((a) => a.identifier).sort()).toEqual(['g', 'i']);
+    }
+  });
+
+  it('does NOT flag local p = params.teeth (field read, not table alias)', () => {
+    const d: LuaDefinition = {
+      schema: { inputs: [], params: { teeth: { type: 'int', default: 8 } }, output: '3d' },
+      code: 'local p = params.teeth\nreturn { type = "box" }',
+    };
+    expect(() => validateLuaSource(d)).not.toThrow();
+  });
+});
