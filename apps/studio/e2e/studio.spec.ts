@@ -134,6 +134,100 @@ test('warm start: reload reuses IndexedDB, hit-rate near 100%', async ({ page })
   expect(warmStats.hitRate).toBe(100);
 });
 
+// ─── test: 2D rendering smoke ────────────────────────────────────────────────
+
+test('renders a 2D scene without crashing', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+
+  await page.goto('/');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  // Switch to the 2D circle scene.
+  await page.getByLabel('Sample scene').selectOption('2d-circle');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  // Canvas must still be visible and non-zero.
+  const canvas = page.locator('canvas');
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.width).toBeGreaterThan(0);
+  expect(box!.height).toBeGreaterThan(0);
+
+  // No uncaught page errors.
+  expect(errors).toHaveLength(0);
+
+  // Evaluation produced at least one node.
+  const stats = await readStats(page);
+  expect(stats.nodes).toBeGreaterThan(0);
+});
+
+test('renders a Lua-2D-extruded scene', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+
+  await page.goto('/');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  // The Lua flower hash is computed async on mount (SubtleCrypto SHA-256).
+  // Wait until the option is present and has a non-placeholder label before selecting.
+  const sceneSelect = page.getByLabel('Sample scene');
+  await expect
+    .poll(
+      async () => {
+        const opt = page.locator('option[value="lua-flower-extruded"]');
+        const count = await opt.count();
+        return count;
+      },
+      { timeout: FIRST_EVAL_TIMEOUT, message: 'lua-flower-extruded option not found' },
+    )
+    .toBeGreaterThan(0);
+
+  await sceneSelect.selectOption('lua-flower-extruded');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  // Canvas must still be visible.
+  const canvas = page.locator('canvas');
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.width).toBeGreaterThan(0);
+  expect(box!.height).toBeGreaterThan(0);
+
+  // No uncaught page errors.
+  expect(errors).toHaveLength(0);
+
+  // Evaluation produced at least one node.
+  const stats = await readStats(page);
+  expect(stats.nodes).toBeGreaterThan(0);
+});
+
+test('switches between 2D and 3D scenes without console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+
+  await page.goto('/');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  const sceneSelect = page.getByLabel('Sample scene');
+
+  // Switch to a 2D scene.
+  await sceneSelect.selectOption('2d-circle');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  // Switch back to a 3D scene.
+  await sceneSelect.selectOption('box');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  // Canvas must be visible throughout.
+  const canvas = page.locator('canvas');
+  await expect(canvas).toBeVisible();
+
+  // No uncaught page errors during transitions.
+  expect(errors).toHaveLength(0);
+});
+
 // ─── test: Export STL ────────────────────────────────────────────────────────
 
 test('Export STL: download is a non-empty .stl file', async ({ page }) => {
