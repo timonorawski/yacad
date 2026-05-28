@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { vec2, posVec2 } from './validate';
-import { DagError } from './types';
 
 describe('vec2 validator', () => {
   it('accepts a length-2 finite array', () => {

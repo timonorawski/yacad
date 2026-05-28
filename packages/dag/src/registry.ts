@@ -198,11 +198,6 @@ export function unregisterNodeType(type: string): void {
 export function listNodeTypes(): { type: string; output: GeometryType | '?' }[] {
   return [...registry.values()].map((def) => ({
     type: def.type,
-    output:
-      def.kind === 'kernel'
-        ? typeof def.output === 'function'
-          ? '?'
-          : def.output
-        : '?',
+    output: def.kind === 'kernel' ? (typeof def.output === 'function' ? '?' : def.output) : '?',
   }));
 }

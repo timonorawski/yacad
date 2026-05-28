@@ -145,7 +145,7 @@ describe('KernelNodeType.output per-instance resolver', () => {
     // Output type taken from the first child — same pattern as the real
     // `union`/`difference`/`intersection`/`hull` in chunk 4.
     output: (children) => children[0]!.outputType,
-    checkChildren(children, path) {
+    checkChildren(children, _path) {
       if (children.length < 1) {
         throw new Error('needs ≥1 child');
       }
