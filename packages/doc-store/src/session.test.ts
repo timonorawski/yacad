@@ -139,3 +139,65 @@ describe('DocSession.mutate', () => {
     expect(received.sort()).toEqual(['A', 'B']);
   });
 });
+
+describe('DocSession.addBlob', () => {
+  it('hashes the bytes, stores them in session.blobs, and uploads via the uploader', async () => {
+    const putCalls: Array<{ hash: string; bytes: Uint8Array }> = [];
+    const uploader: BlobUploader = {
+      putMeshBlob: async (hash, bytes) => {
+        putCalls.push({ hash, bytes });
+      },
+      hasMeshBlob: async () => false,
+      putLuaDefinition: async () => {},
+      hasLuaDefinition: async () => true,
+    };
+    const lib = new DocLibrary(new MemoryVfs(), uploader);
+    const session = await lib.create('A');
+
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const hash = await session.addBlob(bytes);
+
+    expect(hash).toMatch(/^[0-9a-f]+$/i);
+    expect(session.blobs.get(hash)).toEqual(bytes);
+    expect(putCalls).toHaveLength(1);
+    expect(putCalls[0]!.hash).toBe(hash);
+  });
+
+  it('is idempotent for the same bytes (one upload, one map entry)', async () => {
+    const putCalls: string[] = [];
+    const uploader: BlobUploader = {
+      putMeshBlob: async (hash) => {
+        putCalls.push(hash);
+      },
+      hasMeshBlob: async (hash) => putCalls.includes(hash),
+      putLuaDefinition: async () => {},
+      hasLuaDefinition: async () => true,
+    };
+    const lib = new DocLibrary(new MemoryVfs(), uploader);
+    const session = await lib.create('A');
+
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const h1 = await session.addBlob(bytes);
+    const h2 = await session.addBlob(bytes);
+    expect(h1).toBe(h2);
+    expect(putCalls).toHaveLength(1);
+    expect(session.blobs.size).toBe(1);
+  });
+
+  it('does not upload when the worker already has the blob', async () => {
+    let putCount = 0;
+    const uploader: BlobUploader = {
+      putMeshBlob: async () => {
+        putCount++;
+      },
+      hasMeshBlob: async () => true, // worker already has every blob
+      putLuaDefinition: async () => {},
+      hasLuaDefinition: async () => true,
+    };
+    const lib = new DocLibrary(new MemoryVfs(), uploader);
+    const session = await lib.create('A');
+
+    await session.addBlob(new Uint8Array([9, 9, 9]));
+    expect(putCount).toBe(0);
+  });
+});

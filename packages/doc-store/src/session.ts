@@ -110,8 +110,15 @@ export class DocSession {
     this.emit({ kind: 'doc-changed' });
   }
 
-  async addBlob(_bytes: Uint8Array): Promise<Hash> {
-    throw new Error('not implemented'); // Task 8
+  async addBlob(bytes: Uint8Array): Promise<Hash> {
+    const hash = await defaultHasher.hash(bytes);
+    if (!this.blobMap.has(hash)) {
+      this.blobMap.set(hash, new Uint8Array(bytes));
+    }
+    if (!(await this.uploader.hasMeshBlob(hash))) {
+      await this.uploader.putMeshBlob(hash, bytes);
+    }
+    return hash;
   }
 
   async save(): Promise<void> {
