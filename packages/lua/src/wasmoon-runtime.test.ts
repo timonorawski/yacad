@@ -55,13 +55,35 @@ describe('WasmoonLuaRuntime', () => {
   });
 });
 
-const inspectG: LuaDefinition = {
+// Probe each global by direct reference rather than pairs(_G): _G is nilled by
+// SANDBOX_STRIP_SCRIPT (it's not in the whitelist), so pairs(_G) would throw.
+// Checking by name is also a more explicit, readable test.
+const inspectGlobals: LuaDefinition = {
   schema: { inputs: [], params: {}, output: '3d' },
   code: `
-    local keys = {}
-    for k in pairs(_G) do keys[#keys + 1] = k end
-    table.sort(keys)
-    return geo.node('box', { size = {1, 1, 1}, _g = table.concat(keys, ',') })
+    local function present(v) return v ~= nil and 'yes' or 'no' end
+    return geo.node('box', { size = {1, 1, 1},
+      -- banned
+      has_os             = present(os),
+      has_io             = present(io),
+      has_package        = present(package),
+      has_require        = present(require),
+      has_dofile         = present(dofile),
+      has_loadfile       = present(loadfile),
+      has_load           = present(load),
+      has_loadstring     = present(loadstring),
+      has_print          = present(print),
+      has_collectgarbage = present(collectgarbage),
+      has_debug          = present(debug),
+      has_coroutine      = present(coroutine),
+      -- allowed
+      has_geo    = present(geo),
+      has_inputs = present(inputs),
+      has_math   = present(math),
+      has_params = present(params),
+      has_string = present(string),
+      has_table  = present(table),
+    })
   `,
 };
 
@@ -69,29 +91,18 @@ describe('WasmoonLuaRuntime sandbox', () => {
   it('only exposes whitelisted globals', async () => {
     const runtime = new WasmoonLuaRuntime();
     try {
-      const out = await runtime.evaluate(inspectG, [], {});
-      const keys = (out.params!['_g'] as string).split(',');
-      // Whitelist: geo, inputs, math, params, string, table, _G.
-      // Forbidden: os, io, package, require, dofile, loadfile, debug, coroutine,
-      //            load, loadstring, print, collectgarbage.
+      const out = await runtime.evaluate(inspectGlobals, [], {});
+      const p = out.params as Record<string, string>;
+      // Forbidden globals must be absent.
       for (const banned of [
-        'os',
-        'io',
-        'package',
-        'require',
-        'dofile',
-        'loadfile',
-        'debug',
-        'coroutine',
-        'load',
-        'loadstring',
-        'print',
-        'collectgarbage',
+        'os', 'io', 'package', 'require', 'dofile', 'loadfile',
+        'debug', 'coroutine', 'load', 'loadstring', 'print', 'collectgarbage',
       ]) {
-        expect(keys).not.toContain(banned);
+        expect(p[`has_${banned}`], `${banned} should be absent`).toBe('no');
       }
+      // Allowed globals must be present.
       for (const allowed of ['geo', 'inputs', 'math', 'params', 'string', 'table']) {
-        expect(keys).toContain(allowed);
+        expect(p[`has_${allowed}`], `${allowed} should be present`).toBe('yes');
       }
     } finally {
       runtime.dispose();
