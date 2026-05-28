@@ -262,7 +262,7 @@ canvas {
 }
 
 .docs-header {
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -270,9 +270,31 @@ canvas {
   gap: 8px;
 }
 
-.docs-header h2 {
-  margin: 0;
-  font-size: 15px;
+.docs-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  border-color: var(--accent-muted);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-color: var(--accent-muted);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .docs-content {
