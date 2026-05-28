@@ -10,6 +10,7 @@
   import { SelectionState } from './state/selection.svelte';
   import DocPicker from './ui/DocPicker.svelte';
   import TreePane from './ui/TreePane.svelte';
+  import InspectorPane from './ui/InspectorPane.svelte';
 
   let library: DocLibrary;
   let client: WorkerClient;
@@ -74,10 +75,10 @@
   </aside>
   <main class="viewport-pane">viewport</main>
   <aside class="inspector-pane">
-    {#if selection?.selectedId}
-      <p>Selected: {selection.selectedId}</p>
+    {#if session && selection}
+      <InspectorPane {session} {selection} />
     {:else}
-      <em>nothing selected</em>
+      <em>loading…</em>
     {/if}
   </aside>
 </div>
