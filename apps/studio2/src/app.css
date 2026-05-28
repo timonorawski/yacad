@@ -71,3 +71,40 @@ body {
 .tree-children {
   margin-left: 1rem;
 }
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.form-field > span {
+  font-size: 0.85rem;
+  color: var(--fg);
+  opacity: 0.85;
+}
+.form-field input,
+.form-field select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  padding: 0.25rem 0.4rem;
+  font: inherit;
+}
+.form-field.error input,
+.form-field.error select {
+  border-color: var(--error);
+}
+.field-error {
+  color: var(--error);
+  font-size: 0.75rem;
+}
+.bool-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+.vec-inputs {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 0.25rem;
+}
