@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAt, setParam } from '@yacad/mutations';
   import { getNodeType } from '@yacad/dag';
+  import { decodeLuaDefinitionBytes } from '../lua-sync';
   import KernelInspector from './inspectors/KernelInspector.svelte';
   import LuaInspector from './inspectors/LuaInspector.svelte';
   import DecoderInspector from './inspectors/DecoderInspector.svelte';
@@ -47,7 +48,7 @@
 {:else if selectedDef?.kind === 'expandable'}
   <LuaInspector
     node={selectedNode}
-    definitionResolver={(h) => session.session.blobs.get(h)}
+    definitionResolver={(h) => decodeLuaDefinitionBytes(session.session.blobs.get(h))}
     onCommitValue={commitParam}
   />
 {:else if selectedDef?.kind === 'decoder'}

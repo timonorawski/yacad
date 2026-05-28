@@ -49,6 +49,20 @@ export async function syncLuaDefinitionsToWorker(
   }
 }
 
+/**
+ * Parse a LuaDefinition blob from its canonical-JSON byte form. Returns
+ * `undefined` on null bytes or parse failure — the caller decides how to
+ * surface the missing-definition case to the user.
+ */
+export function decodeLuaDefinitionBytes(bytes: Uint8Array | undefined): LuaDefinition | undefined {
+  if (!bytes) return undefined;
+  try {
+    return JSON.parse(DEC.decode(bytes)) as LuaDefinition;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Walk the NodeDoc tree and collect every `definitionHash` from `lua` nodes. */
 function collectLuaDefinitionHashes(doc: NodeDoc): readonly string[] {
   const hashes = new Set<string>();
