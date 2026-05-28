@@ -350,9 +350,7 @@
     lines.push('- `inputs.<name>.outputType()` — synchronous geometry-type query');
     lines.push('- `geo.*` — kernel-backed node constructors (see below)');
     lines.push('- `math`, `string`, `table` — pure stdlib subsets');
-    lines.push(
-      '- `os`, `io`, `package`, `require`, `print`, `load` — **NOT exposed**',
-    );
+    lines.push('- `os`, `io`, `package`, `require`, `print`, `load` — **NOT exposed**');
     lines.push(
       '- `math.random` — seeded deterministically from `definitionHash + canonical(values)`',
     );
