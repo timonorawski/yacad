@@ -715,7 +715,7 @@
 
   function exportDxf(): void {
     if (!lastCrossSection) return;
-    downloadBytes(crossSectionToDxf(lastCrossSection), 'section.dxf', 'image/vnd.dxf');
+    downloadBytes(crossSectionToDxf(lastCrossSection), 'section.dxf', 'application/octet-stream');
   }
 
   function exportSvg(): void {
