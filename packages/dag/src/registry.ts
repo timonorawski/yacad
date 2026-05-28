@@ -18,7 +18,9 @@ export interface DefinitionResolver {
 export interface KernelNodeType {
   readonly kind: 'kernel';
   readonly type: string;
-  readonly output: GeometryType;
+  /** Static output type OR a function resolving it from the (already-built)
+   *  children. The function form is used by type-overloaded ops like `union`. */
+  readonly output: GeometryType | ((children: readonly Node[]) => GeometryType);
   checkChildren(children: readonly Node[], path: string): void;
   normalizeParams(params: unknown, path: string): Record<string, unknown>;
 }
@@ -196,6 +198,11 @@ export function unregisterNodeType(type: string): void {
 export function listNodeTypes(): { type: string; output: GeometryType | '?' }[] {
   return [...registry.values()].map((def) => ({
     type: def.type,
-    output: def.kind === 'kernel' ? def.output : '?',
+    output:
+      def.kind === 'kernel'
+        ? typeof def.output === 'function'
+          ? '?'
+          : def.output
+        : '?',
   }));
 }

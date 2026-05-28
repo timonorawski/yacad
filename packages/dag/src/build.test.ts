@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildFromJson, buildGraph } from './build';
+import { getNodeType, registerNodeType, unregisterNodeType, type KernelNodeType } from './registry';
 import { DagError } from './types';
 
 const box = (size = [10, 10, 10]) => ({ type: 'box', params: { size } });
@@ -134,5 +135,40 @@ describe('buildGraph', () => {
     it('throws DagError on malformed JSON', async () => {
       await expect(buildFromJson('{not json')).rejects.toThrow(DagError);
     });
+  });
+});
+
+describe('KernelNodeType.output per-instance resolver', () => {
+  const SYN: KernelNodeType = {
+    kind: 'kernel',
+    type: 'syn_overloaded',
+    // Output type taken from the first child — same pattern as the real
+    // `union`/`difference`/`intersection`/`hull` in chunk 4.
+    output: (children) => children[0]!.outputType,
+    checkChildren(children, path) {
+      if (children.length < 1) {
+        throw new Error('needs ≥1 child');
+      }
+    },
+    normalizeParams: () => ({}),
+  };
+
+  beforeEach(() => registerNodeType(SYN));
+  afterEach(() => unregisterNodeType('syn_overloaded'));
+
+  it('resolves output from children at buildGraph time', async () => {
+    const node = await buildGraph({
+      type: 'syn_overloaded',
+      children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+    });
+    expect(node.outputType).toBe('3d');
+  });
+
+  it('uses static string output when output is not a function', () => {
+    const def = getNodeType('box')!;
+    expect(def.kind).toBe('kernel');
+    if (def.kind === 'kernel') {
+      expect(typeof def.output).toBe('string');
+    }
   });
 });
