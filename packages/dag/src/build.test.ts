@@ -425,6 +425,53 @@ describe('extrude node type', () => {
   });
 });
 
+describe('revolve node type', () => {
+  it('builds with default 360 degrees around Y', async () => {
+    const node = await buildGraph({
+      type: 'revolve',
+      params: {},
+      children: [
+        {
+          type: 'translate_2d',
+          params: { offset: [5, 0] },
+          children: [{ type: 'circle', params: { radius: 1 } }],
+        },
+      ],
+    });
+    expect(node.outputType).toBe('3d');
+    expect(node.params['axis']).toBe('y');
+    expect(node.params['degrees']).toBe(360);
+  });
+
+  it('rejects invalid axis', async () => {
+    await expect(
+      buildGraph({
+        type: 'revolve',
+        params: { axis: 'z' },
+        children: [{ type: 'circle', params: { radius: 1 } }],
+      }),
+    ).rejects.toThrow(/axis/);
+  });
+
+  it('accepts axis x', async () => {
+    const node = await buildGraph({
+      type: 'revolve',
+      params: { axis: 'x' },
+      children: [{ type: 'circle', params: { radius: 1 } }],
+    });
+    expect(node.params['axis']).toBe('x');
+  });
+
+  it('accepts axis y', async () => {
+    const node = await buildGraph({
+      type: 'revolve',
+      params: { axis: 'y' },
+      children: [{ type: 'circle', params: { radius: 1 } }],
+    });
+    expect(node.params['axis']).toBe('y');
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',

@@ -339,6 +339,84 @@ it('kernel evaluates extrude(rectangle(10x10), height=5) to a box-equivalent mes
   }
 });
 
+it('kernel evaluates revolve(translate_2d(circle), axis=y) to a torus-like 3D mesh', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  // A small circle offset 5 units on X, revolved 360° around Y → torus-like solid.
+  const innerCircle = await buildGraph({ type: 'circle', params: { radius: 1, segments: 16 } });
+  const translated = await buildGraph({
+    type: 'translate_2d',
+    params: { offset: [5, 0] },
+    children: [{ type: 'circle', params: { radius: 1, segments: 16 } }],
+  });
+  const node = await buildGraph({
+    type: 'revolve',
+    params: { axis: 'y', segments: 16, degrees: 360 },
+    children: [
+      {
+        type: 'translate_2d',
+        params: { offset: [5, 0] },
+        children: [{ type: 'circle', params: { radius: 1, segments: 16 } }],
+      },
+    ],
+  });
+  const innerGeo = kernel.evaluateTimed(innerCircle, []).geometry;
+  const translatedGeo = kernel.evaluateTimed(translated, [innerGeo]).geometry;
+  const { geometry } = kernel.evaluateTimed(node, [translatedGeo]);
+  expect(geometry.kind).toBe('3d');
+  if (geometry.kind === '3d') {
+    expect(geometry.mesh.indices.length).toBeGreaterThan(0);
+    // The revolved solid should have vertices spanning both positive and negative X.
+    const verts = geometry.mesh.vertices;
+    let minX = Infinity, maxX = -Infinity;
+    for (let i = 0; i < verts.length; i += 3) {
+      const x = verts[i]!;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+    }
+    // Torus-like: should extend to roughly ±(majorRadius + minorRadius) = ±6.
+    expect(maxX).toBeGreaterThan(3);
+    expect(minX).toBeLessThan(-3);
+  }
+});
+
+it('kernel evaluates revolve with axis=x to a 3D mesh with correct orientation', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const innerCircle = await buildGraph({ type: 'circle', params: { radius: 1, segments: 16 } });
+  const translated = await buildGraph({
+    type: 'translate_2d',
+    params: { offset: [5, 0] },
+    children: [{ type: 'circle', params: { radius: 1, segments: 16 } }],
+  });
+  const node = await buildGraph({
+    type: 'revolve',
+    params: { axis: 'x', segments: 16, degrees: 360 },
+    children: [
+      {
+        type: 'translate_2d',
+        params: { offset: [5, 0] },
+        children: [{ type: 'circle', params: { radius: 1, segments: 16 } }],
+      },
+    ],
+  });
+  const innerGeo = kernel.evaluateTimed(innerCircle, []).geometry;
+  const translatedGeo = kernel.evaluateTimed(translated, [innerGeo]).geometry;
+  const { geometry } = kernel.evaluateTimed(node, [translatedGeo]);
+  expect(geometry.kind).toBe('3d');
+  if (geometry.kind === '3d') {
+    expect(geometry.mesh.indices.length).toBeGreaterThan(0);
+    // Revolved around X: solid should span both positive and negative Y.
+    const verts = geometry.mesh.vertices;
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < verts.length; i += 3) {
+      const y = verts[i + 1]!;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    expect(maxY).toBeGreaterThan(3);
+    expect(minY).toBeLessThan(-3);
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({

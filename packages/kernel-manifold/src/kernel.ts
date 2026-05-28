@@ -115,6 +115,11 @@ export class ManifoldKernel implements Kernel {
       return this.evaluateExtrude(node, childGeometries);
     }
 
+    // 2D→3D bridge: revolve a CrossSection around Y (or X) axis.
+    if (node.type === 'revolve') {
+      return this.evaluateRevolve(node, childGeometries);
+    }
+
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
     const importStart = performance.now();
@@ -250,6 +255,46 @@ export class ManifoldKernel implements Kernel {
     rotated.delete?.();
     return {
       geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+    };
+  }
+
+  private evaluateRevolve(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    const child = asCrossSection(childGeometries[0]!, node.id, 0);
+    const importStart = performance.now();
+    // Manifold.revolve takes a CrossSection or Polygons (array of SimplePolygon).
+    // We pass the stored polygons directly, cast to the mutable form Manifold expects.
+    const polygons = child.polygons as unknown as [number, number][][];
+    const axis = node.params['axis'] as 'y' | 'x';
+    const segments = node.params['segments'] as number;
+    const degrees = node.params['degrees'] as number;
+
+    // Manifold.revolve always revolves around the Y axis (in 2D input space),
+    // mapping Y→Z in the output. For axis='y' we pass the polygon as-is.
+    // For axis='x' we revolve around Y to get a Y-axis torus, then post-rotate
+    // the 3D solid 90° around Z so the rotation axis becomes X.
+    // (Pre-rotating the polygon to avoid clipping is not necessary because the
+    // profile — e.g., a circle offset on +X — already lies on the correct side.)
+    const inputPolys = polygons;
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    const m = this.api.Manifold.revolve(
+      inputPolys as unknown as Parameters<typeof this.api.Manifold.revolve>[0],
+      segments,
+      degrees,
+    );
+    // For axis='x': rotate the Y-axis torus 90° around Z → rotation axis becomes X.
+    const result = axis === 'x' ? m.rotate([0, 0, 90]) : m;
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    const mesh = this.toMesh(result);
+    // Clean up WASM objects. When axis='x', m and result are different objects.
+    if (m !== result) m.delete?.();
+    result.delete?.();
+    return {
+      geometry: { kind: '3d', mesh },
       timings: { importMs, opMs, exportMs: performance.now() - exportStart },
     };
   }

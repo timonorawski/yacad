@@ -330,6 +330,31 @@ const defs: NodeTypeDef[] = [
             })(),
     };
   }),
+  bridge2dTo3d('revolve', (params, path) => {
+    const p = asRecord(params, path);
+    const axisRaw = p['axis'] ?? 'y';
+    if (axisRaw !== 'y' && axisRaw !== 'x') {
+      throw new DagError(`"axis" must be 'y' or 'x'`, path);
+    }
+    const segmentsRaw = p['segments'];
+    const degreesRaw = p['degrees'];
+    return {
+      axis: axisRaw,
+      segments:
+        segmentsRaw === undefined
+          ? DEFAULT_SEGMENTS
+          : optSegments(p, 'segments', path, DEFAULT_SEGMENTS),
+      degrees:
+        degreesRaw === undefined
+          ? 360
+          : (() => {
+              if (typeof degreesRaw !== 'number' || !Number.isFinite(degreesRaw)) {
+                throw new DagError(`"degrees" must be a finite number`, path);
+              }
+              return degreesRaw;
+            })(),
+    };
+  }),
   transform2d('translate_2d', (params, path) => {
     const p = asRecord(params, path);
     return { offset: vec2(p, 'offset', path) };
