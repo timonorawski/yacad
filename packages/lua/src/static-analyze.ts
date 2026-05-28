@@ -154,6 +154,11 @@ function walkPhase1(
       }
 
       case 'FunctionDeclaration': {
+        // For `local function f(...)`, declare `f` in the OUTER scope first,
+        // so callers of `f` see it as a local after the declaration.
+        if (node.isLocal && node.identifier?.type === 'Identifier') {
+          scope.declareLocal(node.identifier.name as string);
+        }
         // Parameter names become locals in a new frame.
         scope.push();
         for (const p of node.parameters ?? []) {
@@ -252,6 +257,11 @@ function walkPhase2(
       }
 
       case 'FunctionDeclaration': {
+        // For `local function f(...)`, declare `f` in the OUTER scope first,
+        // so callers of `f` see it as a local after the declaration.
+        if (node.isLocal && node.identifier?.type === 'Identifier') {
+          scope.declareLocal(node.identifier.name as string);
+        }
         scope.push();
         for (const p of node.parameters ?? []) {
           if (p.type === 'Identifier') scope.declareLocal(p.name);

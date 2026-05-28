@@ -377,3 +377,77 @@ describe('Phase 2 — params[K] / inputs[K] index access', () => {
     }
   });
 });
+
+describe('scope handling', () => {
+  it('shadowing: local params silently overrides the sandbox params', () => {
+    const d = def(
+      [
+        'local params = { teeth = 8 }',
+        'return { type = "box", params = { size = { params.teeth, 1, 1 } } }',
+      ].join('\n'),
+    );
+    expect(() => validateLuaSource(d)).not.toThrow();
+  });
+
+  it('nested function params shadow correctly', () => {
+    const d = def(
+      [
+        'local function f(params)',
+        '  return params.x',
+        'end',
+        'return { type = "box", params = { size = { f({ x = 1 }), 1, 1 } } }',
+      ].join('\n'),
+    );
+    expect(() => validateLuaSource(d)).not.toThrow();
+  });
+
+  it('for-loop variable scoped to the loop body', () => {
+    const d = def(
+      [
+        'for i = 1, 3 do',
+        '  local x = i',
+        'end',
+        'return { type = "box", params = { size = { i, 1, 1 } } }',
+      ].join('\n'),
+    );
+    try {
+      validateLuaSource(d);
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      expect(
+        err.issues.some((iss) => iss.category === 'sandbox-violation' && iss.identifier === 'i'),
+      ).toBe(true);
+    }
+  });
+});
+
+describe('multi-issue collection', () => {
+  it('collects issues across categories in source order', () => {
+    const teethSchema = {
+      inputs: [{ name: 'body', type: '3d' as const }],
+      params: { teeth: { type: 'int' as const, default: 8 } },
+      output: '3d' as const,
+    };
+    const code = [
+      'local p = params', // line 1 — unanalyzable-alias
+      'local bad = os.time()', // line 2 — sandbox-violation 'os'
+      'local bogus = inputs.head', // line 3 — undeclared-input
+      'return geo.bogus({ size = { params.tooth, 1, 1 } })', // line 4 — unknown-geo-type + undeclared-param
+    ].join('\n');
+    try {
+      validateLuaSource({ schema: teethSchema, code });
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const cats = new Set(err.issues.map((i) => i.category));
+      expect(cats.has('unanalyzable-alias')).toBe(true);
+      expect(cats.has('sandbox-violation')).toBe(true);
+      expect(cats.has('undeclared-input')).toBe(true);
+      expect(cats.has('unknown-geo-type')).toBe(true);
+      const lines = err.issues.map((i) => i.line);
+      const sorted = [...lines].sort((a, b) => a - b);
+      expect(lines).toEqual(sorted);
+    }
+  });
+});
