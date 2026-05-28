@@ -39,8 +39,9 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 - **SVG annotations** — _surfaced by 2D vector exports spec._ Dimension labels, scale bars, technical-drawing decoration. Future feature; needs its own design pass.
 - **3D mesh export beyond STL** (OBJ, glTF) — _surfaced by external-formats discussion._ Sequenced AFTER the mesh data model evolves to carry normals/UVs/materials; shipping today against the current minimal `Mesh` would bake lossy interfaces.
 - **3MF export** — _surfaced by external-formats discussion._ Slicer-direction format; belongs with the future print-bridge layer (build-plate arrangement + slicer config), not engine I/O.
-- **Mesh data model evolution** (normals, UVs, vertex colors, material assignments) — _surfaced by external-formats discussion._ Substantial cross-cutting change preparing for game-asset workflows. User flagged as "potentially throwaway feature branch" — expect spike-and-iterate. Should land before rich mesh I/O.
-- **Animation / rigging** (skinning data, bone hierarchies) — _surfaced by external-formats discussion._ Beyond the mesh data model evolution; attaches to leaf imported-asset nodes (doesn't compose through boolean ops).
+- **Mesh data model evolution** (normals, UVs, vertex colors, material assignments) — _surfaced by external-formats discussion._ Substantial cross-cutting change preparing for game-asset workflows. User flagged as "potentially throwaway feature branch" — expect spike-and-iterate. Should land before rich mesh I/O. Conceptual write-up: [ideas/animation-assemblies-mesh-model.md](ideas/animation-assemblies-mesh-model.md).
+- **Animation / rigging** (skinning data, bone hierarchies) — _surfaced by external-formats discussion._ Beyond rigid-body; needs the mesh data model evolution first (bone weights, morph targets). Rigid-body animation (assemblies + parameterized Lua nodes) is independently shippable. Conceptual write-up: [ideas/animation-assemblies-mesh-model.md](ideas/animation-assemblies-mesh-model.md).
+- **Assemblies as a `Geometry` kind** — _surfaced by animation discussion._ A new `Geometry` variant `{ kind: 'assembly', parts: [{ transform, geometry }] }` that preserves subtrees as separate `Mesh` artifacts rather than booleaning them down. Foundation for animation, instancing, scene-graph workflows, and richer export. Conceptual write-up: [ideas/animation-assemblies-mesh-model.md](ideas/animation-assemblies-mesh-model.md).
 
 ## Deferred — UX / authoring
 
@@ -76,4 +77,4 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 - When a spec calls something "deferred to Phase N" or "future work" or "out of scope," add it here in the same commit as the spec lands.
 - When a phase ships, move its items from "Deferred" to "Shipped phases" (top of file).
 - One-line summary preferred; link to a more detailed design doc when one exists.
-- Don't let this file become a wishlist — only items that have been considered and explicitly punted from a real phase belong here. Pure ideation lives in `docs/ideas/` (TBD) or directly in chat with the user.
+- Don't let this file become a wishlist — only items that have been considered and explicitly punted from a real phase belong here. Pure ideation lives in [docs/ideas/](ideas/) or directly in chat with the user.
