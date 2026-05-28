@@ -108,3 +108,37 @@ body {
   grid-auto-flow: column;
   gap: 0.25rem;
 }
+.tool-palette {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--panel-border);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tool-palette button {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  font: inherit;
+}
+.tool-palette button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.tool-palette details > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--panel-border);
+}
+.tool-palette details[open] {
+  background: var(--panel);
+}
+.tool-palette details > button {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
