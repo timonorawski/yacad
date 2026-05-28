@@ -1,6 +1,6 @@
 # 2D vector exports design (DXF / SVG / PNG)
 
-**Status**: design approved, awaiting implementation plan
+**Status**: implemented
 **Date**: 2026-05-28
 **Scope**: Three new exporters — DXF, SVG, PNG — operating on `CrossSection`. Smallest-possible package surface that unlocks "slice a 3D part → export the section for laser cutting / documentation / wiki embedding."
 
