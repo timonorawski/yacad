@@ -5,10 +5,9 @@
     currentId: string | null;
     openDoc: (id: string, source: 'user' | 'sample') => Promise<void>;
     createDoc: () => Promise<void>;
-    refreshSamples: () => Promise<void>;
   }
 
-  let { userDocs, sampleDocs, currentId, openDoc, createDoc, refreshSamples }: Props = $props();
+  let { userDocs, sampleDocs, currentId, openDoc, createDoc }: Props = $props();
 
   function onSelect(e: Event) {
     const value = (e.currentTarget as HTMLSelectElement).value;
@@ -48,7 +47,4 @@
       <option value="__new__">＋ new document</option>
     </select>
   </label>
-  <button type="button" onclick={() => void refreshSamples()} title="Wipe and re-seed all samples">
-    Refresh samples
-  </button>
 </div>

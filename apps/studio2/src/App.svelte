@@ -11,6 +11,8 @@
   import { seedSceneLibrary } from './seed-scenes';
   import { syncLuaDefinitionsToWorker } from './lua-sync';
   import DocPicker from './ui/DocPicker.svelte';
+  import HeaderMenu from './ui/HeaderMenu.svelte';
+  import DocsDrawer from './ui/DocsDrawer.svelte';
   import TreePane from './ui/TreePane.svelte';
   import InspectorPane from './ui/InspectorPane.svelte';
   import ViewportPane from './ui/ViewportPane.svelte';
@@ -22,6 +24,7 @@
   let selection = $state<SelectionState | undefined>(undefined);
   let userDocs = $state<{ id: string; name: string }[]>([]);
   let sampleDocs = $state<{ id: string; name: string }[]>([]);
+  let docsOpen = $state(false);
 
   async function refreshDocs() {
     if (!userLibrary || !sampleLibrary) return;
@@ -106,7 +109,11 @@
       currentId={session?.session.id ?? null}
       {openDoc}
       {createDoc}
-      {refreshSamples}
+    />
+    <HeaderMenu
+      {docsOpen}
+      onToggleDocs={() => (docsOpen = !docsOpen)}
+      onRefreshSamples={refreshSamples}
     />
   </header>
   <aside class="tree-pane">
@@ -128,4 +135,5 @@
       <em>loading…</em>
     {/if}
   </aside>
+  <DocsDrawer open={docsOpen} onClose={() => (docsOpen = false)} />
 </div>

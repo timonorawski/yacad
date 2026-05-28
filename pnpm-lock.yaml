@@ -144,6 +144,9 @@ importers:
       manifold-3d:
         specifier: ^3.5.0
         version: 3.5.0(@gltf-transform/core@4.3.0)(@gltf-transform/extensions@4.3.0)(@gltf-transform/functions@4.3.0)(esbuild-wasm@0.27.7)
+      marked:
+        specifier: ^17.0.1
+        version: 17.0.6
       wasmoon:
         specifier: 1.16.0
         version: 1.16.0
