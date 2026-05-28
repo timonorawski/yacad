@@ -9,6 +9,7 @@
   import { SessionState } from './state/session.svelte';
   import { SelectionState } from './state/selection.svelte';
   import DocPicker from './ui/DocPicker.svelte';
+  import TreePane from './ui/TreePane.svelte';
 
   let library: DocLibrary;
   let client: WorkerClient;
@@ -65,8 +66,8 @@
     <DocPicker {docs} currentId={session?.session.id ?? null} {openDoc} {createDoc} />
   </header>
   <aside class="tree-pane">
-    {#if session}
-      <pre>{JSON.stringify(session.doc, null, 2)}</pre>
+    {#if session && selection}
+      <TreePane {session} {selection} />
     {:else}
       <em>loading…</em>
     {/if}
