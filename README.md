@@ -32,16 +32,21 @@ A few principles, distilled from [docs/vision.md](docs/vision.md), that shape ev
 
 ## Try it
 
+**Live demo:** [cad.yamplay.cc](https://cad.yamplay.cc) — the in-progress studio v2 (auto-deployed from `main`).
+
+### Run it locally
+
 Requires Node 22+ and pnpm 10+.
 
 ```bash
 git clone https://github.com/timonorawski/yacad.git
 cd yacad
 pnpm install
-pnpm dev
+pnpm dev         # studio v1 — the reference end-to-end implementation
+pnpm dev:v2      # studio v2 — what's on cad.yamplay.cc
 ```
 
-Then open the URL Vite prints (typically `http://localhost:5173`). The sample-scene dropdown gives a tour of what the kernel can do.
+Open the URL Vite prints (typically `http://localhost:5173`). The sample-scene dropdown gives a tour of what the kernel can do.
 
 ## Where to go next
 
