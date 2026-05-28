@@ -1,0 +1,59 @@
+{
+  "type": "difference",
+  "params": {},
+  "children": [
+    {
+      "type": "offset_2d",
+      "params": { "delta": 3, "joinType": "round", "segments": 24 },
+      "children": [
+        {
+          "type": "rectangle",
+          "params": { "size": [60, 30], "center": true }
+        }
+      ]
+    },
+    {
+      "type": "rotate_2d",
+      "params": { "angle": 15 },
+      "children": [
+        {
+          "type": "spline",
+          "params": {
+            "points": [
+              [10, 0],
+              [4, 4],
+              [0, 8],
+              [-4, 4],
+              [-10, 0],
+              [-4, -4],
+              [0, -8],
+              [4, -4]
+            ],
+            "segmentsPerCurve": 16,
+            "tension": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "type": "translate_2d",
+      "params": { "offset": [-26, -12] },
+      "children": [{ "type": "circle", "params": { "radius": 1.5, "segments": 24 } }]
+    },
+    {
+      "type": "translate_2d",
+      "params": { "offset": [26, -12] },
+      "children": [{ "type": "circle", "params": { "radius": 1.5, "segments": 24 } }]
+    },
+    {
+      "type": "translate_2d",
+      "params": { "offset": [-26, 12] },
+      "children": [{ "type": "circle", "params": { "radius": 1.5, "segments": 24 } }]
+    },
+    {
+      "type": "translate_2d",
+      "params": { "offset": [26, 12] },
+      "children": [{ "type": "circle", "params": { "radius": 1.5, "segments": 24 } }]
+    }
+  ]
+}

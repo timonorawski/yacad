@@ -1,0 +1,25 @@
+{
+  "type": "hull",
+  "children": [
+    {
+      "type": "translate",
+      "params": { "offset": [10, 10, 10] },
+      "children": [{ "type": "sphere", "params": { "radius": 3, "segments": 24 } }]
+    },
+    {
+      "type": "translate",
+      "params": { "offset": [10, -10, -10] },
+      "children": [{ "type": "sphere", "params": { "radius": 3, "segments": 24 } }]
+    },
+    {
+      "type": "translate",
+      "params": { "offset": [-10, 10, -10] },
+      "children": [{ "type": "sphere", "params": { "radius": 3, "segments": 24 } }]
+    },
+    {
+      "type": "translate",
+      "params": { "offset": [-10, -10, 10] },
+      "children": [{ "type": "sphere", "params": { "radius": 3, "segments": 24 } }]
+    }
+  ]
+}

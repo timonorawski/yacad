@@ -1,0 +1,5 @@
+{
+  "type": "refine",
+  "params": { "n": 3 },
+  "children": [{ "type": "sphere", "params": { "radius": 10, "segments": 8 } }]
+}

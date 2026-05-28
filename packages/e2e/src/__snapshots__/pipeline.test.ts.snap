@@ -18,11 +18,50 @@ exports[`scene → STL pipeline > 2d/rounded-rect > matches the captured geometr
 }
 `;
 
+exports[`scene → STL pipeline > 2d/spline-gasket > matches the captured geometry summary 1`] = `
+{
+  "nodes": 13,
+  "polygons": 6,
+  "stlBytes": 0,
+  "vertices": 252,
+}
+`;
+
 exports[`scene → STL pipeline > 2d/spline-star > matches the captured geometry summary 1`] = `
 {
   "nodes": 1,
   "polygons": 1,
   "stlBytes": 0,
+  "vertices": 96,
+}
+`;
+
+exports[`scene → STL pipeline > 2d/transforms-2d > matches the captured geometry summary 1`] = `
+{
+  "nodes": 4,
+  "polygons": 1,
+  "stlBytes": 0,
+  "vertices": 28,
+}
+`;
+
+exports[`scene → STL pipeline > booleans/box-int-cylinder > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      8,
+      10,
+      8,
+    ],
+    "min": [
+      -8,
+      -10,
+      -8,
+    ],
+  },
+  "nodes": 4,
+  "stlBytes": 9484,
+  "triangles": 188,
   "vertices": 96,
 }
 `;
@@ -120,6 +159,27 @@ exports[`scene → STL pipeline > composite/extruded-gear > matches the captured
 }
 `;
 
+exports[`scene → STL pipeline > composite/hull-tetrahedral-spheres > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      13,
+      13,
+      13,
+    ],
+    "min": [
+      -13,
+      -13,
+      -13,
+    ],
+  },
+  "nodes": 9,
+  "stlBytes": 19584,
+  "triangles": 390,
+  "vertices": 197,
+}
+`;
+
 exports[`scene → STL pipeline > composite/lua-2d-flower > matches the captured geometry summary 1`] = `
 {
   "bbox": {
@@ -138,6 +198,27 @@ exports[`scene → STL pipeline > composite/lua-2d-flower > matches the captured
   "stlBytes": 3484,
   "triangles": 68,
   "vertices": 36,
+}
+`;
+
+exports[`scene → STL pipeline > composite/refined-sphere > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      10,
+      10,
+      10,
+    ],
+    "min": [
+      -10,
+      -10,
+      -10,
+    ],
+  },
+  "nodes": 2,
+  "stlBytes": 14484,
+  "triangles": 288,
+  "vertices": 146,
 }
 `;
 

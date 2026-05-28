@@ -45,6 +45,7 @@ export default defineConfig({
     include: [
       'packages/*/src/**/*.test.ts',
       'packages/*/showcase/**/*.test.ts',
+      'apps/*/src/**/*.test.ts',
       'bench/**/*.test.ts',
     ],
     exclude: ['**/node_modules/**', '**/.git/**', 'bench/**/*.bench.ts'],

@@ -5,6 +5,8 @@ import { defaultHasher } from '@yacad/hash';
 import { canonicalBytes } from '@yacad/canonical';
 import { meshToBinaryStl } from '@yacad/export-stl';
 import { hashStlBlob } from '@yacad/import-stl';
+import { hashObjBlob } from '@yacad/import-obj';
+import { SAMPLE_OBJ_BYTES } from './sample-obj';
 import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION, FLOWER_DEFINITION } from '@yacad/e2e/fixtures';
 import { seedHouseShowcase } from '@yacad/e2e/showcase/house';
 import { seedCastleShowcase } from '@yacad/e2e/showcase/castle';
@@ -25,6 +27,11 @@ import sceneRevolvedVase from '../../../packages/e2e/scenes/composite/revolved-v
 import sceneTangent from '../../../packages/e2e/scenes/edge-cases/tangent-sphere-box.json?raw';
 import sceneSharedFace from '../../../packages/e2e/scenes/edge-cases/shared-face-cubes.json?raw';
 import sceneInteriorVoid from '../../../packages/e2e/scenes/edge-cases/interior-void.json?raw';
+import sceneTransforms2d from '../../../packages/e2e/scenes/2d/transforms-2d.json?raw';
+import sceneSplineGasket from '../../../packages/e2e/scenes/2d/spline-gasket.json?raw';
+import sceneRefinedSphere from '../../../packages/e2e/scenes/composite/refined-sphere.json?raw';
+import sceneBoxIntCylinder from '../../../packages/e2e/scenes/booleans/box-int-cylinder.json?raw';
+import sceneHullTet from '../../../packages/e2e/scenes/composite/hull-tetrahedral-spheres.json?raw';
 
 // ─── v1 procedural generators (copied verbatim from apps/studio/src/App.svelte) ─
 
@@ -226,6 +233,11 @@ const STATIC_SCENES: StaticScene[] = [
   { name: 'Circle (2D)', json: sceneCircle },
   { name: 'Spline star (2D)', json: sceneSplineStar },
   { name: 'Rounded rect (2D)', json: sceneRoundedRect },
+  { name: '2D transforms demo', json: sceneTransforms2d },
+  { name: 'Spline gasket plate (2D)', json: sceneSplineGasket },
+  { name: 'Refine: sphere n=3', json: sceneRefinedSphere },
+  { name: 'Intersection: box ∩ cylinder', json: sceneBoxIntCylinder },
+  { name: 'Hull: tetrahedral spheres', json: sceneHullTet },
   { name: 'Extruded gear', json: sceneExtrudedGear },
   { name: 'Revolved vase', json: sceneRevolvedVase },
   { name: 'Tangent sphere/box', json: sceneTangent },
@@ -331,6 +343,28 @@ export async function seedSceneLibrary(library: DocLibrary): Promise<void> {
   await remixSession.addBlob(cubeBytes);
   await remixSession.save();
   await remixSession.close();
+
+  // OBJ-import sample: a hand-rolled tetrahedron parallel to the STL cube.
+  const tetraHash = await hashObjBlob(SAMPLE_OBJ_BYTES);
+
+  const objSession = await library.create('Mesh import: OBJ tetrahedron', {
+    type: 'import-obj',
+    params: { blobHash: tetraHash },
+  });
+  await objSession.addBlob(SAMPLE_OBJ_BYTES);
+  await objSession.save();
+  await objSession.close();
+
+  const objRemixSession = await library.create('Mesh remix: tetrahedron ∖ sphere', {
+    type: 'difference',
+    children: [
+      { type: 'import-obj', params: { blobHash: tetraHash } },
+      { type: 'sphere', params: { radius: 6, segments: 32 } },
+    ],
+  });
+  await objRemixSession.addBlob(SAMPLE_OBJ_BYTES);
+  await objRemixSession.save();
+  await objRemixSession.close();
 
   // Phase 2.1 — headline showcases. Each is its own subpackage exporting a
   // seed function that knows how to construct its LuaDefinition, register
