@@ -49,6 +49,8 @@ const EXAMPLES: Record<string, string> = {
   extrude: 'return geo.extrude({ height = 10 }, { geo.circle({ radius = 5 }) })',
   revolve:
     'return geo.revolve({ axis = "y" }, { geo.polygon({ points = { {3,0}, {4,5}, {0,5} } }) })',
+  section:
+    'return geo.section({ origin = {0, 0, 0}, normal = {0, 0, 1} }, { geo.box({ size = {20, 20, 20}, center = true }) })',
   translate_2d: 'return geo.translate_2d({ offset = {5, 0} }, { geo.circle({ radius = 1 }) })',
   rotate_2d: 'return geo.rotate_2d({ angle = 45 }, { geo.rectangle({ size = {2, 1} }) })',
   refine: 'return geo.refine({ n = 2 }, { geo.box({ size = {1, 1, 1} }) })',

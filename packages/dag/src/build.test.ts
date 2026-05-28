@@ -555,6 +555,89 @@ describe('refine node type', () => {
   });
 });
 
+describe('section node type', () => {
+  it('builds with vec3 origin and vec3 normal; output is 2d', async () => {
+    const node = await buildGraph({
+      type: 'section',
+      params: { origin: [0, 0, 5], normal: [0, 0, 1] },
+      children: [{ type: 'box', params: { size: [10, 10, 10] } }],
+    });
+    expect(node.outputType).toBe('2d');
+    expect(node.params['origin']).toEqual([0, 0, 5]);
+    expect(node.params['normal']).toEqual([0, 0, 1]);
+  });
+
+  it('rejects zero normal vector', async () => {
+    await expect(
+      buildGraph({
+        type: 'section',
+        params: { origin: [0, 0, 0], normal: [0, 0, 0] },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/non-zero/);
+  });
+
+  it('rejects missing normal', async () => {
+    await expect(
+      buildGraph({
+        type: 'section',
+        params: { origin: [0, 0, 0] },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/normal/);
+  });
+
+  it('rejects missing origin', async () => {
+    await expect(
+      buildGraph({
+        type: 'section',
+        params: { normal: [0, 0, 1] },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/origin/);
+  });
+
+  it('rejects 2D child', async () => {
+    await expect(
+      buildGraph({
+        type: 'section',
+        params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+        children: [{ type: 'circle', params: { radius: 5 } }],
+      }),
+    ).rejects.toThrow(/3d/);
+  });
+
+  it('requires exactly one child', async () => {
+    await expect(
+      buildGraph({
+        type: 'section',
+        params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+        children: [],
+      }),
+    ).rejects.toThrow(/exactly one/);
+    await expect(
+      buildGraph({
+        type: 'section',
+        params: { origin: [0, 0, 0], normal: [0, 0, 1] },
+        children: [
+          { type: 'box', params: { size: [1, 1, 1] } },
+          { type: 'box', params: { size: [1, 1, 1] } },
+        ],
+      }),
+    ).rejects.toThrow(/exactly one/);
+  });
+
+  it('rejects non-finite normal components', async () => {
+    await expect(
+      buildGraph({
+        type: 'section',
+        params: { origin: [0, 0, 0], normal: [Infinity, 0, 1] },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/finite/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',

@@ -201,6 +201,30 @@ function bridge2dTo3d(
   };
 }
 
+/** A 3D→2D bridge: exactly one 3D child, 2D output. Parallel to bridge2dTo3d
+ *  (extrude/revolve). Used by `section`. */
+function bridge3dTo2d(
+  type: string,
+  docs: KernelTypeDocSummary,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '2d',
+    summary: docs.summary,
+    outputDoc: docs.outputDoc,
+    paramSchema: docs.paramSchema,
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '3d', path);
+    },
+    normalizeParams,
+  };
+}
+
 /** A unary 2D transform: exactly one 2D child, '2d' output. */
 function transform2d(
   type: string,
@@ -724,6 +748,39 @@ const defs: NodeTypeDef[] = [
                 }
                 return degreesRaw;
               })(),
+      };
+    },
+  ),
+  bridge3dTo2d(
+    'section',
+    {
+      summary:
+        'Cut a 3D solid with an arbitrary plane; produces the 2D cross-section at that plane.',
+      outputDoc: '2D cross-section',
+      paramSchema: [
+        {
+          name: 'origin',
+          type: 'vec3',
+          required: true,
+          doc: 'Point on the slicing plane, in world coordinates.',
+        },
+        {
+          name: 'normal',
+          type: 'vec3',
+          required: true,
+          doc: 'Plane normal vector — must be non-zero. The plane orientation is determined by this vector.',
+        },
+      ],
+    },
+    (params, path) => {
+      const p = asRecord(params, path);
+      const normal = vec3(p, 'normal', path);
+      if (normal[0] === 0 && normal[1] === 0 && normal[2] === 0) {
+        throw new DagError('"normal" must be non-zero', path);
+      }
+      return {
+        origin: vec3(p, 'origin', path),
+        normal,
       };
     },
   ),

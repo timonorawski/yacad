@@ -30,6 +30,17 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 - **CPU / wall-clock budgets on `expand`** — _surfaced by LuaNode spec._ A wall-clock budget per expandable-node expansion. Lives on `ExpandableNodeType`, not in the Lua runtime specifically — applies uniformly.
 - **AST validation of Lua code against schema** — _surfaced by LuaNode spec._ Static check that Lua source references only declared `params.<name>` and `inputs.<name>`. Currently surfaces as runtime errors.
 
+## Deferred — import / export
+
+- **2D vector import** (DXF / SVG in) — _surfaced by 2D vector exports spec._ Round-trips the export path: drop a DXF on the studio, get a `CrossSection` you can extrude/transform/compose. Uses the existing `'decoder'` NodeTypeDef pattern from Phase 2.5 but produces 2D output. Probably ships as a sibling phase once a user/use-case surfaces.
+- **DWG support** — _surfaced by external-formats discussion._ Proprietary AutoCAD binary. DXF covers ~95% of share-CAD-files workflows; DWG → DXF conversion is standard upstream. Defer indefinitely until specific user demand.
+- **Multi-layer DXF organization** — _surfaced by 2D vector exports spec._ Assign different layer names per polygon based on user-supplied metadata or polygon role (outer / hole / engrave / cut). Adds a per-polygon classification problem that's its own design.
+- **SVG annotations** — _surfaced by 2D vector exports spec._ Dimension labels, scale bars, technical-drawing decoration. Future feature; needs its own design pass.
+- **3D mesh export beyond STL** (OBJ, glTF) — _surfaced by external-formats discussion._ Sequenced AFTER the mesh data model evolves to carry normals/UVs/materials; shipping today against the current minimal `Mesh` would bake lossy interfaces.
+- **3MF export** — _surfaced by external-formats discussion._ Slicer-direction format; belongs with the future print-bridge layer (build-plate arrangement + slicer config), not engine I/O.
+- **Mesh data model evolution** (normals, UVs, vertex colors, material assignments) — _surfaced by external-formats discussion._ Substantial cross-cutting change preparing for game-asset workflows. User flagged as "potentially throwaway feature branch" — expect spike-and-iterate. Should land before rich mesh I/O.
+- **Animation / rigging** (skinning data, bone hierarchies) — _surfaced by external-formats discussion._ Beyond the mesh data model evolution; attaches to leaf imported-asset nodes (doesn't compose through boolean ops).
+
 ## Deferred — UX / authoring
 
 - **Library / sharing of LuaDefinitions** — _surfaced by LuaNode spec._ Content addressing already gives deduplication and remote-sharing primitives for free; an explicit library UI / search is deferred until usage patterns inform it.
