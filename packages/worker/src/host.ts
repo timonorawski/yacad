@@ -2,6 +2,8 @@ import { IndexedDbStore, MemoryStore, TieredStore } from '@yacad/cache';
 import { buildGraph, getNodeType, registerNodeType, type DefinitionResolver } from '@yacad/dag';
 import { Engine } from '@yacad/engine';
 import { type Geometry } from '@yacad/geometry';
+import { IMPORT_GLTF_NODE_TYPE, IMPORT_GLTF_TYPE } from '@yacad/import-gltf';
+import { IMPORT_OBJ_NODE_TYPE, IMPORT_OBJ_TYPE } from '@yacad/import-obj';
 import { IMPORT_STL_NODE_TYPE, IMPORT_STL_TYPE } from '@yacad/import-stl';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 import {
@@ -57,7 +59,7 @@ export function startHost(scope: WorkerScope): void {
   }
 
   // Mesh-blob state — content-addressable bytes for binary mesh imports
-  // (STL today, 3MF/glTF later). The engine sees one composite resolver that
+  // (STL, OBJ, glTF; 3MF later). The engine sees one composite resolver that
   // consults both maps; consumers narrow on retrieval.
   const meshBlobs = new Map<string, Uint8Array>();
   const combinedResolver: DefinitionResolver = {
@@ -67,9 +69,9 @@ export function startHost(scope: WorkerScope): void {
   // Decoder node types are static — register once per process, idempotently
   // (the registry is global, so guard with getNodeType to survive multiple
   // host instances in the same module).
-  if (!getNodeType(IMPORT_STL_TYPE)) {
-    registerNodeType(IMPORT_STL_NODE_TYPE);
-  }
+  if (!getNodeType(IMPORT_STL_TYPE)) registerNodeType(IMPORT_STL_NODE_TYPE);
+  if (!getNodeType(IMPORT_OBJ_TYPE)) registerNodeType(IMPORT_OBJ_NODE_TYPE);
+  if (!getNodeType(IMPORT_GLTF_TYPE)) registerNodeType(IMPORT_GLTF_NODE_TYPE);
 
   let backend: Promise<Backend> | undefined;
 

@@ -25,6 +25,8 @@ export default defineConfig({
       { find: '@yacad/render', replacement: src('render/src/index.ts') },
       { find: '@yacad/export-stl', replacement: src('export-stl/src/index.ts') },
       { find: '@yacad/import-stl', replacement: src('import-stl/src/index.ts') },
+      { find: '@yacad/import-obj', replacement: src('import-obj/src/index.ts') },
+      { find: '@yacad/import-gltf', replacement: src('import-gltf/src/index.ts') },
       { find: '@yacad/lua', replacement: src('lua/src/index.ts') },
       // Sub-path alias for the shared E2E fixtures (mirrors vitest.config.ts)
       { find: '@yacad/e2e/fixtures', replacement: srcFile('e2e', 'fixtures.ts') },

@@ -208,6 +208,41 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/import-gltf:
+    dependencies:
+      '@gltf-transform/core':
+        specifier: ^4.3.0
+        version: 4.3.0
+      '@yacad/dag':
+        specifier: workspace:*
+        version: link:../dag
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../geometry
+      '@yacad/hash':
+        specifier: workspace:*
+        version: link:../hash
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
+  packages/import-obj:
+    dependencies:
+      '@yacad/dag':
+        specifier: workspace:*
+        version: link:../dag
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../geometry
+      '@yacad/hash':
+        specifier: workspace:*
+        version: link:../hash
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/import-stl:
     dependencies:
       '@yacad/dag':
@@ -289,6 +324,12 @@ importers:
       '@yacad/geometry':
         specifier: workspace:*
         version: link:../geometry
+      '@yacad/import-gltf':
+        specifier: workspace:*
+        version: link:../import-gltf
+      '@yacad/import-obj':
+        specifier: workspace:*
+        version: link:../import-obj
       '@yacad/import-stl':
         specifier: workspace:*
         version: link:../import-stl

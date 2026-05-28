@@ -12,6 +12,8 @@
     { "path": "../dag" },
     { "path": "../engine" },
     { "path": "../geometry" },
+    { "path": "../import-gltf" },
+    { "path": "../import-obj" },
     { "path": "../import-stl" },
     { "path": "../kernel-manifold" },
     { "path": "../lua" }

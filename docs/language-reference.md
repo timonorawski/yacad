@@ -1,6 +1,6 @@
 # YACAD DAG Language Reference
 
-This reference describes the JSON DAG document consumed by `buildGraph` and used by the studio editor. It covers all 23 node types shipping today: the seven Phase 0 primitives, the LuaNode (Phase 1), the fourteen 2D-layer node types (Phase 2), and the `import-stl` decoder (Phase 2.5).
+This reference describes the JSON DAG document consumed by `buildGraph` and used by the studio editor. It covers all 25 node types shipping today: the seven Phase 0 primitives, the LuaNode (Phase 1), the fourteen 2D-layer node types (Phase 2), and three mesh-import decoders (`import-stl`, `import-obj`, `import-gltf` — Phase 2.5).
 
 ## Document shape
 
@@ -37,7 +37,7 @@ The output type also picks the cache artifact kind (`crossSection` vs `mesh`), s
 | [`refine`](#refine)                                                                                 | 3D               | exactly 1 (3D)    |
 | [`extrude`](#extrude) / [`revolve`](#revolve)                                                       | 3D               | exactly 1 (2D)    |
 | [`lua`](#lua)                                                                                       | per schema       | per schema        |
-| [`import-stl`](#import-stl)                                                                         | 3D               | 0                 |
+| [`import-stl`](#import-stl) / [`import-obj`](#import-obj) / [`import-gltf`](#import-gltf)           | 3D               | 0                 |
 
 ## 3D primitives
 
@@ -428,7 +428,14 @@ The Lua code returns a sub-DAG as a `NodeDoc` table. The engine recursively eval
 
 Decoder nodes are content-addressable leaves: zero children, output produced by parsing an external binary blob keyed by hash. The DAG only references the blob's hash; the bytes are pushed separately to the worker via `client.putMeshBlob(hash, bytes)` and resolved at evaluation time.
 
-This is a third node-type "kind" alongside kernel-backed and expandable (Lua) nodes. The shared interface (`DecoderNodeType`) is what 3MF and glTF readers will plug into next; `import-stl` is the first decoder shipping.
+This is a third node-type "kind" alongside kernel-backed and expandable (Lua) nodes. The shared interface (`DecoderNodeType`) is what 3MF readers will plug into next; three formats ship today: `import-stl`, `import-obj`, `import-gltf`. All three:
+
+- Take exactly one param — `blobHash` — and zero children.
+- Output a 3D mesh that participates in the cache like any other (a cached import skips both blob fetch and decode).
+- Drop every non-geometric layer the source format may carry: materials, colors, texture coordinates, normals, animations, skins. Yacad recomputes normals at render time and treats the imported mesh as plain triangles.
+- Flatten multi-mesh / multi-group files into one merged Mesh. Preserving hierarchy as N editable yacad nodes is a separate `*-scene` expandable node family planned as a follow-up.
+
+The hex SHA-256 of the blob is the cache identity; editing the bytes (or the params) invalidates that node and its ancestors only. Each format exports a `hash*Blob(bytes)` helper that wraps the shared `Hasher`.
 
 ### `import-stl`
 
@@ -441,13 +448,47 @@ Imports a binary STL blob as a 3D mesh.
 }
 ```
 
-- `blobHash`: required non-empty string. The hex SHA-256 of the binary STL bytes, as produced by `hashStlBlob(bytes)` (a thin wrapper over the shared `Hasher`).
+- `blobHash`: required non-empty string. The hex SHA-256 of the binary STL bytes, as produced by `hashStlBlob(bytes)`.
 
 The decoder welds vertices by exact position so the resulting mesh has proper face adjacency — STL stores each triangle as three independent vertices, throwing away the indexing the original kernel had. Welding is **information recovery**, not "repair"; topological repair (hole filling, normal reorientation, self-intersection resolution) is a separate concern that will arrive as a `repair-mesh` transform node.
 
-The output is a 3D mesh that participates in the cache like any other: a cached `import-stl` skips both blob fetch and decode. Composing the import with a boolean (`difference`, `intersection`) is the "remix" entry point — once an STL is welded through Manifold's constructor it can act as input to the regular kernel ops.
-
 ASCII STL is **not** accepted. Convert to binary before importing.
+
+### `import-obj`
+
+Imports a Wavefront OBJ text blob as a 3D mesh.
+
+```json
+{
+  "type": "import-obj",
+  "params": { "blobHash": "<sha256 of OBJ bytes>" }
+}
+```
+
+- `blobHash`: required non-empty string, produced by `hashObjBlob(bytes)`.
+
+Parses `v` (vertex) and `f` (face) lines. `vn`/`vt` (normals, texcoords), `o`/`g`/`s` (object/group/smoothing-group labels), `mtllib`/`usemtl` (materials) are silently dropped. n-gon faces are fan-triangulated from the first vertex (correct for convex polygons, which dominate game-asset OBJs). Negative face indices follow the OBJ spec (relative-from-end). The `f a/b/c` syntax is accepted but only the position index is used.
+
+CRLF line endings (Windows-saved files) are handled. Comments (`#` to end of line) and blank lines are ignored.
+
+### `import-gltf`
+
+Imports a binary glTF blob (`.glb`) as a 3D mesh by flattening the default scene.
+
+```json
+{
+  "type": "import-gltf",
+  "params": { "blobHash": "<sha256 of glb bytes>" }
+}
+```
+
+- `blobHash`: required non-empty string, produced by `hashGltfBlob(bytes)`.
+
+Walks the default scene's node hierarchy; every node that holds a mesh contributes its primitives transformed by that node's world matrix (so the resulting Mesh is in scene-space, with all rotations / scales / translations baked in). Multiple meshes merge into one combined buffer.
+
+Only `TRIANGLES` primitives (mode 4) are accepted; `LINES` / `POINTS` / `TRIANGLE_STRIP` / `TRIANGLE_FAN` throw. Non-indexed primitives are accepted (synthesized `0..N-1` indices). Materials, animations, skins, textures, morph targets, and non-default scenes are dropped.
+
+JSON glTF (`.gltf` with external `.bin` files) is **not** accepted — export as embedded `.glb` before importing. Parsing uses [`@gltf-transform/core`](https://github.com/donmccurdy/glTF-Transform) (in-worker; adds ~75 KB minified to the worker bundle).
 
 ## Validation behavior
 
@@ -462,7 +503,7 @@ ASCII STL is **not** accepted. Convert to binary before importing.
 - N-ary ops (`union`/`difference`/`intersection`/`hull`) require ≥minChildren of all-same-dimension; mixed-dimension children are rejected.
 - Primitive nodes require zero children.
 - For `lua` nodes: `definitionHash` must resolve to a loaded `LuaDefinition`, `values` must satisfy the schema, and children must match `schema.inputs` (arity + output types).
-- For `import-stl` nodes: `blobHash` must be a non-empty string; the referenced blob must be registered (via `client.putMeshBlob(hash, bytes)`) before evaluation. Missing blob → evaluation error, not a build-time error: the DAG is constructed without resolving the blob, so blob upload and graph construction can interleave.
+- For mesh-import nodes (`import-stl`, `import-obj`, `import-gltf`): `blobHash` must be a non-empty string; the referenced blob must be registered (via `client.putMeshBlob(hash, bytes)`) before evaluation. Missing blob → evaluation error, not a build-time error: the DAG is constructed without resolving the blob, so blob upload and graph construction can interleave.
 
 ## Determinism and hashing
 
@@ -470,5 +511,5 @@ ASCII STL is **not** accepted. Convert to binary before importing.
 - Stable canonicalization (sorted keys, normalized numbers) is critical for cache hits.
 - Node `id` is authoring identity and is **not** part of the semantic hash.
 - LuaNodes hash as `hash("lua", canonical({definitionHash, values}), child_hashes)` — the standard recipe, with `definitionHash` carrying the source identity.
-- Decoder nodes (e.g. `import-stl`) hash as `hash("import-stl", canonical({blobHash}), [])` — the blob's content hash flows through `params`, so editing the bytes invalidates only that one node and its ancestors.
+- Decoder nodes (`import-stl`, `import-obj`, `import-gltf`) hash as `hash(type, canonical({blobHash}), [])` — the blob's content hash flows through `params`, so editing the bytes invalidates only that one node and its ancestors. The same bytes uploaded under both `import-obj` and `import-gltf` would produce different cache entries (different `type` in the preimage) even with identical `blobHash`, which is the correct outcome since the decoders disagree on what the bytes mean.
 - 2D outputs cache under `crossSection` artifact kind; 3D under `mesh`. Nodes of different output types with colliding `semanticHash` never share storage.

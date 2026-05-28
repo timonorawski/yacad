@@ -11,6 +11,8 @@
     { "path": "packages/worker" },
     { "path": "packages/render" },
     { "path": "packages/export-stl" },
-    { "path": "packages/import-stl" }
+    { "path": "packages/import-stl" },
+    { "path": "packages/import-obj" },
+    { "path": "packages/import-gltf" }
   ]
 }
