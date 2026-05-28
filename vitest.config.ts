@@ -16,6 +16,7 @@ export default defineConfig({
       '@yacad/hash': pkg('hash'),
       '@yacad/geometry': pkg('geometry'),
       '@yacad/dag': pkg('dag'),
+      '@yacad/doc-store': pkg('doc-store'),
       '@yacad/cache': pkg('cache'),
       '@yacad/kernel-manifold': pkg('kernel-manifold'),
       '@yacad/engine': pkg('engine'),
@@ -26,6 +27,7 @@ export default defineConfig({
       '@yacad/import-stl': pkg('import-stl'),
       '@yacad/import-obj': pkg('import-obj'),
       '@yacad/import-gltf': pkg('import-gltf'),
+      '@yacad/vfs': pkg('vfs'),
       // Sub-path alias for the shared E2E fixtures (used by bench/lua.bench.ts)
       '@yacad/e2e/fixtures': pkgFile('e2e', 'fixtures.ts'),
     },

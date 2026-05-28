@@ -1,0 +1,16 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    { "path": "../canonical" },
+    { "path": "../dag" },
+    { "path": "../hash" },
+    { "path": "../lua" },
+    { "path": "../vfs" }
+  ]
+}
