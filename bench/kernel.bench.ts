@@ -9,23 +9,25 @@
  */
 import { beforeAll, bench, describe } from 'vitest';
 import { buildGraph, type Node } from '@yacad/dag';
-import { type Mesh } from '@yacad/geometry';
+import { type Geometry } from '@yacad/geometry';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 
 let kernel: ManifoldKernel;
 let boxNode: Node;
 let diffNode: Node;
-let boxMesh: Mesh;
-let sphereMesh: Mesh;
+// The boolean bench feeds its children's already-evaluated geometries, which
+// is what the engine passes the kernel — Geometry, not raw Mesh.
+let boxGeo: Geometry;
+let sphereGeo: Geometry;
 
 beforeAll(async () => {
   kernel = new ManifoldKernel(await loadManifold());
 
   boxNode = await buildGraph({ type: 'box', params: { size: [10, 10, 10], center: true } });
-  boxMesh = kernel.evaluate(boxNode, []);
+  boxGeo = await kernel.evaluate(boxNode, []);
 
   const sphereNode = await buildGraph({ type: 'sphere', params: { radius: 6, segments: 32 } });
-  sphereMesh = kernel.evaluate(sphereNode, []);
+  sphereGeo = await kernel.evaluate(sphereNode, []);
 
   diffNode = await buildGraph({
     type: 'difference',
@@ -37,11 +39,11 @@ beforeAll(async () => {
 });
 
 describe('ManifoldKernel.evaluate', () => {
-  bench('primitive — box', () => {
-    kernel.evaluate(boxNode, []);
+  bench('primitive — box', async () => {
+    await kernel.evaluate(boxNode, []);
   });
 
-  bench('boolean — difference(box, sphere)', () => {
-    kernel.evaluate(diffNode, [boxMesh, sphereMesh]);
+  bench('boolean — difference(box, sphere)', async () => {
+    await kernel.evaluate(diffNode, [boxGeo, sphereGeo]);
   });
 });
