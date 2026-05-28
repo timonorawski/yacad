@@ -4,6 +4,7 @@
   import { meshToBinaryStl } from '@yacad/export-stl';
   import type { Mesh } from '@yacad/geometry';
   import { defaultHasher } from '@yacad/hash';
+  import { hashStlBlob } from '@yacad/import-stl';
   import { hashLuaDefinition } from '@yacad/lua';
   import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION } from '@yacad/e2e/fixtures';
   import { Viewport } from '@yacad/render';
@@ -70,6 +71,17 @@
     await client.putLuaDefinition(hash, def);
   }
 
+  // Mesh-blob hashes for sample import-stl scenes — populated on mount.
+  let sampleStlHash = $state('');
+  const pushedMeshBlobs = new Set<string>();
+
+  /** Push a mesh blob to the worker exactly once per hash. */
+  async function ensureMeshBlob(hash: string, bytes: Uint8Array): Promise<void> {
+    if (!hash || pushedMeshBlobs.has(hash)) return;
+    pushedMeshBlobs.add(hash);
+    await client.putMeshBlob(hash, bytes);
+  }
+
   // Stress-test scene generators — too verbose or too parametric to keep as
   // static files, so they're built on demand for the picker. They mirror the
   // graphs exercised by the e2e torture suite (packages/e2e/src/torture.test.ts).
@@ -123,6 +135,57 @@
       { type: 'box', params: { size: [20, 20, 40], center: true } },
     ],
   };
+
+  // Sample binary STL: a unit cube of side 20, centered, encoded via the same
+  // @yacad/export-stl encoder we ship — so users can see the export → import
+  // round-trip work in the studio. Generated at module load.
+  const SAMPLE_STL_BYTES: Uint8Array = (() => {
+    const cubeMesh: Mesh = {
+      vertices: new Float32Array([
+        -10, -10, -10 /* 0 */, 10, -10, -10 /* 1 */, -10, 10, -10 /* 2 */, 10, 10, -10 /* 3 */, -10,
+        -10, 10 /* 4 */, 10, -10, 10 /* 5 */, -10, 10, 10 /* 6 */, 10, 10, 10 /* 7 */,
+      ]),
+      indices: new Uint32Array([
+        0,
+        2,
+        3,
+        0,
+        3,
+        1, // bottom (-z)
+        4,
+        5,
+        7,
+        4,
+        7,
+        6, // top    (+z)
+        0,
+        1,
+        5,
+        0,
+        5,
+        4, // front  (-y)
+        2,
+        6,
+        7,
+        2,
+        7,
+        3, // back   (+y)
+        0,
+        4,
+        6,
+        0,
+        6,
+        2, // left   (-x)
+        1,
+        3,
+        7,
+        1,
+        7,
+        5, // right  (+x)
+      ]),
+    };
+    return meshToBinaryStl(cubeMesh);
+  })();
 
   /** Tiny deterministic PRNG so wobble stays reproducible for the same seed. */
   function mulberry32(seed: number): () => number {
@@ -259,6 +322,34 @@
     },
   ]);
 
+  // Mesh-import scenes: blob-leaf nodes whose bytes the studio uploads via
+  // client.putMeshBlob before evaluation (the worker holds the blob registry).
+  const meshImportScenes = $derived([
+    {
+      id: 'import-stl-cube',
+      label: 'Import: cube (binary STL)',
+      text: pretty({
+        type: 'import-stl',
+        params: { blobHash: sampleStlHash },
+      } as NodeDoc),
+      blobHash: sampleStlHash,
+      blobBytes: SAMPLE_STL_BYTES,
+    },
+    {
+      id: 'import-stl-cube-minus-sphere',
+      label: 'Import: cube STL − sphere (remix)',
+      text: pretty({
+        type: 'difference',
+        children: [
+          { type: 'import-stl', params: { blobHash: sampleStlHash } },
+          { type: 'sphere', params: { radius: 7, segments: 48 } },
+        ],
+      } as NodeDoc),
+      blobHash: sampleStlHash,
+      blobBytes: SAMPLE_STL_BYTES,
+    },
+  ]);
+
   const sceneLibrary = [
     { id: 'default', label: 'Default: box - sphere', text: DEFAULT_DOC },
     { id: 'box', label: 'Primitive: box', text: sceneBox },
@@ -336,6 +427,10 @@
     void hashLuaDefinition(ARRAY_ALONG_X_DEFINITION, defaultHasher).then((h) => {
       arrayAlongXHash = h;
     });
+    // Pre-compute the sample STL blob's hash so its picker entry text resolves.
+    void hashStlBlob(SAMPLE_STL_BYTES).then((h) => {
+      sampleStlHash = h;
+    });
 
     void evaluate();
 
@@ -370,13 +465,18 @@
   async function pickScene(id: string): Promise<void> {
     const staticScene = sceneLibrary.find((entry) => entry.id === id);
     const luaScene = luaScenes.find((entry) => entry.id === id);
-    const scene = staticScene ?? luaScene;
+    const meshScene = meshImportScenes.find((entry) => entry.id === id);
+    const scene = staticScene ?? luaScene ?? meshScene;
     if (!scene) return;
     selectedScene = scene.id;
     text = JSON.stringify(JSON.parse(scene.text), null, 2);
     // For Lua scenes, push the definition to the worker before evaluating.
     if (luaScene) {
       await ensureLuaDefinition(luaScene.defHash, luaScene.def);
+    }
+    // For mesh-import scenes, push the blob to the worker before evaluating.
+    if (meshScene) {
+      await ensureMeshBlob(meshScene.blobHash, meshScene.blobBytes);
     }
     void evaluate();
   }
@@ -446,6 +546,9 @@
             <option value={scene.id}>{scene.label}</option>
           {/each}
           {#each luaScenes as scene}
+            <option value={scene.id}>{scene.label}</option>
+          {/each}
+          {#each meshImportScenes as scene}
             <option value={scene.id}>{scene.label}</option>
           {/each}
         </select>

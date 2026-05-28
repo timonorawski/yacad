@@ -47,6 +47,9 @@ importers:
       '@yacad/export-stl':
         specifier: workspace:*
         version: link:../../packages/export-stl
+      '@yacad/import-stl':
+        specifier: workspace:*
+        version: link:../../packages/import-stl
       '@yacad/render':
         specifier: workspace:*
         version: link:../../packages/render

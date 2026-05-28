@@ -14,6 +14,7 @@
   "dependencies": {
     "@yacad/dag": "workspace:*",
     "@yacad/export-stl": "workspace:*",
+    "@yacad/import-stl": "workspace:*",
     "@yacad/render": "workspace:*",
     "@yacad/worker": "workspace:*",
     "manifold-3d": "^3.5.0",
