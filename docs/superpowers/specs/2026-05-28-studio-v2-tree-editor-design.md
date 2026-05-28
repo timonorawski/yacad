@@ -260,6 +260,13 @@ The seeded documents are **canonical** NodeDoc representations — the same JSON
 
 Forward-looking: versioned seeding (a future studio release adds new examples retroactively) requires an indicator key in the VFS so the seeder knows which versions it has applied. Out of spec 2 scope — when we want this, add a `/seed-version` key under VFS and a per-version delta.
 
+**Phase 2.1 — scene-library audit + headline examples.** After spec 2 implementation lands, do a focused pass on the example library:
+
+1. **Feature-coverage audit.** Walk every registered node type (kernel, Lua, decoder) and verify at least one seed scene exercises it — particularly the 2D-layer node types and the mesh-import decoders, which are under-represented in v1's library today. Add minimal scenes for any gaps.
+2. **Headline examples.** Build a small set of genuinely complex showcase scenes that exercise the studio's full surface area — a house (walls, windows, roof, parametric room counts), a castle (battlements, towers, courtyard layout), realistic vegetation (a procedural tree with leaves imported from a glTF asset, exercising Lua nodes + mesh-import + booleans + arrays). These double as smoke tests for the editor's ergonomics — if assembling them is painful, that surfaces concrete UX bugs to fix.
+
+Both items live in this same `seed-scenes.ts` module; they're additive to the initial seeded set.
+
 ## Validation feedback
 
 - **Field-level:** form fields render an error state (red border, tooltip) when the most recent `session.mutate` rejected with a buildGraph error pointing at that node + param. The doc state is unchanged; the field keeps its local edit.
