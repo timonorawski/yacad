@@ -147,3 +147,38 @@ describe('Phase 1 — geo.X aliases', () => {
     }
   });
 });
+
+describe('Phase 2 — sandbox identifier check', () => {
+  it('flags os/io/require/load/dofile/print/_G/_ENV as sandbox-violation', () => {
+    for (const id of ['os', 'io', 'require', 'load', 'dofile', 'print', '_G', '_ENV']) {
+      try {
+        validateLuaSource(def(`return ${id}`));
+        throw new Error(`expected throw for ${id}`);
+      } catch (e) {
+        const err = e as LuaValidationError;
+        const sv = err.issues.filter((i) => i.category === 'sandbox-violation');
+        expect(sv.length).toBeGreaterThan(0);
+        expect(sv.some((i) => i.identifier === id)).toBe(true);
+      }
+    }
+  });
+
+  it('allows whitelisted identifiers', () => {
+    for (const id of ['math', 'string', 'table', 'pairs', 'ipairs', 'pcall', 'tostring', 'type']) {
+      const d = def(`local x = ${id}\nreturn { type = "box" }`);
+      expect(() => validateLuaSource(d)).not.toThrow();
+    }
+  });
+
+  it('does not double-report on tainted locals', () => {
+    try {
+      validateLuaSource(def('local p = params\nreturn p.foo'));
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const aliases = err.issues.filter((i) => i.category === 'unanalyzable-alias');
+      const sv = err.issues.filter((i) => i.category === 'sandbox-violation');
+      expect(aliases.length).toBe(1);
+      expect(sv.length).toBe(0);
+    }
+  });
+});

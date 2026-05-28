@@ -1,5 +1,6 @@
 import * as luaparse from 'luaparse';
 import type { LuaDefinition } from './schema';
+import { SANDBOX_GLOBALS } from './sandbox-globals';
 
 export type ValidationCategory =
   | 'unparseable'
@@ -66,8 +67,7 @@ export function validateLuaSource(def: LuaDefinition): void {
   const tainted = new Set<string>();
   walkPhase1(ast, scope, tainted, issues);
 
-  // Phase 2 walker lands in subsequent tasks. For now, only Phase 1 issues
-  // are collected.
+  walkPhase2(ast, scope, tainted, issues);
 
   if (issues.length > 0) {
     throw new LuaValidationError(issues);
@@ -213,6 +213,103 @@ function aliasMessage(expr: any): string {
     return `aliasing 'geo.${member}' to a local defeats call-shape checks; call 'geo.${member}{...}' directly instead`;
   }
   return 'unanalyzable alias';
+}
+
+function walkPhase2(
+  ast: luaparse.Chunk,
+  scope: Scope,
+  tainted: Set<string>,
+  issues: ValidationIssue[],
+): void {
+  // Re-walk; scope state is shared with Phase 1's stack but rebuilt as we
+  // descend (Phase 1 left it at the root frame).
+  visit(ast);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function visit(node: any): void {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child);
+      return;
+    }
+
+    switch (node.type) {
+      case 'Chunk':
+        for (const s of node.body) visit(s);
+        return;
+
+      case 'LocalStatement': {
+        // Locals are added to scope; init expressions are visited so nested
+        // sandbox checks still happen (e.g., `local x = print()` flags print).
+        for (let i = 0; i < node.variables.length; i++) {
+          if (node.init?.[i]) visit(node.init[i]);
+          scope.declareLocal(node.variables[i].name);
+        }
+        return;
+      }
+
+      case 'FunctionDeclaration': {
+        scope.push();
+        for (const p of node.parameters ?? []) {
+          if (p.type === 'Identifier') scope.declareLocal(p.name);
+        }
+        for (const s of node.body ?? []) visit(s);
+        scope.pop();
+        return;
+      }
+
+      case 'DoStatement':
+      case 'WhileStatement':
+      case 'RepeatStatement':
+      case 'IfStatement':
+      case 'ForNumericStatement':
+      case 'ForGenericStatement': {
+        scope.push();
+        for (const key of Object.keys(node)) {
+          if (key === 'type' || key === 'loc') continue;
+          visit(node[key]);
+        }
+        scope.pop();
+        return;
+      }
+
+      case 'MemberExpression': {
+        // Only check the base for sandbox violations; the index/identifier is a
+        // property name, not a free variable reference.
+        visit(node.base);
+        // When indexer is '[', the index is an expression (free variable); visit it.
+        if (node.indexer === '[') visit(node.index);
+        return;
+      }
+
+      case 'Identifier': {
+        // Free identifier (not part of MemberExpression index / LocalStatement
+        // declarator — those cases skip this by handling Identifier inline).
+        checkIdentifier(node);
+        return;
+      }
+
+      default: {
+        for (const key of Object.keys(node)) {
+          if (key === 'type' || key === 'loc') continue;
+          visit(node[key]);
+        }
+      }
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function checkIdentifier(node: any): void {
+    const name = node.name as string;
+    if (scope.isLocal(name)) return; // tainted locals included — Phase 1 already reported
+    if (SANDBOX_GLOBALS.topLevel.has(name)) return;
+    issues.push({
+      category: 'sandbox-violation',
+      message: `'${name}' is not in the sandbox`,
+      ...locOf(node),
+      identifier: name,
+    });
+  }
 }
 
 function mapParseError(e: unknown): ValidationIssue {
