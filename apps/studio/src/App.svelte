@@ -2,7 +2,10 @@
   import { onMount } from 'svelte';
   import { marked } from 'marked';
   import { meshToBinaryStl } from '@yacad/export-stl';
-  import type { Mesh } from '@yacad/geometry';
+  import { crossSectionToDxf } from '@yacad/export-dxf';
+  import { crossSectionToSvg } from '@yacad/export-svg';
+  import { crossSectionToPngBrowser } from '@yacad/export-png';
+  import type { CrossSection, Mesh } from '@yacad/geometry';
   import { defaultHasher } from '@yacad/hash';
   import { hashStlBlob } from '@yacad/import-stl';
   import { hashLuaDefinition, KERNEL_TYPE_DOCS } from '@yacad/lua';
@@ -65,6 +68,7 @@
   let client: WorkerClient;
   let viewport: Viewport;
   let lastMesh = $state<Mesh | undefined>(undefined);
+  let lastCrossSection = $state<CrossSection | undefined>(undefined);
   // Lazily loaded on first 2D geometry render; cached thereafter.
   let manifoldApi: Awaited<ReturnType<typeof loadManifold>> | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -667,9 +671,11 @@
         manifoldApi ??= await loadManifold({ locateFile: () => wasmUrl });
         viewport.setGeometry(outcome.geometry, manifoldApi);
         lastMesh = undefined;
+        lastCrossSection = outcome.geometry.section;
       } else {
         const mesh = outcome.geometry.mesh;
         lastMesh = mesh;
+        lastCrossSection = undefined;
         viewport.setMesh(mesh);
       }
       stats = outcome.stats;
@@ -686,15 +692,45 @@
     }
   }
 
-  function exportStl(): void {
-    if (!lastMesh) return;
-    const blob = new Blob([meshToBinaryStl(lastMesh)], { type: 'application/octet-stream' });
+  function downloadBytes(
+    bytes: Uint8Array<ArrayBufferLike>,
+    filename: string,
+    mimeType: string,
+  ): void {
+    // Uint8Array<ArrayBufferLike> → BlobPart requires narrowing to ArrayBuffer.
+    // In practice all callers produce ArrayBuffer-backed arrays; assert here.
+    const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'model.stl';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function exportStl(): void {
+    if (!lastMesh) return;
+    downloadBytes(meshToBinaryStl(lastMesh), 'model.stl', 'application/octet-stream');
+  }
+
+  function exportDxf(): void {
+    if (!lastCrossSection) return;
+    downloadBytes(crossSectionToDxf(lastCrossSection), 'section.dxf', 'application/octet-stream');
+  }
+
+  function exportSvg(): void {
+    if (!lastCrossSection) return;
+    downloadBytes(crossSectionToSvg(lastCrossSection), 'section.svg', 'image/svg+xml');
+  }
+
+  async function exportPng(): Promise<void> {
+    if (!lastCrossSection) return;
+    const bytes = await crossSectionToPngBrowser(lastCrossSection, {
+      width: 800,
+      height: 800,
+      background: '#fff',
+    });
+    downloadBytes(bytes, 'section.png', 'image/png');
   }
 </script>
 
@@ -736,6 +772,9 @@
       <div class="toolbar">
         <button class="ghost" onclick={() => void evaluate()}>Evaluate</button>
         <button onclick={exportStl} disabled={!lastMesh}>Export STL</button>
+        <button onclick={exportDxf} disabled={!lastCrossSection}>Export DXF</button>
+        <button onclick={exportSvg} disabled={!lastCrossSection}>Export SVG</button>
+        <button onclick={exportPng} disabled={!lastCrossSection}>Export PNG</button>
         <span class="status" class:error={status === 'error'}>
           {#if status === 'evaluating'}Evaluating…{:else if status === 'error'}{error}{:else}Ready{/if}
         </span>

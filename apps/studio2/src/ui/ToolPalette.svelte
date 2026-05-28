@@ -43,10 +43,9 @@
       // when the resolver has the definition. Try via the session's blobs.
       const blobs = session.session.blobs;
       try {
-        return def.resolveOutput(
-          (selectedNode?.params ?? {}) as Record<string, unknown>,
-          { get: (h) => blobs.get(h) },
-        );
+        return def.resolveOutput((selectedNode?.params ?? {}) as Record<string, unknown>, {
+          get: (h) => blobs.get(h),
+        });
       } catch {
         return undefined;
       }
@@ -177,10 +176,8 @@
       <div class="wrap-empty">no wrappers accept this node</div>
     {:else}
       {#each candidates as w (w.type)}
-        <button
-          type="button"
-          title={w.summary}
-          onclick={() => void wrapWithType(w.type, w.params)}>{w.type}</button
+        <button type="button" title={w.summary} onclick={() => void wrapWithType(w.type, w.params)}
+          >{w.type}</button
         >
       {/each}
     {/if}

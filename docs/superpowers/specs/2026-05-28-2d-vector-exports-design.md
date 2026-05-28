@@ -1,6 +1,6 @@
 # 2D vector exports design (DXF / SVG / PNG)
 
-**Status**: design approved, awaiting implementation plan
+**Status**: implemented
 **Date**: 2026-05-28
 **Scope**: Three new exporters — DXF, SVG, PNG — operating on `CrossSection`. Smallest-possible package surface that unlocks "slice a 3D part → export the section for laser cutting / documentation / wiki embedding."
 
@@ -215,7 +215,7 @@ function download(bytes: Uint8Array, filename: string, mimeType: string): void {
 }
 ```
 
-Per format: DXF → `image/vnd.dxf`, SVG → `image/svg+xml`, PNG → `image/png`.
+Per format: DXF → `application/octet-stream` (forces download; `image/vnd.dxf` was considered but can trigger inline DXF-viewer plugins in some browsers), SVG → `image/svg+xml`, PNG → `image/png`.
 
 ## Error handling
 
@@ -231,12 +231,9 @@ Not an error — matches the convention that an empty section is a valid result 
 
 ### Degenerate polygon (vertex count < 3 or all-collinear)
 
-Shouldn't happen for a valid `CrossSection` from Manifold. If it does:
+Shouldn't happen for a valid `CrossSection` from Manifold. All three exporters throw `ExportError("polygon ${p} has fewer than 3 vertices (got ${n})")` if any polygon has fewer than 3 vertices. Explicit failure beats silently emitting malformed entities that downstream tools handle inconsistently.
 
-- **DXF**: emits the polyline anyway (DXF readers tolerate 2-vertex "polylines" as line segments).
-- **SVG/PNG**: emits the path; degenerate paths render as nothing or a line.
-
-No throw — garbage-in-garbage-out at this layer.
+All-collinear polygons (≥3 vertices but zero area) are not rejected — they emit a path that renders as a line. That's acceptable: the input is geometrically valid, the output is just visually degenerate.
 
 ### Non-finite coordinates (NaN, Infinity)
 

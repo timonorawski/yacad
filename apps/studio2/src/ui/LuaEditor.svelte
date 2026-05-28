@@ -75,11 +75,8 @@
     <div class="lua-editor-actions">
       <button type="button" onclick={onOpenApiRef}>API reference</button>
       <button type="button" disabled={!dirty || saving} onclick={revert}>Revert</button>
-      <button
-        type="button"
-        class="primary"
-        disabled={!dirty || saving}
-        onclick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button
+      <button type="button" class="primary" disabled={!dirty || saving} onclick={() => void save()}
+        >{saving ? 'Saving…' : 'Save'}</button
       >
       <button type="button" class="lua-editor-close" onclick={onClose} aria-label="Close editor"
         >×</button

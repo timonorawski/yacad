@@ -108,10 +108,7 @@
   ): Promise<void> {
     if (!session || !editingLuaNodeId || !client) return;
     await session.session.addBlob(newBytes);
-    await client.putLuaDefinition(
-      newHash,
-      newDef as Parameters<typeof client.putLuaDefinition>[1],
-    );
+    await client.putLuaDefinition(newHash, newDef as Parameters<typeof client.putLuaDefinition>[1]);
     await session.session.mutate((prev) =>
       setParam(prev, editingLuaNodeId!, 'definitionHash', newHash),
     );

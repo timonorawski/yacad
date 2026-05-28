@@ -13,6 +13,9 @@
   },
   "dependencies": {
     "@yacad/dag": "workspace:*",
+    "@yacad/export-dxf": "workspace:*",
+    "@yacad/export-png": "workspace:*",
+    "@yacad/export-svg": "workspace:*",
     "@yacad/export-stl": "workspace:*",
     "@yacad/import-stl": "workspace:*",
     "@yacad/render": "workspace:*",
