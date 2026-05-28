@@ -255,3 +255,40 @@ test('Export STL: download is a non-empty .stl file', async ({ page }) => {
   // Clean up.
   fs.unlinkSync(downloadPath);
 });
+
+// ─── test: export button gating by geometry kind ─────────────────────────────
+
+test('export buttons gate by geometry kind: 2D scene enables DXF/SVG/PNG, disables STL', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  await page.getByLabel('Sample scene').selectOption('2d-circle');
+  await waitForReady(page, REEVAL_TIMEOUT);
+
+  await expect(page.getByRole('button', { name: 'Export DXF' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export SVG' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export PNG' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export STL' })).toBeDisabled();
+});
+
+test('export buttons gate by geometry kind: 3D scene enables STL, disables DXF/SVG/PNG', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await waitForReady(page, FIRST_EVAL_TIMEOUT);
+
+  const sceneSelect = page.getByLabel('Sample scene');
+  // Toggle to 2D then back to 3D to ensure the onchange handler fires for the
+  // 3D scene (selectOption is a no-op when the value hasn't changed).
+  await sceneSelect.selectOption('2d-circle');
+  await waitForReady(page, REEVAL_TIMEOUT);
+  await sceneSelect.selectOption('box');
+  await waitForReady(page, REEVAL_TIMEOUT);
+
+  await expect(page.getByRole('button', { name: 'Export STL' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export DXF' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export SVG' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export PNG' })).toBeDisabled();
+});
