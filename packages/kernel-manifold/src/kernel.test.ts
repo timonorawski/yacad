@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildGraph } from '@yacad/dag';
-import { computeBBox, triangleCount, type Mesh } from '@yacad/geometry';
+import { computeBBox, isMesh, triangleCount, type Geometry, type Mesh } from '@yacad/geometry';
 import { ManifoldKernel } from './kernel';
 import { loadManifold } from './loader';
 
@@ -13,12 +13,14 @@ beforeAll(async () => {
 // Evaluate a leaf-or-subtree document by recursively building + evaluating it.
 async function evalDoc(doc: unknown): Promise<Mesh> {
   const node = await buildGraph(doc);
-  const evalNode = (n: typeof node): Mesh =>
+  const evalNode = (n: typeof node): Geometry =>
     kernel.evaluate(
       n,
       n.children.map((c) => evalNode(c)),
     );
-  return evalNode(node);
+  const geometry = evalNode(node);
+  if (!isMesh(geometry)) throw new Error('Expected 3D geometry');
+  return geometry.mesh;
 }
 
 describe('ManifoldKernel', () => {
@@ -93,11 +95,45 @@ describe('ManifoldKernel', () => {
           { type: 'sphere', params: { radius: 6, segments: 48 } },
         ],
       });
-      const childMeshes = node.children.map((c) => kernel.evaluate(c, []));
-      const a = kernel.evaluate(node, childMeshes);
-      const b = kernel.evaluate(node, childMeshes);
-      expect(a.vertices).toEqual(b.vertices);
-      expect(a.indices).toEqual(b.indices);
+      const childGeometries = node.children.map((c) => kernel.evaluate(c, []));
+      const a = kernel.evaluate(node, childGeometries);
+      const b = kernel.evaluate(node, childGeometries);
+      if (!isMesh(a) || !isMesh(b)) throw new Error('Expected 3D geometry');
+      expect(a.mesh.vertices).toEqual(b.mesh.vertices);
+      expect(a.mesh.indices).toEqual(b.mesh.indices);
     });
   });
+});
+
+it('returns Geometry with kind="3d" for box', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const node = await buildGraph({ type: 'box', params: { size: [10, 10, 10], center: true } });
+  const { geometry } = kernel.evaluateTimed(node, []);
+  expect(geometry.kind).toBe('3d');
+  if (isMesh(geometry)) {
+    expect(geometry.mesh.indices.length).toBeGreaterThan(0);
+  }
+});
+
+it('evaluateTimed propagates child Geometry to handler', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const boxNode = await buildGraph({
+    type: 'box',
+    params: { size: [10, 10, 10], center: true },
+  });
+  const sphereNode = await buildGraph({
+    type: 'sphere',
+    params: { radius: 6, segments: 32 },
+  });
+  const diffNode = await buildGraph({
+    type: 'difference',
+    children: [
+      { type: 'box', params: { size: [10, 10, 10], center: true } },
+      { type: 'sphere', params: { radius: 6, segments: 32 } },
+    ],
+  });
+  const boxGeo = kernel.evaluateTimed(boxNode, []).geometry;
+  const sphereGeo = kernel.evaluateTimed(sphereNode, []).geometry;
+  const { geometry } = kernel.evaluateTimed(diffNode, [boxGeo, sphereGeo]);
+  expect(geometry.kind).toBe('3d');
 });

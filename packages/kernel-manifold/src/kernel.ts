@@ -1,6 +1,6 @@
 import { type Manifold as Solid, type ManifoldToplevel } from 'manifold-3d';
 import type { Node, Vec3 } from '@yacad/dag';
-import type { Mesh } from '@yacad/geometry';
+import type { Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
 
 /** Wall-clock breakdown of one kernel evaluation, in milliseconds. */
@@ -14,21 +14,36 @@ export interface KernelTimings {
 }
 
 export interface KernelResult {
-  readonly mesh: Mesh;
+  readonly geometry: Geometry;
   readonly timings: KernelTimings;
 }
 
 /**
- * Evaluates one DAG node to a mesh, given its children's already-evaluated
- * meshes. Deterministic given its inputs (CLAUDE.md #2): no clock, RNG, or I/O.
+ * Evaluates one DAG node to a geometry, given its children's already-evaluated
+ * geometries. Deterministic given its inputs (CLAUDE.md #2): no clock, RNG, or I/O.
  */
 export interface Kernel {
   readonly name: string;
   readonly version: string;
-  /** Evaluate to a mesh. */
-  evaluate(node: Node, childMeshes: readonly Mesh[]): Mesh;
-  /** Evaluate to a mesh plus a per-phase timing breakdown. */
-  evaluateTimed(node: Node, childMeshes: readonly Mesh[]): KernelResult;
+  /** Evaluate to a geometry. */
+  evaluate(node: Node, childGeometries: readonly Geometry[]): Geometry;
+  /** Evaluate to a geometry plus a per-phase timing breakdown. */
+  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): KernelResult;
+}
+
+/** Thrown when a node receives a child geometry of the wrong kind. */
+class KernelError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KernelError';
+  }
+}
+
+function asMesh(g: Geometry, nodeId: string, i: number): Mesh {
+  if (g.kind !== '3d') {
+    throw new KernelError(`node ${nodeId}: expected 3D child at index ${i}, got 2D`);
+  }
+  return g.mesh;
 }
 
 /**
@@ -46,15 +61,17 @@ export class ManifoldKernel implements Kernel {
 
   constructor(private readonly api: ManifoldToplevel) {}
 
-  evaluate(node: Node, childMeshes: readonly Mesh[]): Mesh {
-    return this.evaluateTimed(node, childMeshes).mesh;
+  evaluate(node: Node, childGeometries: readonly Geometry[]): Geometry {
+    return this.evaluateTimed(node, childGeometries).geometry;
   }
 
-  evaluateTimed(node: Node, childMeshes: readonly Mesh[]): KernelResult {
+  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): KernelResult {
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
     const importStart = performance.now();
-    const childSolids = childMeshes.map((m) => this.toSolid(m));
+    const childSolids = childGeometries.map((g, i) =>
+      this.toSolid(asMesh(g, node.id, i)),
+    );
     const importMs = performance.now() - importStart;
 
     const opStart = performance.now();
@@ -69,7 +86,10 @@ export class ManifoldKernel implements Kernel {
     const exportStart = performance.now();
     try {
       const mesh = this.toMesh(result);
-      return { mesh, timings: { importMs, opMs, exportMs: performance.now() - exportStart } };
+      return {
+        geometry: { kind: '3d', mesh },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
     } finally {
       result.delete();
     }
