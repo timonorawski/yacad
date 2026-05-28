@@ -6,3 +6,5 @@ export * from './geo';
 export * from './wasmoon-runtime';
 export * from './node-type';
 export * from './geo-docs';
+export * from './sandbox-globals';
+export * from './static-analyze';
