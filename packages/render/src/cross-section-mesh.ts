@@ -3,7 +3,10 @@ import type { CrossSection } from '@yacad/geometry';
 
 /** Minimal slice of the Manifold API needed for 2D triangulation. */
 export interface TriangulateApi {
-  triangulate(polygons: [number, number][] | [number, number][][], epsilon?: number): [number, number, number][];
+  triangulate(
+    polygons: [number, number][] | [number, number][][],
+    epsilon?: number,
+  ): [number, number, number][];
 }
 
 /**
@@ -30,9 +33,7 @@ export function crossSectionToBufferGeometry(
   // Vec3[] where each Vec3 is [i0, i1, i2] referencing the flattened polygon
   // points in order. Cast the readonly nested arrays to the mutable form
   // Manifold's API expects.
-  const triVec3 = api.triangulate(
-    polygons as unknown as [number, number][][],
-  );
+  const triVec3 = api.triangulate(polygons as unknown as [number, number][][]);
 
   // Flatten [i0, i1, i2][] → Uint32Array for THREE.BufferGeometry.setIndex.
   const indices = new Uint32Array(triVec3.length * 3);

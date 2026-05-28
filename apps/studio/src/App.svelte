@@ -5,7 +5,11 @@
   import type { Mesh } from '@yacad/geometry';
   import { defaultHasher } from '@yacad/hash';
   import { hashLuaDefinition } from '@yacad/lua';
-  import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION, FLOWER_DEFINITION } from '@yacad/e2e/fixtures';
+  import {
+    GEAR_DEFINITION,
+    ARRAY_ALONG_X_DEFINITION,
+    FLOWER_DEFINITION,
+  } from '@yacad/e2e/fixtures';
   import { Viewport, geometryToObject3D } from '@yacad/render';
   import { loadManifold } from '@yacad/kernel-manifold';
   import { WorkerClient, type EvaluateOutcome } from '@yacad/worker';
@@ -272,9 +276,7 @@
       text: pretty({
         type: 'extrude',
         params: { height: 3 },
-        children: [
-          { type: 'lua', params: { definitionHash: flowerHash, values: {} } },
-        ],
+        children: [{ type: 'lua', params: { definitionHash: flowerHash, values: {} } }],
       } as NodeDoc),
       defHash: flowerHash,
       def: FLOWER_DEFINITION,
@@ -295,7 +297,11 @@
     { id: '2d-spline-star', label: '2D: spline star', text: sceneSplineStar },
     { id: '2d-rounded-rect', label: '2D: rounded rectangle', text: sceneRoundedRect },
     { id: '3d-extruded-gear', label: '3D: extruded gear (declarative)', text: sceneExtrudedGear },
-    { id: '3d-revolved-vase', label: '3D: revolved vase (spline profile)', text: sceneRevolvedVase },
+    {
+      id: '3d-revolved-vase',
+      label: '3D: revolved vase (spline profile)',
+      text: sceneRevolvedVase,
+    },
     { id: 'edge-tangent', label: 'Edge case: tangent sphere/box', text: sceneTangent },
     { id: 'edge-shared-face', label: 'Edge case: shared-face cubes', text: sceneSharedFace },
     { id: 'edge-interior-void', label: 'Edge case: interior void', text: sceneInteriorVoid },

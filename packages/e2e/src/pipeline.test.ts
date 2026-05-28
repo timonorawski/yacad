@@ -16,10 +16,7 @@ describe('scene → STL pipeline', () => {
 
         if (run.geometry.kind === '2d') {
           // 2D scenes: check for non-empty polygon output; no STL produced.
-          const totalVerts = run.geometry.section.polygons.reduce(
-            (n, p) => n + p.length,
-            0,
-          );
+          const totalVerts = run.geometry.section.polygons.reduce((n, p) => n + p.length, 0);
           expect(totalVerts).toBeGreaterThan(0);
           expect(run.stl).toBeNull();
         } else {
