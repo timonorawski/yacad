@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { blobKey, docKey, listBlobsPrefix, listDocsPrefix, metaKey, parseDocId } from './paths';
+import {
+  blobHashFromKey,
+  blobKey,
+  docKey,
+  listBlobsPrefix,
+  listDocsPrefix,
+  metaKey,
+  parseDocId,
+} from './paths';
 
 describe('paths', () => {
   it('metaKey produces /docs/{id}/meta.json', () => {
@@ -29,5 +37,15 @@ describe('paths', () => {
   it('parseDocId returns undefined for non-matching keys', () => {
     expect(parseDocId('/other/foo')).toBeUndefined();
     expect(parseDocId('/docs/abc-123/blobs/deadbeef.bin')).toBeUndefined();
+  });
+
+  it('blobHashFromKey extracts the hash from a blob key', () => {
+    expect(blobHashFromKey('abc-123', '/docs/abc-123/blobs/deadbeef.bin')).toBe('deadbeef');
+  });
+
+  it('blobHashFromKey returns undefined for non-matching keys', () => {
+    expect(blobHashFromKey('abc-123', '/docs/abc-123/meta.json')).toBeUndefined();
+    expect(blobHashFromKey('abc-123', '/docs/other-id/blobs/x.bin')).toBeUndefined();
+    expect(blobHashFromKey('abc-123', '/docs/abc-123/blobs/.bin')).toBeUndefined();
   });
 });

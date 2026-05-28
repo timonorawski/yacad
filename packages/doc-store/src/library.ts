@@ -53,7 +53,15 @@ export class DocLibrary {
     const doc: NodeDoc = seed ?? DEFAULT_SEED;
     await this.vfs.write(metaKey(id), ENC.encode(JSON.stringify(meta)));
     await this.vfs.write(docKey(id), ENC.encode(JSON.stringify(doc)));
-    return this.open(id, options);
+    const session = await this.open(id, options);
+    if (session.state === 'invalidated') {
+      // Roll back the failed creation so a bad seed doesn't leave an
+      // un-openable document in the library.
+      await session.close();
+      await this.delete(id);
+      throw session.invalidationError ?? new Error(`invalid seed for new document "${name}"`);
+    }
+    return session;
   }
 
   /**

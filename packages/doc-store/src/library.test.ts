@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { NodeDoc } from '@yacad/dag';
 import { MemoryVfs } from '@yacad/vfs';
 import { DocLibrary } from './library';
 import type { BlobUploader } from './types';
@@ -90,5 +91,13 @@ describe('DocLibrary', () => {
 
   it('delete of an unknown id is a no-op (no throw)', async () => {
     await expect(lib.delete('unknown-id')).resolves.toBeUndefined();
+  });
+
+  it('create with an invalid seed throws and removes the partial doc', async () => {
+    await expect(
+      lib.create('Bad', { type: 'not-a-real-type', params: {} } as unknown as NodeDoc),
+    ).rejects.toThrow();
+    const docs = await lib.list();
+    expect(docs).toHaveLength(0);
   });
 });

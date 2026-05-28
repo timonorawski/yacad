@@ -1,7 +1,7 @@
 import { buildGraph, type NodeDoc } from '@yacad/dag';
 import { defaultHasher, type Hash } from '@yacad/hash';
 import type { Vfs } from '@yacad/vfs';
-import { blobKey, docKey, listBlobsPrefix, metaKey } from './paths';
+import { blobHashFromKey, blobKey, docKey, listBlobsPrefix, metaKey } from './paths';
 import type { BlobUploader, DocEvent, DocMeta, SessionOptions } from './types';
 
 const ENC = new TextEncoder();
@@ -86,7 +86,7 @@ export class DocSession {
       if (!hash) continue;
       const bytes = await vfs.read(key);
       if (!bytes) continue;
-      session.blobMap.set(hash, bytes);
+      session.blobMap.set(hash, new Uint8Array(bytes));
     }
 
     // Push blobs the worker doesn't have. Idempotent — re-opens are cheap.
@@ -135,6 +135,7 @@ export class DocSession {
   }
 
   undo(): void {
+    if (this.currentState === 'invalidated') return;
     const prev = this.undoStack.pop();
     if (prev === undefined) return;
     this.redoStack.push(this.currentDoc);
@@ -144,6 +145,7 @@ export class DocSession {
   }
 
   redo(): void {
+    if (this.currentState === 'invalidated') return;
     const next = this.redoStack.pop();
     if (next === undefined) return;
     this.undoStack.push(this.currentDoc);
@@ -238,15 +240,4 @@ export class DocSession {
       }
     }
   }
-}
-
-/**
- * Extract a blob hash from a key of the form `/docs/{id}/blobs/{hash}.bin`,
- * or `undefined` if the key doesn't match the expected shape.
- */
-function blobHashFromKey(id: string, key: string): Hash | undefined {
-  const prefix = `/docs/${id}/blobs/`;
-  const suffix = '.bin';
-  if (!key.startsWith(prefix) || !key.endsWith(suffix)) return undefined;
-  return key.slice(prefix.length, key.length - suffix.length);
 }
