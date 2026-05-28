@@ -39,8 +39,10 @@ export function crossSectionToSvg(cs: CrossSection, opts: SvgOptions = {}): Uint
   // Y-flip: SVG y-axis points down, CAD up. Compute viewBox in flipped space.
   const vbX = bounds.minX - padding;
   const vbY = -bounds.maxY - padding;
-  const vbW = bounds.maxX - bounds.minX + 2 * padding || 2 * padding;
-  const vbH = bounds.maxY - bounds.minY + 2 * padding || 2 * padding;
+  const contentW = bounds.maxX - bounds.minX;
+  const contentH = bounds.maxY - bounds.minY;
+  const vbW = Math.max(contentW + 2 * padding, 1);
+  const vbH = Math.max(contentH + 2 * padding, 1);
 
   let width = opts.width;
   let height = opts.height;
@@ -63,21 +65,30 @@ export function crossSectionToSvg(cs: CrossSection, opts: SvgOptions = {}): Uint
   );
   if (background !== null) {
     lines.push(
-      `  <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${background}"/>`,
+      `  <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${xmlEscape(background)}"/>`,
     );
   }
   lines.push(
-    `  <path d="${pathData}" fill="${fill}" fill-rule="evenodd" stroke="${stroke}" stroke-width="${strokeWidth}"/>`,
+    `  <path d="${pathData}" fill="${xmlEscape(fill)}" fill-rule="evenodd" stroke="${xmlEscape(stroke)}" stroke-width="${strokeWidth}"/>`,
   );
   lines.push('</svg>');
 
   return new TextEncoder().encode(lines.join('\n') + '\n');
 }
 
+/** Escape XML special characters in string attribute values. */
+function xmlEscape(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** Operates on already-validated polygons (validate() guarantees ≥3 vertices each). */
 function buildPathData(cs: CrossSection): string {
   const parts: string[] = [];
   for (const polygon of cs.polygons) {
-    if (polygon.length === 0) continue;
     const [firstX, firstY] = polygon[0]!;
     parts.push(`M${fmt(firstX)} ${fmt(-firstY)}`);
     for (let i = 1; i < polygon.length; i++) {

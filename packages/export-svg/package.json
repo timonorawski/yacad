@@ -19,6 +19,7 @@
     "@yacad/geometry": "workspace:*"
   },
   "devDependencies": {
-    "@yacad/tsconfig": "workspace:*"
+    "@yacad/tsconfig": "workspace:*",
+    "fast-xml-parser": "^4.5.0"
   }
 }

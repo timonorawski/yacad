@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import type { CrossSection } from '@yacad/geometry';
 import { crossSectionToSvg, ExportError } from './svg';
 
@@ -40,6 +41,8 @@ describe('crossSectionToSvg', () => {
     expect(svg).toMatch(/^<\?xml[^>]*\?>/);
     expect(svg).toContain('<svg ');
     expect(svg).toContain('</svg>');
+    expect(svg).toContain('<path');
+    expect(svg).toContain('d=""');
   });
 
   it('emits a single <path> with Y-flipped coordinates for a square', () => {
@@ -144,5 +147,59 @@ describe('crossSectionToSvg', () => {
       ],
     };
     expect(() => crossSectionToSvg(bad)).toThrow(ExportError);
+  });
+
+  // Fix 2: zero-range geometry with padding=0 must not produce NaN/Infinity dimensions
+  it('handles zero-range geometry without producing NaN dimensions', () => {
+    const point: CrossSection = {
+      polygons: [
+        [
+          [5, 5],
+          [5, 5],
+          [5, 5],
+        ],
+      ],
+    };
+    const svg = decode(crossSectionToSvg(point, { padding: 0 }));
+    expect(svg).not.toContain('NaN');
+    expect(svg).not.toContain('Infinity');
+  });
+
+  // Fix 5: XML-special characters in string options must be escaped
+  it('escapes XML-special characters in string options', () => {
+    const svg = decode(crossSectionToSvg(squareCs, { stroke: '"><script', fill: 'a&b' }));
+    expect(svg).not.toContain('"><script');
+    expect(svg).toContain('&quot;');
+    expect(svg).toContain('&amp;');
+  });
+});
+
+describe('crossSectionToSvg (structural validation via fast-xml-parser)', () => {
+  const parseTree = (bytes: Uint8Array): unknown => {
+    const text = new TextDecoder().decode(bytes);
+    const valid = XMLValidator.validate(text);
+    if (valid !== true) {
+      throw new Error(`invalid XML: ${JSON.stringify(valid)}`);
+    }
+    return new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+    }).parse(text);
+  };
+
+  it('produces well-formed XML for an empty CrossSection', () => {
+    expect(() => parseTree(crossSectionToSvg(emptyCs))).not.toThrow();
+  });
+
+  it('produces well-formed XML for a square', () => {
+    expect(() => parseTree(crossSectionToSvg(squareCs))).not.toThrow();
+  });
+
+  it('produces well-formed XML for a square with hole', () => {
+    expect(() => parseTree(crossSectionToSvg(squareWithHoleCs))).not.toThrow();
+  });
+
+  it('produces well-formed XML with background option set', () => {
+    expect(() => parseTree(crossSectionToSvg(squareCs, { background: '#fff' }))).not.toThrow();
   });
 });
