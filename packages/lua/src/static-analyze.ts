@@ -191,14 +191,28 @@ function walkPhase1(
 function isAliasExpr(expr: any): boolean {
   if (!expr) return false;
   if (expr.type === 'Identifier' && SENTINEL_TABLES.has(expr.name)) return true;
-  // Phase 1 catches `local b = geo.something` too — handled in Task 9.
+  // geo.<anything> aliased to a local — defeats call-shape checks.
+  if (
+    expr.type === 'MemberExpression' &&
+    expr.indexer === '.' &&
+    expr.base?.type === 'Identifier' &&
+    expr.base.name === 'geo'
+  ) {
+    return true;
+  }
   return false;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function aliasMessage(expr: any): string {
-  const name = expr.name ?? 'sentinel';
-  return `aliasing '${name}' to a local defeats static analysis; use direct access instead`;
+  if (expr.type === 'Identifier') {
+    return `aliasing '${expr.name}' to a local defeats static analysis; use direct access instead`;
+  }
+  if (expr.type === 'MemberExpression') {
+    const member = expr.identifier?.name ?? '?';
+    return `aliasing 'geo.${member}' to a local defeats call-shape checks; call 'geo.${member}{...}' directly instead`;
+  }
+  return 'unanalyzable alias';
 }
 
 function mapParseError(e: unknown): ValidationIssue {

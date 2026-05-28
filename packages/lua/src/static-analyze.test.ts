@@ -113,3 +113,37 @@ describe('Phase 1 — direct aliases', () => {
     expect(() => validateLuaSource(d)).not.toThrow();
   });
 });
+
+describe('Phase 1 — geo.X aliases', () => {
+  it('rejects local b = geo.box', () => {
+    try {
+      validateLuaSource(def('local b = geo.box\nreturn { type = "box" }'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const aliases = err.issues.filter((i) => i.category === 'unanalyzable-alias');
+      expect(aliases.length).toBe(1);
+      expect(aliases[0]!.identifier).toBe('b');
+    }
+  });
+
+  it('rejects local r = geo.rotate (any geo member, not just kernel types)', () => {
+    try {
+      validateLuaSource(def('local r = geo.rotate\nreturn { type = "box" }'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      expect(err.issues.some((i) => i.category === 'unanalyzable-alias')).toBe(true);
+    }
+  });
+
+  it('rejects local n = geo.node (the dynamic-dispatch primitive)', () => {
+    try {
+      validateLuaSource(def('local n = geo.node\nreturn { type = "box" }'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      expect(err.issues.some((i) => i.category === 'unanalyzable-alias')).toBe(true);
+    }
+  });
+});
