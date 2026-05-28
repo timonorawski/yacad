@@ -67,7 +67,7 @@ export function validateLuaSource(def: LuaDefinition): void {
   const tainted = new Set<string>();
   walkPhase1(ast, scope, tainted, issues);
 
-  walkPhase2(ast, scope, tainted, issues);
+  walkPhase2(ast, scope, tainted, issues, def);
 
   if (issues.length > 0) {
     throw new LuaValidationError(issues);
@@ -220,6 +220,7 @@ function walkPhase2(
   scope: Scope,
   tainted: Set<string>,
   issues: ValidationIssue[],
+  def: LuaDefinition,
 ): void {
   // Re-walk; scope state is shared with Phase 1's stack but rebuilt as we
   // descend (Phase 1 left it at the root frame).
@@ -273,10 +274,29 @@ function walkPhase2(
         return;
       }
 
+      case 'TableKeyString': {
+        // The key is a literal field name, not a free variable; only visit the value.
+        visit(node.value);
+        return;
+      }
+
       case 'MemberExpression': {
-        // Only check the base for sandbox violations; the index/identifier is a
-        // property name, not a free variable reference.
+        // Walk base normally for nested checks (e.g., os.time → os is flagged
+        // by the Identifier case).
         visit(node.base);
+        // Special handling for params.X / inputs.X / geo.X / library.X.
+        if (node.base?.type === 'Identifier' && !scope.isLocal(node.base.name)) {
+          const baseName = node.base.name as string;
+          const member = node.identifier?.name as string | undefined;
+          if (member !== undefined) {
+            if (baseName === 'params') checkParamMember(member, node);
+            else if (baseName === 'inputs') checkInputMember(member, node);
+            // geo.X handled in Task 13.
+            else if (SANDBOX_GLOBALS.libraryMembers.has(baseName)) {
+              checkLibraryMember(baseName, member, node);
+            }
+          }
+        }
         // When indexer is '[', the index is an expression (free variable); visit it.
         if (node.indexer === '[') visit(node.index);
         return;
@@ -296,6 +316,44 @@ function walkPhase2(
         }
       }
     }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function checkParamMember(name: string, node: any): void {
+    const valid = Object.keys(def.schema.params);
+    if (valid.includes(name)) return;
+    issues.push({
+      category: 'undeclared-param',
+      message: `param '${name}' is not declared in schema.params`,
+      ...locOf(node.identifier ?? node),
+      identifier: name,
+      validNames: valid,
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function checkInputMember(name: string, node: any): void {
+    const valid = def.schema.inputs.map((i) => i.name);
+    if (valid.includes(name)) return;
+    issues.push({
+      category: 'undeclared-input',
+      message: `input '${name}' is not declared in schema.inputs`,
+      ...locOf(node.identifier ?? node),
+      identifier: name,
+      validNames: valid,
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function checkLibraryMember(libName: string, member: string, node: any): void {
+    const allowed = SANDBOX_GLOBALS.libraryMembers.get(libName);
+    if (allowed && allowed.has(member)) return;
+    issues.push({
+      category: 'sandbox-violation',
+      message: `'${libName}.${member}' is not allowed`,
+      ...locOf(node.identifier ?? node),
+      identifier: `${libName}.${member}`,
+    });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

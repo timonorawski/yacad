@@ -182,3 +182,70 @@ describe('Phase 2 — sandbox identifier check', () => {
     }
   });
 });
+
+describe('Phase 2 — params/inputs member checks', () => {
+  const teethSchema = {
+    inputs: [],
+    params: {
+      teeth: { type: 'int' as const, default: 8 },
+      radius: { type: 'number' as const, default: 5 },
+    },
+    output: '3d' as const,
+  };
+
+  it('allows declared params', () => {
+    expect(() =>
+      validateLuaSource({
+        schema: teethSchema,
+        code: 'return { type = "box", params = { size = { params.teeth, params.radius, 1 } } }',
+      }),
+    ).not.toThrow();
+  });
+
+  it('flags undeclared params with validNames', () => {
+    try {
+      validateLuaSource({
+        schema: teethSchema,
+        code: 'return { type = "box", params = { x = params.tooth } }',
+      });
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const u = err.issues.find((i) => i.category === 'undeclared-param');
+      expect(u).toBeDefined();
+      expect(u!.identifier).toBe('tooth');
+      expect(u!.validNames).toEqual(['teeth', 'radius']);
+    }
+  });
+
+  const bodySchema = {
+    inputs: [{ name: 'body', type: '3d' as const }],
+    params: {},
+    output: '3d' as const,
+  };
+
+  it('allows declared inputs', () => {
+    expect(() =>
+      validateLuaSource({
+        schema: bodySchema,
+        code: 'return { type = "translate", params = {}, children = { inputs.body } }',
+      }),
+    ).not.toThrow();
+  });
+
+  it('flags undeclared inputs with validNames', () => {
+    try {
+      validateLuaSource({
+        schema: bodySchema,
+        code: 'return { type = "translate", children = { inputs.head } }',
+      });
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const u = err.issues.find((i) => i.category === 'undeclared-input');
+      expect(u).toBeDefined();
+      expect(u!.identifier).toBe('head');
+      expect(u!.validNames).toEqual(['body']);
+    }
+  });
+});
