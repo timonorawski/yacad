@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NodeDoc } from '@yacad/dag';
-import { addChild, moveChild, removeAt, replaceAt, wrapWith } from './structural';
+import { addChild, moveChild, removeAt, replaceAt, unwrap, wrapWith } from './structural';
 
 const tree: NodeDoc = {
   type: 'union',
@@ -77,5 +77,52 @@ describe('moveChild', () => {
 
   it('throws when source and destination share the same path', () => {
     expect(() => moveChild(tree, '$/0', '$/0')).toThrow();
+  });
+});
+
+describe('unwrap', () => {
+  const wrapped: NodeDoc = {
+    type: 'translate',
+    params: { offset: [5, 0, 0] },
+    children: [{ type: 'box', params: { size: [10, 10, 10] } }],
+  };
+
+  it('replaces the root with its sole child', () => {
+    const next = unwrap(wrapped, '$');
+    expect(next.type).toBe('box');
+    expect(next.params).toMatchObject({ size: [10, 10, 10] });
+  });
+
+  it('replaces a nested node with its sole child', () => {
+    const nestedTree: NodeDoc = {
+      type: 'union',
+      children: [
+        wrapped,
+        { type: 'sphere', params: { radius: 5 } },
+      ],
+    };
+    const next = unwrap(nestedTree, '$/0');
+    expect((next.children![0] as NodeDoc).type).toBe('box');
+    expect((next.children![1] as NodeDoc).type).toBe('sphere');
+  });
+
+  it('throws when the node has zero children', () => {
+    const leaf: NodeDoc = { type: 'box', params: { size: [1, 1, 1] } };
+    expect(() => unwrap(leaf, '$')).toThrow(/exactly 1 child/);
+  });
+
+  it('throws when the node has multiple children', () => {
+    const multi: NodeDoc = {
+      type: 'union',
+      children: [
+        { type: 'box', params: { size: [1, 1, 1] } },
+        { type: 'sphere', params: { radius: 1 } },
+      ],
+    };
+    expect(() => unwrap(multi, '$')).toThrow(/exactly 1 child/);
+  });
+
+  it('throws for an invalid path', () => {
+    expect(() => unwrap(wrapped, '$/9')).toThrow();
   });
 });

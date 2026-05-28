@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getAt, addChild, removeAt, wrapWith } from '@yacad/mutations';
+  import { getAt, addChild, removeAt, unwrap, wrapWith } from '@yacad/mutations';
   import {
     getKernelTypeDoc,
     getNodeType,
@@ -158,6 +158,25 @@
     }
   }
 
+  const canUnwrap = $derived(
+    selectedNode !== undefined && (selectedNode.children?.length ?? 0) === 1,
+  );
+
+  async function unwrapSelected() {
+    if (!selection.selectedId || !canUnwrap) return;
+    try {
+      // The selected path becomes a different node after unwrap. Capture the
+      // original path so we can re-select something sensible.
+      const originalPath = selection.selectedId;
+      await session.session.mutate((prev) => unwrap(prev, originalPath));
+      // After unwrap, the path of the (former) sole child becomes the
+      // unwrapped node's path. selection stays at the same path so the
+      // unwrapped child is now selected.
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function addPrimitiveChild() {
     if (!selection.selectedId) return;
     const seed = { type: 'box', params: { size: [10, 10, 10], center: true } };
@@ -183,6 +202,12 @@
     {/if}
   </details>
   <button onclick={addPrimitiveChild} disabled={!selectedNode}>+ child (box)</button>
+  <button
+    type="button"
+    onclick={() => void unwrapSelected()}
+    disabled={!canUnwrap}
+    title="Replace this node with its sole child">unwrap</button
+  >
   <button onclick={deleteSelected} disabled={!selection.selectedId || selection.selectedId === '$'}>
     delete
   </button>
