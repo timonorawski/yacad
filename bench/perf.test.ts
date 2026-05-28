@@ -239,7 +239,10 @@ describe('LuaNode Engine.evaluate performance guards', () => {
 // ---------------------------------------------------------------------------
 
 describe('Engine.evaluate 2D performance guards', () => {
-  it('cold 2D evaluate completes within 1500 ms', async () => {
+  it('cold 2D evaluate completes within 300 ms', async () => {
+    // Cold path: fresh store, spline evaluation + extrude kernel.
+    // Benchmark (post-JIT): ~0.32 ms per op. Full execution with WASM init
+    // overhead estimated at ~200 ms on CI, 300 ms gives 1.5× margin.
     const kernel2d = new ManifoldKernel(await loadManifold());
     const graph = await buildGraph({
       type: 'extrude',
@@ -259,10 +262,14 @@ describe('Engine.evaluate 2D performance guards', () => {
     });
     const t0 = Date.now();
     await new Engine(new MemoryStore(), kernel2d).evaluate(graph);
-    expect(Date.now() - t0).toBeLessThan(1500);
+    expect(Date.now() - t0).toBeLessThan(300);
   });
 
-  it('warm 2D evaluate completes within 100 ms', async () => {
+  it('warm 2D evaluate completes within 50 ms', async () => {
+    // Warm path: root mesh already cached; one lookup.
+    // Benchmark (post-JIT): ~0.0017 ms per op. Full execution estimated at
+    // ~33 ms on CI, 50 ms gives 1.5× margin. This validates incremental-recompute
+    // architectural bet for 2D operations.
     const kernel2d = new ManifoldKernel(await loadManifold());
     const graph = await buildGraph({
       type: 'extrude',
@@ -273,6 +280,6 @@ describe('Engine.evaluate 2D performance guards', () => {
     await new Engine(store, kernel2d).evaluate(graph);
     const t0 = Date.now();
     await new Engine(store, kernel2d).evaluate(graph);
-    expect(Date.now() - t0).toBeLessThan(100);
+    expect(Date.now() - t0).toBeLessThan(50);
   });
 });
