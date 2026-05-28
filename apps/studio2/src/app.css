@@ -307,6 +307,21 @@ body {
 .header-menu-panel button:hover {
   background: var(--panel-border);
 }
+.header-menu-sep {
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  margin: 0.25rem 0;
+}
+.header-menu-link {
+  display: block;
+  padding: 0.4rem 0.75rem;
+  color: var(--fg);
+  text-decoration: none;
+  font: inherit;
+}
+.header-menu-link:hover {
+  background: var(--panel-border);
+}
 
 /* Docs drawer */
 .docs-drawer {

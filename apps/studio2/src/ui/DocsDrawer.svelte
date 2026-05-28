@@ -3,11 +3,15 @@
   import { listNodeTypes } from '@yacad/dag';
   import { KERNEL_TYPE_DOCS } from '@yacad/lua';
   import languageReferenceMd from '../../../../docs/language-reference.md?raw';
+  import architectureMd from '../../../../docs/architecture.md?raw';
+  import featuresMd from '../../../../docs/features.md?raw';
+
+  export type DocsTab = 'language' | 'luaApi' | 'architecture' | 'features';
 
   interface Props {
     open: boolean;
-    tab: 'language' | 'luaApi';
-    onTabChange: (tab: 'language' | 'luaApi') => void;
+    tab: DocsTab;
+    onTabChange: (tab: DocsTab) => void;
     onClose: () => void;
   }
 
@@ -85,6 +89,8 @@
 
   const languageReferenceHtml = marked.parse(languageReferenceMd) as string;
   const luaApiHtml = marked.parse(buildLuaApiMd()) as string;
+  const architectureHtml = marked.parse(architectureMd) as string;
+  const featuresHtml = marked.parse(featuresMd) as string;
 </script>
 
 <aside class="docs-drawer" class:open>
@@ -106,6 +112,22 @@
       >
         Lua API
       </button>
+      <button
+        type="button"
+        class="tab-btn"
+        class:active={tab === 'architecture'}
+        onclick={() => onTabChange('architecture')}
+      >
+        Architecture
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        class:active={tab === 'features'}
+        onclick={() => onTabChange('features')}
+      >
+        Features
+      </button>
     </div>
     <button type="button" class="docs-drawer-close" onclick={onClose} aria-label="Close docs"
       >×</button
@@ -114,8 +136,12 @@
   <div class="docs-drawer-content">
     {#if tab === 'language'}
       {@html languageReferenceHtml}
-    {:else}
+    {:else if tab === 'luaApi'}
       {@html luaApiHtml}
+    {:else if tab === 'architecture'}
+      {@html architectureHtml}
+    {:else}
+      {@html featuresHtml}
     {/if}
   </div>
 </aside>

@@ -37,7 +37,7 @@
   let userDocs = $state<{ id: string; name: string }[]>([]);
   let sampleDocs = $state<{ id: string; name: string }[]>([]);
   let docsOpen = $state(false);
-  let docsTab = $state<'language' | 'luaApi'>('language');
+  let docsTab = $state<'language' | 'luaApi' | 'architecture' | 'features'>('language');
   let evalOutcome = $state<EvaluateOutcome | undefined>(undefined);
   let luaEditorOpen = $state(false);
   let editingLuaNodeId = $state<string | null>(null);

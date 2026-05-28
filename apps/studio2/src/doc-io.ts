@@ -48,10 +48,7 @@ export function bundleSession(session: DocSession): DocBundle {
 }
 
 /** Build a bundle from a library doc by id (opens, snapshots, closes). */
-export async function bundleLibraryDoc(
-  library: DocLibrary,
-  id: string,
-): Promise<DocBundle> {
+export async function bundleLibraryDoc(library: DocLibrary, id: string): Promise<DocBundle> {
   const session = await library.open(id);
   try {
     return bundleSession(session);

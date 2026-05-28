@@ -61,5 +61,13 @@
         void onRefreshSamples();
       }}>Refresh samples</button
     >
+    <hr class="header-menu-sep" />
+    <a
+      class="header-menu-link"
+      href="https://github.com/timonorawski/yacad"
+      target="_blank"
+      rel="noopener noreferrer"
+      onclick={close}>GitHub repo ↗</a
+    >
   </div>
 </details>
