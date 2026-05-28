@@ -115,6 +115,17 @@ it('returns Geometry with kind="3d" for box', async () => {
   }
 });
 
+it('kernel evaluates circle to a CrossSection', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const node = await buildGraph({ type: 'circle', params: { radius: 5, segments: 16 } });
+  const { geometry } = kernel.evaluateTimed(node, []);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBe(1);
+    expect(geometry.section.polygons[0]!.length).toBe(16); // 16 segments => 16 vertices
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({

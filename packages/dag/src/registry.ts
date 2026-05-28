@@ -101,6 +101,24 @@ function primitive(
   };
 }
 
+/** A 2D leaf primitive: no children, '2d' output. */
+function primitive2d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '2d',
+    checkChildren(children, path) {
+      if (children.length !== 0) {
+        throw new DagError(`"${type}" takes no children`, path);
+      }
+    },
+    normalizeParams,
+  };
+}
+
 /** A unary transform: exactly one 3D child, 3D output. */
 function transform(
   type: string,
@@ -171,6 +189,13 @@ const defs: NodeTypeDef[] = [
   }),
   boolean('union'),
   boolean('difference'),
+  primitive2d('circle', (params, path) => {
+    const p = asRecord(params, path);
+    return {
+      radius: posNum(p, 'radius', path),
+      segments: optSegments(p, 'segments', path, DEFAULT_SEGMENTS),
+    };
+  }),
 ];
 
 const registry = new Map<string, NodeTypeDef>(defs.map((def) => [def.type, def]));

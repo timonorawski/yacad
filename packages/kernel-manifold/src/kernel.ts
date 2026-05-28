@@ -66,6 +66,11 @@ export class ManifoldKernel implements Kernel {
   }
 
   evaluateTimed(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    // Dispatch to 2D handler for 2D node types (no import needed — no child meshes).
+    if (node.type === 'circle') {
+      return this.evaluateCircle(node);
+    }
+
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
     const importStart = performance.now();
@@ -93,6 +98,25 @@ export class ManifoldKernel implements Kernel {
     } finally {
       result.delete();
     }
+  }
+
+  private evaluateCircle(node: Node): KernelResult {
+    const importMs = 0; // leaf: no child meshes to import
+    const opStart = performance.now();
+    const radius = node.params['radius'] as number;
+    const segments = node.params['segments'] as number;
+    const cs = this.api.CrossSection.circle(radius, segments);
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    cs.delete?.();
+    const exportMs = performance.now() - exportStart;
+
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs },
+    };
   }
 
   /** Run the node's Manifold operation over already-imported child solids. */

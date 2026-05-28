@@ -353,6 +353,23 @@ describe('Engine', () => {
   });
 });
 
+it('engine evaluates a circle to a CrossSection-bearing Geometry', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('circle caches by crossSection artifact kind (warm hit skips kernel)', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  await engine.evaluate(node); // cold
+  const warm = await engine.evaluate(node);
+  expect(warm.stats.hits).toBe(1);
+});
+
 it('engine.evaluate returns Geometry with kind="3d" for a 3D root', async () => {
   const store = new MemoryStore();
   const engine = new Engine(store, kernel);

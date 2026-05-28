@@ -138,6 +138,38 @@ describe('buildGraph', () => {
   });
 });
 
+describe('circle node type', () => {
+  it('builds with required radius', async () => {
+    const node = await buildGraph({ type: 'circle', params: { radius: 5 } });
+    expect(node.outputType).toBe('2d');
+    expect(node.params['radius']).toBe(5);
+  });
+
+  it('defaults segments via the existing default (32)', async () => {
+    const node = await buildGraph({ type: 'circle', params: { radius: 5 } });
+    expect(node.params['segments']).toBe(32);
+  });
+
+  it('rejects negative radius', async () => {
+    await expect(buildGraph({ type: 'circle', params: { radius: -1 } })).rejects.toThrow(
+      /greater than 0/,
+    );
+  });
+
+  it('rejects children', async () => {
+    await expect(
+      buildGraph({ type: 'circle', params: { radius: 5 }, children: [] as unknown as never[] }),
+    ).resolves.toBeDefined(); // empty children array is fine
+    await expect(
+      buildGraph({
+        type: 'circle',
+        params: { radius: 5 },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/no children/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',
