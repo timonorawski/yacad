@@ -1,39 +1,41 @@
 import { buildGraph, type NodeDoc } from '@yacad/dag';
 import { defaultHasher, type Hash } from '@yacad/hash';
 import type { Vfs } from '@yacad/vfs';
-import { docKey, metaKey } from './paths';
-import type { BlobUploader, DocEvent, DocMeta } from './types';
+import { blobKey, docKey, metaKey } from './paths';
+import type { BlobUploader, DocEvent, DocMeta, SessionOptions } from './types';
 
+const ENC = new TextEncoder();
 const DEC = new TextDecoder();
+const DEFAULT_AUTOSAVE_MS = 500;
 
-/**
- * Editable session for one open document. Mutations are immutable
- * transformer functions; the session validates the candidate via buildGraph
- * before committing. Undo is a snapshot stack; redo invalidates on any new
- * commit. The session does not depend on Svelte or any UI framework.
- */
 export class DocSession {
   readonly id: string;
 
   private currentMeta: DocMeta;
   private currentDoc: NodeDoc;
   private readonly blobMap = new Map<Hash, Uint8Array>();
+  /** Blob hashes that have not yet been persisted to the VFS. */
+  private readonly unsavedBlobs = new Set<Hash>();
   private readonly undoStack: NodeDoc[] = [];
   private readonly redoStack: NodeDoc[] = [];
   private dirty = false;
+  private mutating = false;
   private currentState: 'live' | 'invalidated' = 'live';
   private readonly subscribers = new Set<(evt: DocEvent) => void>();
-  private mutating = false;
+  private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly autosaveMs: number;
 
   private constructor(
     private readonly vfs: Vfs,
     private readonly uploader: BlobUploader,
     meta: DocMeta,
     doc: NodeDoc,
+    options: SessionOptions = {},
   ) {
     this.id = meta.id;
     this.currentMeta = meta;
     this.currentDoc = doc;
+    this.autosaveMs = options.autosaveMs ?? DEFAULT_AUTOSAVE_MS;
   }
 
   get meta(): DocMeta {
@@ -58,14 +60,19 @@ export class DocSession {
     return this.currentState;
   }
 
-  static async open(vfs: Vfs, uploader: BlobUploader, id: string): Promise<DocSession> {
+  static async open(
+    vfs: Vfs,
+    uploader: BlobUploader,
+    id: string,
+    options?: SessionOptions,
+  ): Promise<DocSession> {
     const metaBytes = await vfs.read(metaKey(id));
     if (!metaBytes) throw new Error(`no document with id "${id}"`);
     const meta = JSON.parse(DEC.decode(metaBytes)) as DocMeta;
     const docBytes = await vfs.read(docKey(id));
     if (!docBytes) throw new Error(`document "${id}" has no document.json`);
     const doc = JSON.parse(DEC.decode(docBytes)) as NodeDoc;
-    return new DocSession(vfs, uploader, meta, doc);
+    return new DocSession(vfs, uploader, meta, doc, options);
   }
 
   async mutate(fn: (prev: NodeDoc) => NodeDoc): Promise<void> {
@@ -78,14 +85,12 @@ export class DocSession {
     this.mutating = true;
     try {
       const next = fn(this.currentDoc);
-      // Validate by running the same builder the engine uses. Any rejection
-      // here leaves state untouched and propagates the original error.
       await buildGraph(next, defaultHasher, '$', this.makeResolver());
 
       this.undoStack.push(this.currentDoc);
       this.redoStack.length = 0;
       this.currentDoc = next;
-      this.dirty = true;
+      this.markDirty();
       this.emit({ kind: 'doc-changed' });
     } finally {
       this.mutating = false;
@@ -97,7 +102,7 @@ export class DocSession {
     if (prev === undefined) return;
     this.redoStack.push(this.currentDoc);
     this.currentDoc = prev;
-    this.dirty = true;
+    this.markDirty();
     this.emit({ kind: 'doc-changed' });
   }
 
@@ -106,7 +111,7 @@ export class DocSession {
     if (next === undefined) return;
     this.undoStack.push(this.currentDoc);
     this.currentDoc = next;
-    this.dirty = true;
+    this.markDirty();
     this.emit({ kind: 'doc-changed' });
   }
 
@@ -114,6 +119,8 @@ export class DocSession {
     const hash = await defaultHasher.hash(bytes);
     if (!this.blobMap.has(hash)) {
       this.blobMap.set(hash, new Uint8Array(bytes));
+      this.unsavedBlobs.add(hash);
+      this.markDirty();
     }
     if (!(await this.uploader.hasMeshBlob(hash))) {
       await this.uploader.putMeshBlob(hash, bytes);
@@ -122,11 +129,27 @@ export class DocSession {
   }
 
   async save(): Promise<void> {
-    // Task 9.
+    if (this.autosaveTimer !== undefined) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = undefined;
+    }
+    const updatedMeta: DocMeta = { ...this.currentMeta, updatedAt: Date.now() };
+    await this.vfs.write(metaKey(this.id), ENC.encode(JSON.stringify(updatedMeta)));
+    await this.vfs.write(docKey(this.id), ENC.encode(JSON.stringify(this.currentDoc)));
+    for (const hash of this.unsavedBlobs) {
+      const bytes = this.blobMap.get(hash);
+      if (bytes) await this.vfs.write(blobKey(this.id, hash), bytes);
+    }
+    this.unsavedBlobs.clear();
+    this.currentMeta = updatedMeta;
+    this.dirty = false;
+    this.emit({ kind: 'persisted' });
   }
 
   async close(): Promise<void> {
-    // Task 9.
+    if (this.autosaveTimer !== undefined || this.dirty) {
+      await this.save();
+    }
   }
 
   subscribe(cb: (evt: DocEvent) => void): () => void {
@@ -134,12 +157,15 @@ export class DocSession {
     return () => this.subscribers.delete(cb);
   }
 
-  /**
-   * Resolver passed to buildGraph during validation. Decoder / expandable
-   * nodes (import-stl, lua, ...) look up their blob/definition by hash.
-   * Buffer ownership is irrelevant here — the resolver only needs to know
-   * whether the blob is present and what it contains.
-   */
+  private markDirty(): void {
+    this.dirty = true;
+    if (this.autosaveTimer !== undefined) clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = setTimeout(() => {
+      this.autosaveTimer = undefined;
+      void this.save();
+    }, this.autosaveMs);
+  }
+
   private makeResolver() {
     const blobs = this.blobMap;
     return { get: (hash: Hash) => blobs.get(hash) };

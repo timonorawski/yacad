@@ -2,7 +2,7 @@ import type { NodeDoc } from '@yacad/dag';
 import type { Vfs } from '@yacad/vfs';
 import { docKey, listBlobsPrefix, listDocsPrefix, metaKey, parseDocId } from './paths';
 import { DocSession } from './session';
-import type { BlobUploader, DocMeta, NewDocSeed } from './types';
+import type { BlobUploader, DocMeta, NewDocSeed, SessionOptions } from './types';
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
@@ -46,14 +46,14 @@ export class DocLibrary {
    * Creates a new document with a fresh UUID and the given name. Writes
    * `meta.json` + `document.json` (seed or default), then opens the session.
    */
-  async create(name: string, seed?: NewDocSeed): Promise<DocSession> {
+  async create(name: string, seed?: NewDocSeed, options?: SessionOptions): Promise<DocSession> {
     const now = Date.now();
     const id = crypto.randomUUID();
     const meta: DocMeta = { id, name, createdAt: now, updatedAt: now };
     const doc: NodeDoc = seed ?? DEFAULT_SEED;
     await this.vfs.write(metaKey(id), ENC.encode(JSON.stringify(meta)));
     await this.vfs.write(docKey(id), ENC.encode(JSON.stringify(doc)));
-    return this.open(id);
+    return this.open(id, options);
   }
 
   /**
@@ -92,7 +92,7 @@ export class DocLibrary {
    * pushes new blobs to the worker, and runs validation. Stubbed in this
    * task — fleshed out in a later task.
    */
-  async open(id: string): Promise<DocSession> {
-    return DocSession.open(this.vfs, this.uploader, id);
+  async open(id: string, options?: SessionOptions): Promise<DocSession> {
+    return DocSession.open(this.vfs, this.uploader, id, options);
   }
 }

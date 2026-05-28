@@ -201,3 +201,90 @@ describe('DocSession.addBlob', () => {
     expect(putCount).toBe(0);
   });
 });
+
+describe('DocSession persistence', () => {
+  it('save() writes document.json + meta.json to the VFS', async () => {
+    const vfs = new MemoryVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('A');
+    await session.mutate(() => ({ type: 'sphere', params: { radius: 7 } }));
+    await session.save();
+
+    const docBytes = await vfs.read(`/docs/${session.id}/document.json`);
+    expect(docBytes).toBeDefined();
+    expect(JSON.parse(new TextDecoder().decode(docBytes!))).toMatchObject({
+      type: 'sphere',
+      params: { radius: 7 },
+    });
+    expect(session.isDirty).toBe(false);
+  });
+
+  it('save() also writes any added blobs under /docs/{id}/blobs/{hash}.bin', async () => {
+    const vfs = new MemoryVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('A');
+    const hash = await session.addBlob(new Uint8Array([1, 2, 3]));
+    await session.save();
+
+    const blobBytes = await vfs.read(`/docs/${session.id}/blobs/${hash}.bin`);
+    expect(blobBytes).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it('save() emits a persisted event', async () => {
+    const vfs = new MemoryVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('A');
+    const events: DocEvent[] = [];
+    session.subscribe((e) => events.push(e));
+    await session.save();
+    expect(events.some((e) => e.kind === 'persisted')).toBe(true);
+  });
+
+  it('autosave fires after the debounce window following a mutation', async () => {
+    const vfs = new MemoryVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('A', undefined, { autosaveMs: 30 });
+    await session.mutate(() => ({ type: 'sphere', params: { radius: 1 } }));
+    expect(session.isDirty).toBe(true);
+
+    // Wait past the debounce window.
+    await new Promise((r) => setTimeout(r, 80));
+    expect(session.isDirty).toBe(false);
+  });
+
+  it('autosave coalesces rapid mutations into one VFS write', async () => {
+    // Subclass MemoryVfs to count document.json writes. A Proxy works too,
+    // but unbinds `this` for the non-intercepted methods and breaks the
+    // library's internal read/list calls — subclassing keeps `this` correct.
+    class CountingMemoryVfs extends MemoryVfs {
+      docWriteCount = 0;
+      override async write(key: string, value: Uint8Array): Promise<void> {
+        if (key.endsWith('document.json')) this.docWriteCount++;
+        return super.write(key, value);
+      }
+    }
+    const vfs = new CountingMemoryVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('A', undefined, { autosaveMs: 30 });
+    // Reset the counter after create() (which writes once).
+    vfs.docWriteCount = 0;
+
+    for (let i = 1; i <= 5; i++) {
+      await session.mutate(() => ({ type: 'sphere', params: { radius: i } }));
+    }
+    await new Promise((r) => setTimeout(r, 80));
+    expect(vfs.docWriteCount).toBe(1);
+  });
+
+  it('close() drains a pending autosave', async () => {
+    const vfs = new MemoryVfs();
+    const lib = new DocLibrary(vfs, noopUploader);
+    const session = await lib.create('A', undefined, { autosaveMs: 500 });
+    await session.mutate(() => ({ type: 'sphere', params: { radius: 1 } }));
+    // Don't wait for the debounce — close() should flush immediately.
+    await session.close();
+    expect(session.isDirty).toBe(false);
+    const bytes = await vfs.read(`/docs/${session.id}/document.json`);
+    expect(JSON.parse(new TextDecoder().decode(bytes!))).toMatchObject({ type: 'sphere' });
+  });
+});

@@ -35,3 +35,8 @@ export interface BlobUploader {
   putLuaDefinition(hash: Hash, def: LuaDefinition): Promise<void>;
   hasLuaDefinition(hash: Hash): Promise<boolean>;
 }
+
+export interface SessionOptions {
+  /** Autosave debounce window in milliseconds. Default 500. */
+  readonly autosaveMs?: number;
+}
