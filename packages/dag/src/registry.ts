@@ -559,7 +559,7 @@ const defs: NodeTypeDef[] = [
       paramSchema: [
         {
           name: 'points',
-          type: 'vec2',
+          type: 'vec2-array',
           required: true,
           doc: 'Array of [x, y] pairs (length ≥ 3); the polygon is automatically closed.',
         },
@@ -578,7 +578,7 @@ const defs: NodeTypeDef[] = [
       paramSchema: [
         {
           name: 'points',
-          type: 'vec2',
+          type: 'vec2-array',
           required: true,
           doc: 'Array of [x, y] control points (length ≥ 3); automatically closed loop.',
         },

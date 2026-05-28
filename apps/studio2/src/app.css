@@ -199,3 +199,41 @@ body {
 .doc-picker button:hover {
   background: var(--panel-border);
 }
+.vec-array-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.vec-array-row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr 1fr 1.5rem;
+  align-items: center;
+  gap: 0.25rem;
+}
+.vec-array-index {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.vec-array-row > input {
+  width: 100%;
+  min-width: 0;
+}
+.vec-array-remove,
+.vec-array-add {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+  padding: 0.1rem 0.4rem;
+  font: inherit;
+}
+.vec-array-remove {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.vec-array-add {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+}

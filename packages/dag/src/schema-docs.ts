@@ -4,7 +4,7 @@
  */
 export interface ParamDoc {
   readonly name: string;
-  readonly type: 'number' | 'int' | 'boolean' | 'string' | 'vec2' | 'vec3';
+  readonly type: 'number' | 'int' | 'boolean' | 'string' | 'vec2' | 'vec3' | 'vec2-array';
   readonly required: boolean;
   readonly default?: unknown;
   readonly doc: string;

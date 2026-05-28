@@ -7,6 +7,7 @@
   import StringField from '../forms/StringField.svelte';
   import EnumField from '../forms/EnumField.svelte';
   import Vec2Field from '../forms/Vec2Field.svelte';
+  import Vec2ArrayField from '../forms/Vec2ArrayField.svelte';
   import Vec3Field from '../forms/Vec3Field.svelte';
 
   interface Props {
@@ -51,6 +52,12 @@
       <StringField
         {schema}
         value={value as string | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
+    {:else if schema.type === 'vec2-array'}
+      <Vec2ArrayField
+        {schema}
+        value={value as [number, number][] | undefined}
         onCommit={(v) => onCommit(schema.name, v)}
       />
     {:else if schema.type === 'vec2'}
