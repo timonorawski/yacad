@@ -264,15 +264,55 @@ function walkPhase2(
       case 'DoStatement':
       case 'WhileStatement':
       case 'RepeatStatement':
-      case 'IfStatement':
-      case 'ForNumericStatement':
-      case 'ForGenericStatement': {
+      case 'IfStatement': {
         scope.push();
         for (const key of Object.keys(node)) {
           if (key === 'type' || key === 'loc') continue;
           visit(node[key]);
         }
         scope.pop();
+        return;
+      }
+
+      case 'ForNumericStatement': {
+        scope.push();
+        // Declare the numeric loop variable before visiting the body.
+        if (node.variable?.type === 'Identifier') {
+          scope.declareLocal(node.variable.name as string);
+        }
+        for (const key of Object.keys(node)) {
+          if (key === 'type' || key === 'loc') continue;
+          visit(node[key]);
+        }
+        scope.pop();
+        return;
+      }
+
+      case 'ForGenericStatement': {
+        scope.push();
+        // Declare all generic loop variables before visiting the body.
+        for (const v of node.variables ?? []) {
+          if (v.type === 'Identifier') scope.declareLocal(v.name as string);
+        }
+        for (const key of Object.keys(node)) {
+          if (key === 'type' || key === 'loc') continue;
+          visit(node[key]);
+        }
+        scope.pop();
+        return;
+      }
+
+      case 'CallExpression':
+      case 'TableCallExpression':
+      case 'StringCallExpression': {
+        // Walk base and args normally for nested checks.
+        visit(node.base);
+        const args = argsOf(node);
+        for (const a of args) visit(a);
+        // Inspect geo.<type> calls for call-shape validity.
+        if (isGeoTypeCall(node)) {
+          checkGeoCallShape(node, args);
+        }
         return;
       }
 
@@ -406,6 +446,85 @@ function walkPhase2(
       ...locOf(node),
       identifier: name,
     });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function argsOf(node: any): any[] {
+    if (node.type === 'CallExpression') return node.arguments ?? [];
+    if (node.type === 'TableCallExpression') return [node.arguments];
+    if (node.type === 'StringCallExpression') return [node.argument];
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function isGeoTypeCall(node: any): boolean {
+    const base = node.base;
+    return (
+      base?.type === 'MemberExpression' &&
+      base.indexer === '.' &&
+      base.base?.type === 'Identifier' &&
+      base.base.name === 'geo' &&
+      !scope.isLocal('geo') &&
+      base.identifier?.name !== 'node'
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function checkGeoCallShape(node: any, args: any[]): void {
+    const typeName = node.base.identifier.name as string;
+    const doc = getKernelTypeDoc(typeName);
+    if (!doc) return; // already reported as unknown-geo-type
+    const required = doc.paramSchema.filter((p) => p.required).map((p) => p.name);
+    const all = doc.paramSchema.map((p) => p.name);
+
+    const paramsArg = args[0];
+    if (paramsArg === undefined) {
+      if (required.length > 0) {
+        issues.push({
+          category: 'missing-geo-param',
+          message: `geo.${typeName} missing required param${required.length === 1 ? '' : 's'}: ${required.join(', ')}`,
+          ...locOf(node),
+          validNames: required,
+        });
+      }
+      return;
+    }
+    if (paramsArg.type !== 'TableConstructorExpression') {
+      issues.push({
+        category: 'unanalyzable-access',
+        message: `geo.${typeName}(...) first argument must be a table literal so its keys can be checked statically`,
+        ...locOf(paramsArg),
+      });
+      return;
+    }
+    const presentKeys = new Set<string>();
+    for (const field of paramsArg.fields ?? []) {
+      if (field.type === 'TableKeyString') {
+        const key = field.key?.name as string | undefined;
+        if (key === undefined) continue;
+        presentKeys.add(key);
+        if (!all.includes(key)) {
+          issues.push({
+            category: 'unknown-geo-param',
+            message: `geo.${typeName} has no param '${key}'`,
+            ...locOf(field.key ?? field),
+            identifier: key,
+            validNames: all,
+          });
+        }
+      }
+      // TableKey ([expr] = ...) and TableValue (positional) are not statically
+      // resolvable to param names; treat presence as nothing.
+    }
+    const missing = required.filter((r) => !presentKeys.has(r));
+    if (missing.length > 0) {
+      issues.push({
+        category: 'missing-geo-param',
+        message: `geo.${typeName} missing required param${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}`,
+        ...locOf(paramsArg),
+        validNames: missing,
+      });
+    }
   }
 }
 

@@ -276,6 +276,65 @@ describe('Phase 2 — geo.X member checks', () => {
   });
 });
 
+describe('Phase 2 — geo.<type> call shape', () => {
+  it('allows a valid call', () => {
+    expect(() => validateLuaSource(def('return geo.box({ size = { 1, 1, 1 } })'))).not.toThrow();
+  });
+
+  it('flags unknown param keys with validNames', () => {
+    try {
+      validateLuaSource(def('return geo.box({ size = { 1, 1, 1 }, bogus = 5 })'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const u = err.issues.find((i) => i.category === 'unknown-geo-param');
+      expect(u).toBeDefined();
+      expect(u!.identifier).toBe('bogus');
+      expect(u!.validNames!.length).toBeGreaterThan(0);
+      expect(u!.validNames!).toContain('size');
+    }
+  });
+
+  it('flags missing required params', () => {
+    try {
+      validateLuaSource(def('return geo.box({})'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const u = err.issues.find((i) => i.category === 'missing-geo-param');
+      expect(u).toBeDefined();
+      expect(u!.validNames!).toContain('size');
+    }
+  });
+
+  it('flags non-table first arg as unanalyzable-access', () => {
+    try {
+      validateLuaSource(def('local p = { size = { 1, 1, 1 } }\nreturn geo.box(p)'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      expect(err.issues.some((i) => i.category === 'unanalyzable-access')).toBe(true);
+    }
+  });
+
+  it('passes loop-built children (children arg is unchecked)', () => {
+    const d = def(
+      [
+        'local parts = {}',
+        'for i = 1, 3 do',
+        '  parts[#parts + 1] = geo.box({ size = { 1, 1, 1 } })',
+        'end',
+        'return geo.union({}, parts)',
+      ].join('\n'),
+    );
+    expect(() => validateLuaSource(d)).not.toThrow();
+  });
+
+  it('handles table-call syntax geo.box{...}', () => {
+    expect(() => validateLuaSource(def('return geo.box{ size = { 1, 1, 1 } }'))).not.toThrow();
+  });
+});
+
 describe('Phase 2 — params[K] / inputs[K] index access', () => {
   const teethSchema = {
     inputs: [],
