@@ -90,6 +90,15 @@ exports[`scene → STL pipeline > composite/cored-block > matches the captured g
 }
 `;
 
+exports[`scene → STL pipeline > composite/diagonal-section > matches the captured geometry summary 1`] = `
+{
+  "nodes": 2,
+  "polygons": 1,
+  "stlBytes": 0,
+  "vertices": 8,
+}
+`;
+
 exports[`scene → STL pipeline > composite/extruded-gear > matches the captured geometry summary 1`] = `
 {
   "bbox": {
@@ -150,6 +159,27 @@ exports[`scene → STL pipeline > composite/revolved-vase > matches the captured
   "stlBytes": 32084,
   "triangles": 640,
   "vertices": 322,
+}
+`;
+
+exports[`scene → STL pipeline > composite/section-then-extrude > matches the captured geometry summary 1`] = `
+{
+  "bbox": {
+    "max": [
+      5,
+      5,
+      2,
+    ],
+    "min": [
+      -5,
+      -5,
+      0,
+    ],
+  },
+  "nodes": 5,
+  "stlBytes": 12084,
+  "triangles": 240,
+  "vertices": 120,
 }
 `;
 
