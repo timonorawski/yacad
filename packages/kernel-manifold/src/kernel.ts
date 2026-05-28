@@ -492,6 +492,12 @@ export class ManifoldKernel implements Kernel {
         return Manifold.intersection(childSolids as Solid[]);
       case 'hull':
         return Manifold.hull(childSolids as Solid[]);
+      case 'refine': {
+        const solid = childSolids[0]!;
+        return node.params['n'] !== undefined
+          ? solid.refine(node.params['n'] as number)
+          : solid.refineToLength(node.params['maxEdgeLength'] as number);
+      }
       default:
         throw new Error(`manifold kernel cannot evaluate node type "${node.type}"`);
     }

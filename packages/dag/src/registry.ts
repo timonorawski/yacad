@@ -206,6 +206,25 @@ function refinement2d(
   };
 }
 
+/** A 3D→3D refinement: exactly one 3D child, '3d' output. */
+function refinement3d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '3d',
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '3d', path);
+    },
+    normalizeParams,
+  };
+}
+
 /** An N-ary operation that accepts ≥minChildren children, all of the same
  *  output type (either all-2D or all-3D). Output type matches the children's
  *  type. No params. Used by union, difference, intersection, hull. */
@@ -381,6 +400,27 @@ const defs: NodeTypeDef[] = [
   transform2d('rotate_2d', (params, path) => {
     const p = asRecord(params, path);
     return { angle: num(p, 'angle', path) };
+  }),
+  refinement3d('refine', (params, path) => {
+    const p = asRecord(params, path);
+    const n = p['n'];
+    const maxEdgeLength = p['maxEdgeLength'];
+    if (n === undefined && maxEdgeLength === undefined) {
+      throw new DagError(`"refine" requires either "n" or "maxEdgeLength"`, path);
+    }
+    if (n !== undefined && maxEdgeLength !== undefined) {
+      throw new DagError(`"refine" must specify exactly one of "n" or "maxEdgeLength"`, path);
+    }
+    if (n !== undefined) {
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
+        throw new DagError(`"n" must be a positive integer`, path);
+      }
+      return { n };
+    }
+    if (typeof maxEdgeLength !== 'number' || !Number.isFinite(maxEdgeLength) || maxEdgeLength <= 0) {
+      throw new DagError(`"maxEdgeLength" must be a positive finite number`, path);
+    }
+    return { maxEdgeLength };
   }),
   (() => {
     const OFFSET_JOIN_TYPES = ['round', 'square', 'miter'] as const;

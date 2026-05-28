@@ -440,6 +440,26 @@ it('evaluateTimed propagates child Geometry to handler', async () => {
   expect(geometry.kind).toBe('3d');
 });
 
+it('kernel refine(n=2) on box produces 4x the triangle count', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const box = kernel.evaluateTimed(
+    await buildGraph({ type: 'box', params: { size: [1, 1, 1] } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'refine',
+    params: { n: 2 },
+    children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [box]);
+  expect(geometry.kind).toBe('3d');
+  if (geometry.kind === '3d' && box.kind === '3d') {
+    const refinedTriCount = geometry.mesh.indices.length / 3;
+    const baseTriCount = box.mesh.indices.length / 3;
+    expect(refinedTriCount).toBe(baseTriCount * 4); // each tri → 4
+  }
+});
+
 it('kernel: offset_2d(round, +2) on rectangle produces more vertices', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const rect = kernel.evaluateTimed(

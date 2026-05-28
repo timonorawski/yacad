@@ -505,6 +505,56 @@ describe('offset_2d node type', () => {
   });
 });
 
+describe('refine node type', () => {
+  it('builds with n', async () => {
+    const node = await buildGraph({
+      type: 'refine',
+      params: { n: 2 },
+      children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+    });
+    expect(node.outputType).toBe('3d');
+  });
+
+  it('builds with maxEdgeLength', async () => {
+    const node = await buildGraph({
+      type: 'refine',
+      params: { maxEdgeLength: 0.5 },
+      children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+    });
+    expect(node.params['maxEdgeLength']).toBe(0.5);
+  });
+
+  it('rejects neither n nor maxEdgeLength', async () => {
+    await expect(
+      buildGraph({
+        type: 'refine',
+        params: {},
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/n.*maxEdgeLength/);
+  });
+
+  it('rejects both n and maxEdgeLength', async () => {
+    await expect(
+      buildGraph({
+        type: 'refine',
+        params: { n: 2, maxEdgeLength: 0.5 },
+        children: [{ type: 'box', params: { size: [1, 1, 1] } }],
+      }),
+    ).rejects.toThrow(/exactly one/);
+  });
+
+  it('rejects 2D child', async () => {
+    await expect(
+      buildGraph({
+        type: 'refine',
+        params: { n: 2 },
+        children: [{ type: 'circle', params: { radius: 5 } }],
+      }),
+    ).rejects.toThrow(/3d/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',
