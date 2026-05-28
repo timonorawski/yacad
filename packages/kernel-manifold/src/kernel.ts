@@ -265,9 +265,7 @@ export class ManifoldKernel implements Kernel {
   private evaluateOffset2d(node: Node, childGeometries: readonly Geometry[]): KernelResult {
     const child = asCrossSection(childGeometries[0]!, node.id, 0);
     const importStart = performance.now();
-    const cs = this.api.CrossSection.ofPolygons(
-      child.polygons as unknown as [number, number][][],
-    );
+    const cs = this.api.CrossSection.ofPolygons(child.polygons as unknown as [number, number][][]);
     const importMs = performance.now() - importStart;
 
     const opStart = performance.now();
@@ -341,9 +339,7 @@ export class ManifoldKernel implements Kernel {
   private evaluateExtrude(node: Node, childGeometries: readonly Geometry[]): KernelResult {
     const child = asCrossSection(childGeometries[0]!, node.id, 0);
     const importStart = performance.now();
-    const cs = this.api.CrossSection.ofPolygons(
-      child.polygons as unknown as [number, number][][],
-    );
+    const cs = this.api.CrossSection.ofPolygons(child.polygons as unknown as [number, number][][]);
     const importMs = performance.now() - importStart;
 
     const opStart = performance.now();

@@ -367,7 +367,8 @@ it('kernel evaluates revolve(translate_2d(circle), axis=y) to a torus-like 3D me
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
     // The revolved solid should have vertices spanning both positive and negative X.
     const verts = geometry.mesh.vertices;
-    let minX = Infinity, maxX = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity;
     for (let i = 0; i < verts.length; i += 3) {
       const x = verts[i]!;
       if (x < minX) minX = x;
@@ -406,7 +407,8 @@ it('kernel evaluates revolve with axis=x to a 3D mesh with correct orientation',
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
     // Revolved around X: solid should span both positive and negative Y.
     const verts = geometry.mesh.vertices;
-    let minY = Infinity, maxY = -Infinity;
+    let minY = Infinity,
+      maxY = -Infinity;
     for (let i = 0; i < verts.length; i += 3) {
       const y = verts[i + 1]!;
       if (y < minY) minY = y;

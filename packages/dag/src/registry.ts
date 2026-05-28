@@ -417,7 +417,11 @@ const defs: NodeTypeDef[] = [
       }
       return { n };
     }
-    if (typeof maxEdgeLength !== 'number' || !Number.isFinite(maxEdgeLength) || maxEdgeLength <= 0) {
+    if (
+      typeof maxEdgeLength !== 'number' ||
+      !Number.isFinite(maxEdgeLength) ||
+      maxEdgeLength <= 0
+    ) {
       throw new DagError(`"maxEdgeLength" must be a positive finite number`, path);
     }
     return { maxEdgeLength };
@@ -433,10 +437,7 @@ const defs: NodeTypeDef[] = [
       }
       const joinTypeRaw = p['joinType'] ?? 'round';
       if (!OFFSET_JOIN_TYPES.includes(joinTypeRaw as OffsetJoinType)) {
-        throw new DagError(
-          `"joinType" must be one of ${OFFSET_JOIN_TYPES.join(' | ')}`,
-          path,
-        );
+        throw new DagError(`"joinType" must be one of ${OFFSET_JOIN_TYPES.join(' | ')}`, path);
       }
       const miterLimitRaw = p['miterLimit'];
       const segmentsRaw = p['segments'];
@@ -452,8 +453,7 @@ const defs: NodeTypeDef[] = [
                 }
                 return miterLimitRaw;
               })(),
-        segments:
-          segmentsRaw === undefined ? 16 : optSegments(p, 'segments', path, 16),
+        segments: segmentsRaw === undefined ? 16 : optSegments(p, 'segments', path, 16),
       };
     });
   })(),
