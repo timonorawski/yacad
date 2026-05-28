@@ -147,3 +147,31 @@ describe('TieredStore', () => {
     expect(await l1.has(key('a'), 'mesh')).toBe(true); // promoted on read
   });
 });
+
+describe('crossSection artifact', () => {
+  it('round-trips a crossSection artifact', async () => {
+    const store = new MemoryStore();
+    const key = {
+      semanticHash: 'def0',
+      producedBy: {
+        kernel: 'manifold',
+        kernelVersion: '3.5.0',
+        engineVersion: '0',
+        qualityTier: 'final',
+      },
+    };
+    const section = {
+      polygons: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ],
+      ],
+    };
+    await store.put(key, { kind: 'crossSection', section });
+    const got = await store.get(key, 'crossSection');
+    expect(got).toEqual({ kind: 'crossSection', section });
+  });
+});

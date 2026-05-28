@@ -24,7 +24,7 @@ export interface CacheKey {
 }
 
 /** The kinds of derived artifact stored per node, each under its own sub-key. */
-export type ArtifactKind = 'mesh' | 'bbox' | 'luaDefinition';
+export type ArtifactKind = 'mesh' | 'bbox' | 'luaDefinition' | 'crossSection';
 
 export interface MeshArtifact {
   readonly kind: 'mesh';
@@ -53,7 +53,22 @@ export interface LuaDefinitionArtifact {
   readonly definition: LuaDefinitionLike;
 }
 
-export type Artifact = MeshArtifact | BBoxArtifact | LuaDefinitionArtifact;
+/**
+ * Structural placeholder for a 2D cross-section artifact. The real
+ * `CrossSection` from @yacad/geometry is structurally assignable. We keep
+ * @yacad/cache free of @yacad/geometry imports so the dep graph stays acyclic
+ * and the package boundaries match Phase 1's LuaDefinitionLike pattern.
+ */
+export interface CrossSectionLike {
+  readonly polygons: ReadonlyArray<ReadonlyArray<readonly [number, number]>>;
+}
+
+export interface CrossSectionArtifact {
+  readonly kind: 'crossSection';
+  readonly section: CrossSectionLike;
+}
+
+export type Artifact = MeshArtifact | BBoxArtifact | LuaDefinitionArtifact | CrossSectionArtifact;
 
 /**
  * Async-uniform store. Consumers use this interface without knowing which tier
