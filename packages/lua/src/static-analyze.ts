@@ -1,4 +1,5 @@
 import * as luaparse from 'luaparse';
+import { getKernelTypeDoc, listNodeTypes } from '@yacad/dag';
 import type { LuaDefinition } from './schema';
 import { SANDBOX_GLOBALS } from './sandbox-globals';
 
@@ -316,8 +317,9 @@ function walkPhase2(
           if (member !== undefined) {
             if (baseName === 'params') checkParamMember(member, node);
             else if (baseName === 'inputs') checkInputMember(member, node);
-            // geo.X handled in Task 13.
-            else if (SANDBOX_GLOBALS.libraryMembers.has(baseName)) {
+            else if (baseName === 'geo' && member !== 'node') {
+              checkGeoType(member, node);
+            } else if (SANDBOX_GLOBALS.libraryMembers.has(baseName)) {
               checkLibraryMember(baseName, member, node);
             }
           }
@@ -364,6 +366,20 @@ function walkPhase2(
       ...locOf(node.identifier ?? node),
       identifier: name,
       validNames: valid,
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function checkGeoType(typeName: string, node: any): void {
+    if (getKernelTypeDoc(typeName) !== undefined) return;
+    issues.push({
+      category: 'unknown-geo-type',
+      message: `'geo.${typeName}' is not a registered kernel node type`,
+      ...locOf(node.identifier ?? node),
+      identifier: typeName,
+      validNames: listNodeTypes()
+        .filter((d) => getKernelTypeDoc(d.type) !== undefined && !d.type.startsWith('__'))
+        .map((d) => d.type),
     });
   }
 

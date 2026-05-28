@@ -250,6 +250,32 @@ describe('Phase 2 — params/inputs member checks', () => {
   });
 });
 
+describe('Phase 2 — geo.X member checks', () => {
+  it('allows a registered kernel type', () => {
+    expect(() => validateLuaSource(def('return geo.box({ size = { 1, 1, 1 } })'))).not.toThrow();
+  });
+
+  it('flags an unknown geo.X as unknown-geo-type', () => {
+    try {
+      validateLuaSource(def('return geo.bogus({})'));
+      throw new Error('expected throw');
+    } catch (e) {
+      const err = e as LuaValidationError;
+      const u = err.issues.find((i) => i.category === 'unknown-geo-type');
+      expect(u).toBeDefined();
+      expect(u!.identifier).toBe('bogus');
+    }
+  });
+
+  it('allows geo.node (the dynamic-dispatch primitive)', () => {
+    // geo.node({...}) is the underlying primitive; it's a real geo entry
+    // even though it's not in the registry. Don't flag it.
+    expect(() =>
+      validateLuaSource(def('return geo.node("box", { size = { 1, 1, 1 } })')),
+    ).not.toThrow();
+  });
+});
+
 describe('Phase 2 — params[K] / inputs[K] index access', () => {
   const teethSchema = {
     inputs: [],
