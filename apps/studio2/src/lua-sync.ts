@@ -15,10 +15,7 @@ const ENC = new TextEncoder();
  * failure throws `LuaValidationError`, preventing invalid definitions from
  * reaching the in-memory blob store or the worker.
  */
-export async function addLuaDefinition(
-  session: DocSession,
-  def: LuaDefinition,
-): Promise<Hash> {
+export async function addLuaDefinition(session: DocSession, def: LuaDefinition): Promise<Hash> {
   validateLuaSource(def); // throws LuaValidationError on static-analysis failure
   const bytes = ENC.encode(canonicalizeDefinition(def));
   return session.addBlob(bytes);

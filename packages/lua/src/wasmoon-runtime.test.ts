@@ -96,8 +96,18 @@ describe('WasmoonLuaRuntime sandbox', () => {
       const p = out.params as Record<string, string>;
       // Forbidden globals must be absent.
       for (const banned of [
-        'os', 'io', 'package', 'require', 'dofile', 'loadfile',
-        'debug', 'coroutine', 'load', 'loadstring', 'print', 'collectgarbage',
+        'os',
+        'io',
+        'package',
+        'require',
+        'dofile',
+        'loadfile',
+        'debug',
+        'coroutine',
+        'load',
+        'loadstring',
+        'print',
+        'collectgarbage',
       ]) {
         expect(p[`has_${banned}`], `${banned} should be absent`).toBe('no');
       }

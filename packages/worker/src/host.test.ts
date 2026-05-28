@@ -1,5 +1,5 @@
 import { defaultHasher } from '@yacad/hash';
-import { hashLuaDefinition, LuaValidationError, type LuaDefinition } from '@yacad/lua';
+import { hashLuaDefinition, type LuaDefinition } from '@yacad/lua';
 import { describe, expect, it, vi } from 'vitest';
 import { startHost, type WorkerScope } from './host';
 import type { EvaluateErr, EvaluateOk, OkResponse, ValidationErrorResponse } from './protocol';

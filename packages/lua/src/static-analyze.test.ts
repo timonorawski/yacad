@@ -37,9 +37,7 @@ describe('LuaValidationError', () => {
   });
 
   it('truncates after three issues with "and N more"', () => {
-    const issues = Array.from({ length: 7 }, (_, i) =>
-      sample({ message: `m${i}`, line: i + 1 })
-    );
+    const issues = Array.from({ length: 7 }, (_, i) => sample({ message: `m${i}`, line: i + 1 }));
     const err = new LuaValidationError(issues);
     expect(err.message).toContain('m0');
     expect(err.message).toContain('m1');
@@ -95,7 +93,9 @@ describe('Phase 1 — direct aliases', () => {
 
   it('rejects local i = inputs and local g = geo', () => {
     try {
-      validateLuaSource(def(['local i = inputs', 'local g = geo', 'return { type = "box" }'].join('\n')));
+      validateLuaSource(
+        def(['local i = inputs', 'local g = geo', 'return { type = "box" }'].join('\n')),
+      );
       throw new Error('expected throw');
     } catch (e) {
       const err = e as LuaValidationError;

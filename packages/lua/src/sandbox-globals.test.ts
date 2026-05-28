@@ -16,9 +16,23 @@ describe('SANDBOX_GLOBALS.topLevel', () => {
 
   it('includes base-library entries that survive the strip', () => {
     for (const name of [
-      'assert', 'error', 'getmetatable', 'ipairs', 'next', 'pairs',
-      'pcall', 'rawequal', 'rawget', 'rawlen', 'rawset', 'select',
-      'setmetatable', 'tonumber', 'tostring', 'type', 'xpcall',
+      'assert',
+      'error',
+      'getmetatable',
+      'ipairs',
+      'next',
+      'pairs',
+      'pcall',
+      'rawequal',
+      'rawget',
+      'rawlen',
+      'rawset',
+      'select',
+      'setmetatable',
+      'tonumber',
+      'tostring',
+      'type',
+      'xpcall',
     ]) {
       expect(SANDBOX_GLOBALS.topLevel.has(name)).toBe(true);
     }
@@ -26,8 +40,13 @@ describe('SANDBOX_GLOBALS.topLevel', () => {
 
   it('excludes stripped base-library entries', () => {
     for (const name of [
-      'dofile', 'loadfile', 'load', 'loadstring', 'require',
-      'print', 'collectgarbage',
+      'dofile',
+      'loadfile',
+      'load',
+      'loadstring',
+      'require',
+      'print',
+      'collectgarbage',
     ]) {
       expect(SANDBOX_GLOBALS.topLevel.has(name)).toBe(false);
     }
@@ -43,7 +62,18 @@ describe('SANDBOX_GLOBALS.libraryMembers', () => {
   it('math allows common functions but excludes randomseed', () => {
     const math = SANDBOX_GLOBALS.libraryMembers.get('math');
     expect(math).toBeDefined();
-    for (const name of ['abs', 'ceil', 'cos', 'floor', 'max', 'min', 'pi', 'random', 'sin', 'sqrt']) {
+    for (const name of [
+      'abs',
+      'ceil',
+      'cos',
+      'floor',
+      'max',
+      'min',
+      'pi',
+      'random',
+      'sin',
+      'sqrt',
+    ]) {
       expect(math!.has(name)).toBe(true);
     }
     expect(math!.has('randomseed')).toBe(false);
@@ -69,7 +99,15 @@ describe('SANDBOX_GLOBALS.libraryMembers', () => {
 
 describe('SANDBOX_STRIP_SCRIPT', () => {
   it('nils out every base-library entry NOT in topLevel that Wasmoon loads', () => {
-    for (const name of ['dofile', 'loadfile', 'load', 'loadstring', 'require', 'print', 'collectgarbage']) {
+    for (const name of [
+      'dofile',
+      'loadfile',
+      'load',
+      'loadstring',
+      'require',
+      'print',
+      'collectgarbage',
+    ]) {
       expect(SANDBOX_STRIP_SCRIPT).toMatch(new RegExp(`^${name}\\s*=\\s*nil\\s*$`, 'm'));
     }
   });
