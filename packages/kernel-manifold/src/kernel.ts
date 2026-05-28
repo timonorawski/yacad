@@ -2,6 +2,7 @@ import { type Manifold as Solid, type ManifoldToplevel } from 'manifold-3d';
 import type { Node, Vec3 } from '@yacad/dag';
 import type { Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
+import { catmullRomClosed } from './spline';
 
 /** Wall-clock breakdown of one kernel evaluation, in milliseconds. */
 export interface KernelTimings {
@@ -76,6 +77,9 @@ export class ManifoldKernel implements Kernel {
     if (node.type === 'polygon') {
       return this.evaluatePolygon(node);
     }
+    if (node.type === 'spline') {
+      return this.evaluateSpline(node);
+    }
 
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
@@ -147,6 +151,24 @@ export class ManifoldKernel implements Kernel {
     const opStart = performance.now();
     const points = node.params['points'] as ReadonlyArray<readonly [number, number]>;
     const cs = this.api.CrossSection.ofPolygons([points]);
+    const opMs = performance.now() - opStart;
+    const exportStart = performance.now();
+    const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    cs.delete?.();
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+    };
+  }
+
+  private evaluateSpline(node: Node): KernelResult {
+    const importMs = 0;
+    const opStart = performance.now();
+    const points = node.params['points'] as ReadonlyArray<readonly [number, number]>;
+    const segmentsPerCurve = node.params['segmentsPerCurve'] as number;
+    const tension = node.params['tension'] as number;
+    const tess = catmullRomClosed(points, segmentsPerCurve, tension);
+    const cs = this.api.CrossSection.ofPolygons([tess]);
     const opMs = performance.now() - opStart;
     const exportStart = performance.now();
     const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;

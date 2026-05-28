@@ -158,6 +158,28 @@ it('kernel evaluates polygon to a CrossSection with the supplied points', async 
   }
 });
 
+it('kernel evaluates spline to a tessellated CrossSection', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const node = await buildGraph({
+    type: 'spline',
+    params: {
+      points: [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+      ],
+      segmentsPerCurve: 8,
+    },
+  });
+  const { geometry } = kernel.evaluateTimed(node, []);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    // 4 control points × 8 segments = 32 tessellated points
+    expect(geometry.section.polygons[0]!.length).toBe(32);
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({

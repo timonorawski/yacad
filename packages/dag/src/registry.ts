@@ -207,6 +207,36 @@ const defs: NodeTypeDef[] = [
     const p = asRecord(params, path);
     return { points: vec2Array(p, 'points', path, 3) };
   }),
+  primitive2d('spline', (params, path) => {
+    const p = asRecord(params, path);
+    const segmentsPerCurve = p['segmentsPerCurve'];
+    const tension = p['tension'];
+    return {
+      points: vec2Array(p, 'points', path, 3),
+      segmentsPerCurve:
+        segmentsPerCurve === undefined
+          ? 16
+          : (() => {
+              if (
+                typeof segmentsPerCurve !== 'number' ||
+                !Number.isInteger(segmentsPerCurve) ||
+                segmentsPerCurve < 1
+              ) {
+                throw new DagError(`"segmentsPerCurve" must be a positive integer`, path);
+              }
+              return segmentsPerCurve;
+            })(),
+      tension:
+        tension === undefined
+          ? 0.5
+          : (() => {
+              if (typeof tension !== 'number' || !Number.isFinite(tension)) {
+                throw new DagError(`"tension" must be a finite number`, path);
+              }
+              return tension;
+            })(),
+    };
+  }),
 ];
 
 const registry = new Map<string, NodeTypeDef>(defs.map((def) => [def.type, def]));

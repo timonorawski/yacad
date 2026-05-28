@@ -225,6 +225,38 @@ describe('polygon node type', () => {
   });
 });
 
+describe('spline node type', () => {
+  it('builds with required points and defaults', async () => {
+    const node = await buildGraph({
+      type: 'spline',
+      params: {
+        points: [
+          [0, 0],
+          [10, 0],
+          [5, 10],
+        ],
+      },
+    });
+    expect(node.outputType).toBe('2d');
+    expect(node.params['segmentsPerCurve']).toBe(16);
+    expect(node.params['tension']).toBe(0.5);
+  });
+
+  it('rejects fewer than 3 control points', async () => {
+    await expect(
+      buildGraph({
+        type: 'spline',
+        params: {
+          points: [
+            [0, 0],
+            [1, 0],
+          ],
+        },
+      }),
+    ).rejects.toThrow(/at least 3/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',
