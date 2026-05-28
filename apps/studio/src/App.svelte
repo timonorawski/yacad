@@ -466,16 +466,16 @@
     for (const doc of KERNEL_TYPE_DOCS) {
       if (!registeredKernelTypes.has(doc.type)) continue;
 
-      const childrenArg = doc.params.length === 0 ? 'children?' : 'params, children?';
+      const childrenArg = doc.paramSchema.length === 0 ? 'children?' : 'params, children?';
       lines.push(`### \`geo.${doc.type}(${childrenArg}) → ${doc.outputDoc}\``);
       lines.push('');
       lines.push(doc.summary);
       lines.push('');
 
-      if (doc.params.length > 0) {
+      if (doc.paramSchema.length > 0) {
         lines.push('**Parameters:**');
         lines.push('');
-        for (const p of doc.params) {
+        for (const p of doc.paramSchema) {
           const req = p.required ? '' : ` *(default: \`${JSON.stringify(p.default)}\`)*`;
           lines.push(`- \`${p.name}\` (\`${p.type}\`)${req}: ${p.doc}`);
         }

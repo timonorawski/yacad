@@ -28,4 +28,18 @@ describe('KERNEL_TYPE_DOCS', () => {
       expect(doc.example.length).toBeGreaterThan(0);
     }
   });
+
+  it('every kernel type has a non-empty paramSchema array or an empty one (never undefined)', () => {
+    for (const doc of KERNEL_TYPE_DOCS) {
+      expect(Array.isArray(doc.paramSchema), `kernel type "${doc.type}" has no paramSchema`).toBe(
+        true,
+      );
+    }
+  });
+
+  it('every kernel type has a Lua example', () => {
+    for (const doc of KERNEL_TYPE_DOCS) {
+      expect(doc.example.length, `kernel type "${doc.type}" has no example`).toBeGreaterThan(0);
+    }
+  });
 });
