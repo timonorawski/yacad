@@ -4,6 +4,7 @@ import { canonicalize } from '@yacad/canonical';
 import { buildGeoApi } from './geo';
 import { LuaError, type InputRef, type LuaRuntime } from './runtime';
 import type { LuaDefinition } from './schema';
+import { SANDBOX_STRIP_SCRIPT } from './sandbox-globals';
 
 export interface WasmoonLuaRuntimeOptions {
   /** Custom WASM URL (worker / browser environments). Omit in Node. */
@@ -77,19 +78,9 @@ async function installSandbox(
   await engine.doString(`math.randomseed(${seedLo.toString()}, ${seedHi.toString()})`);
 
   // 3. Strip impure / unwanted entries AFTER seeding.
-  //    Base library brings in load/loadfile/dofile/require/print which can escape the sandbox.
-  //    We remove them explicitly here.
-  await engine.doString(`
-    math.randomseed = nil
-    string.dump = nil
-    dofile = nil
-    loadfile = nil
-    load = nil
-    loadstring = nil
-    require = nil
-    print = nil
-    collectgarbage = nil
-  `);
+  //    Single source of truth: SANDBOX_STRIP_SCRIPT is derived from
+  //    SANDBOX_GLOBALS, so runtime and validator cannot drift.
+  await engine.doString(SANDBOX_STRIP_SCRIPT);
 
   // 4. Install our APIs.
   engine.global.set('geo', geoApi);

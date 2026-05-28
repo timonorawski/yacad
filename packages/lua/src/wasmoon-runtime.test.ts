@@ -4,6 +4,7 @@ import { hashLuaDefinition } from './canonical';
 import { LuaError } from './runtime';
 import type { LuaDefinition } from './schema';
 import { WasmoonLuaRuntime } from './wasmoon-runtime';
+import { SANDBOX_GLOBALS } from './sandbox-globals';
 
 const trivial: LuaDefinition = {
   schema: { inputs: [], params: {}, output: '3d' },
@@ -55,13 +56,35 @@ describe('WasmoonLuaRuntime', () => {
   });
 });
 
-const inspectG: LuaDefinition = {
+// Probe each global by direct reference rather than pairs(_G): _G is nilled by
+// SANDBOX_STRIP_SCRIPT (it's not in the whitelist), so pairs(_G) would throw.
+// Checking by name is also a more explicit, readable test.
+const inspectGlobals: LuaDefinition = {
   schema: { inputs: [], params: {}, output: '3d' },
   code: `
-    local keys = {}
-    for k in pairs(_G) do keys[#keys + 1] = k end
-    table.sort(keys)
-    return geo.node('box', { size = {1, 1, 1}, _g = table.concat(keys, ',') })
+    local function present(v) return v ~= nil and 'yes' or 'no' end
+    return geo.node('box', { size = {1, 1, 1},
+      -- banned
+      has_os             = present(os),
+      has_io             = present(io),
+      has_package        = present(package),
+      has_require        = present(require),
+      has_dofile         = present(dofile),
+      has_loadfile       = present(loadfile),
+      has_load           = present(load),
+      has_loadstring     = present(loadstring),
+      has_print          = present(print),
+      has_collectgarbage = present(collectgarbage),
+      has_debug          = present(debug),
+      has_coroutine      = present(coroutine),
+      -- allowed
+      has_geo    = present(geo),
+      has_inputs = present(inputs),
+      has_math   = present(math),
+      has_params = present(params),
+      has_string = present(string),
+      has_table  = present(table),
+    })
   `,
 };
 
@@ -69,11 +92,9 @@ describe('WasmoonLuaRuntime sandbox', () => {
   it('only exposes whitelisted globals', async () => {
     const runtime = new WasmoonLuaRuntime();
     try {
-      const out = await runtime.evaluate(inspectG, [], {});
-      const keys = (out.params!['_g'] as string).split(',');
-      // Whitelist: geo, inputs, math, params, string, table, _G.
-      // Forbidden: os, io, package, require, dofile, loadfile, debug, coroutine,
-      //            load, loadstring, print, collectgarbage.
+      const out = await runtime.evaluate(inspectGlobals, [], {});
+      const p = out.params as Record<string, string>;
+      // Forbidden globals must be absent.
       for (const banned of [
         'os',
         'io',
@@ -88,10 +109,11 @@ describe('WasmoonLuaRuntime sandbox', () => {
         'print',
         'collectgarbage',
       ]) {
-        expect(keys).not.toContain(banned);
+        expect(p[`has_${banned}`], `${banned} should be absent`).toBe('no');
       }
+      // Allowed globals must be present.
       for (const allowed of ['geo', 'inputs', 'math', 'params', 'string', 'table']) {
-        expect(keys).toContain(allowed);
+        expect(p[`has_${allowed}`], `${allowed} should be present`).toBe('yes');
       }
     } finally {
       runtime.dispose();
@@ -215,6 +237,38 @@ describe('WasmoonLuaRuntime error mapping', () => {
       expect(err).toBeInstanceOf(LuaError);
       expect(err.phase).toBe('runtime');
       expect(err.message).toMatch(/nil value/i);
+    } finally {
+      runtime.dispose();
+    }
+  });
+});
+
+describe('sandbox-runtime parity', () => {
+  it('post-installSandbox _ENV matches SANDBOX_GLOBALS.topLevel', async () => {
+    const runtime = new WasmoonLuaRuntime();
+    try {
+      const def: LuaDefinition = {
+        schema: { inputs: [], params: {}, output: '3d' },
+        // Enumerate the chunk's environment table. `_ENV` is the Lua 5.4 upvalue
+        // pointing at the global table; it survives the strip (the strip nils
+        // the global named `_G`, not `_ENV`). Filtering on `v ~= nil` skips
+        // entries the strip nilled out; we also exclude any literal '_ENV' key
+        // if one shows up (it shouldn't in practice, but cheap defense).
+        code: [
+          'local names = {}',
+          'for k, v in pairs(_ENV) do',
+          '  if v ~= nil and k ~= "_ENV" then names[#names + 1] = k end',
+          'end',
+          'table.sort(names)',
+          'return geo.node("box", { size = {1, 1, 1}, __sandbox_keys = names })',
+        ].join('\n'),
+      };
+      const result = (await runtime.evaluate(def, [], {})) as { params: Record<string, unknown> };
+      const actual = new Set(result.params['__sandbox_keys'] as string[]);
+
+      const extras = [...actual].filter((n) => !SANDBOX_GLOBALS.topLevel.has(n));
+      const missing = [...SANDBOX_GLOBALS.topLevel].filter((n) => !actual.has(n));
+      expect({ extras, missing }).toEqual({ extras: [], missing: [] });
     } finally {
       runtime.dispose();
     }

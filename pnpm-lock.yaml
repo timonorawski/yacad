@@ -462,10 +462,16 @@ importers:
       '@yacad/hash':
         specifier: workspace:*
         version: link:../hash
+      luaparse:
+        specifier: ^0.3.1
+        version: 0.3.1
       wasmoon:
         specifier: 1.16.0
         version: 1.16.0
     devDependencies:
+      '@types/luaparse':
+        specifier: ^0.2.12
+        version: 0.2.13
       '@yacad/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
@@ -1000,6 +1006,9 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
+  '@types/luaparse@0.2.13':
+    resolution: {integrity: sha512-nWs2m9b/zrMcAA2Rs+wTxdIsBkSYMo0+6ko8mpeqS5dhchU3hQN9kZGcSw96n497Vc7kGpDLtSicjdpaUrRAkw==}
+
   '@types/ndarray@1.0.14':
     resolution: {integrity: sha512-oANmFZMnFQvb219SSBIhI1Ih/r4CvHDOzkWyJS/XRqkMrGH5/kaPSA1hQhdIBzouaE+5KpE/f5ylI9cujmckQg==}
 
@@ -1462,6 +1471,10 @@ packages:
   loglevel@1.9.2:
     resolution: {integrity: sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==}
     engines: {node: '>= 0.6.0'}
+
+  luaparse@0.3.1:
+    resolution: {integrity: sha512-b21h2bFEbtGXmVqguHogbyrMAA0wOHyp9u/rx+w6Yc9pW1t9YjhGUsp87lYcp7pFRqSWN/PhFkrdIqKEUzRjjQ==}
+    hasBin: true
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -2180,6 +2193,8 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
+  '@types/luaparse@0.2.13': {}
+
   '@types/ndarray@1.0.14': {}
 
   '@types/node@25.9.1':
@@ -2636,6 +2651,8 @@ snapshots:
       p-locate: 5.0.0
 
   loglevel@1.9.2: {}
+
+  luaparse@0.3.1: {}
 
   magic-string@0.30.21:
     dependencies:
