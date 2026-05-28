@@ -144,19 +144,23 @@ local gable_pts = {
 local gable_2d = geo.polygon({ points = gable_pts })
 local roof_prism = geo.extrude({ height = roof_depth }, { gable_2d })
 
--- Rotate extrusion so it runs along the ridge (extruded along Y by default)
--- and translate to sit on top of the walls with correct positioning.
+-- Rotate +90° around X so the gable's ridge points up (+Z) and the prism's
+-- length runs along Y. With -90° the ridge ends up at -Z (roof faces down).
+-- Map under +90° X-rotation: (x, y, z) → (x, -z, y).
 local roof = geo.rotate(
-  { angles = {-90, 0, 0} },
+  { angles = {90, 0, 0} },
   { roof_prism }
 )
--- After rotation: extruded Y→Z (length = roof_depth), cross-section in XZ.
--- Translate so:
---   X: left edge of prism sits at -ov (relative to house origin)
---   Y: front eave sits at -ov
---   Z: sits on top of the wall box (Z = H)
+-- After rotation:
+--   X: 0 .. roof_span        (cross-section width, ridge at X = roof_span/2)
+--   Y: 0 .. -roof_depth      (extrusion now runs in -Y)
+--   Z: 0 .. ridge_h          (ridge up)
+-- Translate so the roof sits on the walls with the right overhang:
+--   X: left eave at -ov   → offset X by -ov
+--   Y: front eave at -ov  → offset Y by D + ov  (compensates for -Y extrusion)
+--   Z: base at H          → offset Z by H
 roof = geo.translate(
-  { offset = {-ov, -ov, H} },
+  { offset = {-ov, D + ov, H} },
   { roof }
 )
 
