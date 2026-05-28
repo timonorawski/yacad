@@ -3,9 +3,19 @@
     docsOpen: boolean;
     onToggleDocs: () => void;
     onRefreshSamples: () => Promise<void>;
+    onDownloadCurrent: () => Promise<void>;
+    onDownloadAll: () => Promise<void>;
+    onImport: () => Promise<void>;
   }
 
-  let { docsOpen, onToggleDocs, onRefreshSamples }: Props = $props();
+  let {
+    docsOpen,
+    onToggleDocs,
+    onRefreshSamples,
+    onDownloadCurrent,
+    onDownloadAll,
+    onImport,
+  }: Props = $props();
   let menu: HTMLDetailsElement | undefined = $state();
 
   function close() {
@@ -22,6 +32,27 @@
         close();
         onToggleDocs();
       }}>{docsOpen ? 'Hide docs' : 'Show docs'}</button
+    >
+    <button
+      type="button"
+      onclick={() => {
+        close();
+        void onDownloadCurrent();
+      }}>Download current document</button
+    >
+    <button
+      type="button"
+      onclick={() => {
+        close();
+        void onDownloadAll();
+      }}>Download all documents</button
+    >
+    <button
+      type="button"
+      onclick={() => {
+        close();
+        void onImport();
+      }}>Import document…</button
     >
     <button
       type="button"

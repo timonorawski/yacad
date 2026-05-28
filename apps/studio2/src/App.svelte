@@ -11,6 +11,14 @@
   import { SelectionState } from './state/selection.svelte';
   import { seedSceneLibrary } from './seed-scenes';
   import { syncLuaDefinitionsToWorker, decodeLuaDefinitionBytes } from './lua-sync';
+  import {
+    archiveLibrary,
+    bundleSession,
+    downloadJson,
+    importPayload,
+    parseImportPayload,
+    uploadJson,
+  } from './doc-io';
   import { getAt, setParam } from '@yacad/mutations';
   import DocPicker from './ui/DocPicker.svelte';
   import HeaderMenu from './ui/HeaderMenu.svelte';
@@ -78,6 +86,40 @@
     await refreshDocs();
     if (sampleDocs.length > 0) {
       await openDoc(sampleDocs[0]!.id, 'sample');
+    }
+  }
+
+  async function downloadCurrent() {
+    if (!session) return;
+    const bundle = bundleSession(session.session);
+    const safe = bundle.meta.name.replace(/[^a-z0-9._-]+/gi, '_');
+    downloadJson(bundle, `${safe}.yacad.json`);
+  }
+
+  async function downloadAll() {
+    if (!userLibrary) return;
+    const archive = await archiveLibrary(userLibrary);
+    downloadJson(archive, `yacad-docs-${new Date().toISOString().slice(0, 10)}.yacad-archive.json`);
+  }
+
+  async function importDoc() {
+    const text = await uploadJson();
+    if (!text) return;
+    let payload;
+    try {
+      payload = parseImportPayload(text);
+    } catch (err) {
+      alert(`Import failed: ${(err as Error).message}`);
+      return;
+    }
+    try {
+      const result = await importPayload(userLibrary, payload);
+      await refreshDocs();
+      if (result.newIds.length > 0) {
+        await openDoc(result.newIds[0]!, 'user');
+      }
+    } catch (err) {
+      alert(`Import failed: ${(err as Error).message}`);
     }
   }
 
@@ -156,6 +198,9 @@
       {docsOpen}
       onToggleDocs={() => (docsOpen = !docsOpen)}
       onRefreshSamples={refreshSamples}
+      onDownloadCurrent={downloadCurrent}
+      onDownloadAll={downloadAll}
+      onImport={importDoc}
     />
   </header>
   <aside class="tree-pane">
