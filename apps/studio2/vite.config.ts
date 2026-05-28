@@ -53,6 +53,12 @@ export default defineConfig({
           new URL('../../packages/e2e/showcase/castle/index.ts', import.meta.url),
         ),
       },
+      {
+        find: '@yacad/e2e/showcase/torus-knot',
+        replacement: fileURLToPath(
+          new URL('../../packages/e2e/showcase/torus-knot/index.ts', import.meta.url),
+        ),
+      },
     ],
   },
   worker: { format: 'es' },
