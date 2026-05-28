@@ -31,3 +31,36 @@ test('LuaInspector mounts without console errors when a Lua scene is loaded', as
   // No runtime errors should have been thrown.
   expect(errors).toEqual([]);
 });
+
+test('Lua editor shows a passing validation chip that flips on an invalid edit', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  await expect(page.locator('option', { hasText: 'Lua: parametric gear' })).toHaveCount(1, {
+    timeout: FIRST_LOAD_TIMEOUT,
+  });
+  await page.getByLabel('Document').selectOption({ label: 'Lua: parametric gear' });
+
+  await expect(page.locator('.tree-row').first()).toBeVisible({ timeout: FIRST_LOAD_TIMEOUT });
+  await page.locator('.tree-row').first().locator('.row-label').click();
+
+  // Open the Monaco editor from the inspector.
+  await page.getByRole('button', { name: 'Edit code' }).click();
+  await expect(page.locator('.lua-editor .monaco-editor')).toBeVisible({ timeout: 30_000 });
+
+  // The chip starts in the passing state with a millisecond reading.
+  const chip = page.locator('.lua-validation-status');
+  await expect(chip).toHaveClass(/\bok\b/, { timeout: 5_000 });
+  await expect(chip).toContainText('validated');
+  await expect(page.locator('.lua-validation-ms')).toContainText('ms');
+
+  // Replace the source with code that references an unregistered geo type.
+  await page.locator('.lua-editor .monaco-editor').click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('return geo.bogus({})');
+
+  // After the validation debounce, the chip flips to the invalid state.
+  await expect(chip).toHaveClass(/\binvalid\b/, { timeout: 5_000 });
+  await expect(chip).toContainText('issue');
+});
