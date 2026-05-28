@@ -392,7 +392,7 @@ export class ManifoldKernel implements Kernel {
     // Manifold.revolve takes a CrossSection or Polygons (array of SimplePolygon).
     // We pass the stored polygons directly, cast to the mutable form Manifold expects.
     const polygons = child.polygons as unknown as [number, number][][];
-    const axis = node.params['axis'] as 'y' | 'x';
+    const axis = node.params['axis'] as 'y' | 'x' | 'z';
     const segments = node.params['segments'] as number;
     const degrees = node.params['degrees'] as number;
 
@@ -404,6 +404,8 @@ export class ManifoldKernel implements Kernel {
     //   R_x(90°): (x,y,z) → (x,-z,y). Z vector (0,0,1) → (0,1,0) = +Y. ✓
     // For axis='x': we want ring axis = X. Rotate Z→X: rotate([0,-90,0]).
     //   R_y(-90°): (x,y,z) → (z,y,-x). Z vector (0,0,1) → (1,0,0) = +X. ✓
+    // For axis='z': leave Manifold's native frame untouched (ring axis = Z).
+    //   This is what vertex-deformation (warp) recipes are written against.
     const importMs = performance.now() - importStart;
 
     const opStart = performance.now();
@@ -412,7 +414,8 @@ export class ManifoldKernel implements Kernel {
       segments,
       degrees,
     );
-    // Post-rotate so the ring axis aligns with the requested 3D axis.
+    // Post-rotate so the ring axis aligns with the requested 3D axis. 'z' is
+    // the native frame — no rotation.
     const result = axis === 'x' ? m.rotate([0, -90, 0]) : axis === 'y' ? m.rotate([90, 0, 0]) : m;
     const opMs = performance.now() - opStart;
 

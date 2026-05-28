@@ -738,8 +738,8 @@ const defs: NodeTypeDef[] = [
           type: 'string',
           required: false,
           default: 'y',
-          enum: ['y', 'x'],
-          doc: 'Axis of revolution: "y" (default) or "x".',
+          enum: ['y', 'x', 'z'],
+          doc: 'Axis of revolution: "y" (default) or "x" remap the ring axis to that world axis; "z" leaves the result in Manifold\'s native revolve frame (ring axis = Z), which is what vertex-deformation (warp) recipes expect.',
         },
         {
           name: 'segments',
@@ -760,8 +760,8 @@ const defs: NodeTypeDef[] = [
     (params, path) => {
       const p = asRecord(params, path);
       const axisRaw = p['axis'] ?? 'y';
-      if (axisRaw !== 'y' && axisRaw !== 'x') {
-        throw new DagError(`"axis" must be 'y' or 'x'`, path);
+      if (axisRaw !== 'y' && axisRaw !== 'x' && axisRaw !== 'z') {
+        throw new DagError(`"axis" must be 'y', 'x', or 'z'`, path);
       }
       const segmentsRaw = p['segments'];
       const degreesRaw = p['degrees'];

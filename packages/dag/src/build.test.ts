@@ -447,7 +447,7 @@ describe('revolve node type', () => {
     await expect(
       buildGraph({
         type: 'revolve',
-        params: { axis: 'z' },
+        params: { axis: 'w' },
         children: [{ type: 'circle', params: { radius: 1 } }],
       }),
     ).rejects.toThrow(/axis/);
@@ -469,6 +469,15 @@ describe('revolve node type', () => {
       children: [{ type: 'circle', params: { radius: 1 } }],
     });
     expect(node.params['axis']).toBe('y');
+  });
+
+  it('accepts axis z (native Manifold frame, ring axis = Z)', async () => {
+    const node = await buildGraph({
+      type: 'revolve',
+      params: { axis: 'z' },
+      children: [{ type: 'circle', params: { radius: 1 } }],
+    });
+    expect(node.params['axis']).toBe('z');
   });
 });
 
