@@ -90,6 +90,8 @@ export function renderCrossSectionToContext(
 
   ctx.fillStyle = fill;
   ctx.strokeStyle = stroke;
+  // strokeWidth is in CAD units; canvas multiplies it by the current
+  // transform's scale, so screen-pixel width = strokeWidth * effectiveScale.
   ctx.lineWidth = strokeWidth;
 
   ctx.beginPath();

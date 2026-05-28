@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CrossSection } from '@yacad/geometry';
 import { renderCrossSectionToContext, type PngOptions } from './render';
+import { ExportError } from './errors';
 
 interface Call {
   method: string;
@@ -70,8 +71,6 @@ const squareCs: CrossSection = {
 const baseOpts: PngOptions = { width: 100, height: 100 };
 
 describe('renderCrossSectionToContext', () => {
-  // --- 6 plan tests ---
-
   it('clears the canvas before drawing when no background', () => {
     const { ctx, calls } = mockContext();
     renderCrossSectionToContext(emptyCs, ctx, baseOpts);
@@ -149,8 +148,6 @@ describe('renderCrossSectionToContext', () => {
     expect(calls.some((c) => c.method === 'set lineWidth')).toBe(true);
   });
 
-  // --- Lesson 1: degenerate-polygon guard (2 tests) ---
-
   it('throws ExportError on a polygon with fewer than 3 vertices', () => {
     const degenerate: CrossSection = {
       polygons: [
@@ -161,16 +158,16 @@ describe('renderCrossSectionToContext', () => {
       ],
     };
     const { ctx } = mockContext();
-    expect(() => renderCrossSectionToContext(degenerate, ctx, baseOpts)).toThrow();
+    expect(() => renderCrossSectionToContext(degenerate, ctx, baseOpts)).toThrow(ExportError);
   });
 
   it('throws ExportError on an empty polygon (zero vertices)', () => {
     const empty: CrossSection = { polygons: [[]] };
     const { ctx } = mockContext();
-    expect(() => renderCrossSectionToContext(empty, ctx, baseOpts)).toThrow();
+    expect(() => renderCrossSectionToContext(empty, ctx, baseOpts)).toThrow(ExportError);
   });
 
-  // --- Lesson 2: non-finite coordinate tests (2 tests) ---
+  // --- non-finite coordinate tests (2 tests) ---
 
   it('throws ExportError on NaN coordinates', () => {
     const bad: CrossSection = {
@@ -183,7 +180,7 @@ describe('renderCrossSectionToContext', () => {
       ],
     };
     const { ctx } = mockContext();
-    expect(() => renderCrossSectionToContext(bad, ctx, baseOpts)).toThrow();
+    expect(() => renderCrossSectionToContext(bad, ctx, baseOpts)).toThrow(ExportError);
   });
 
   it('throws ExportError on Infinity coordinates', () => {
@@ -197,24 +194,63 @@ describe('renderCrossSectionToContext', () => {
       ],
     };
     const { ctx } = mockContext();
-    expect(() => renderCrossSectionToContext(bad, ctx, baseOpts)).toThrow();
+    expect(() => renderCrossSectionToContext(bad, ctx, baseOpts)).toThrow(ExportError);
   });
 
-  // --- Lesson 3: width/height validation tests (2 tests) ---
+  // --- width/height validation tests (2 tests) ---
 
   it('throws ExportError on zero width', () => {
     const { ctx } = mockContext();
-    expect(() => renderCrossSectionToContext(squareCs, ctx, { width: 0, height: 100 })).toThrow();
+    expect(() => renderCrossSectionToContext(squareCs, ctx, { width: 0, height: 100 })).toThrow(
+      ExportError,
+    );
   });
 
   it('throws ExportError on non-integer width', () => {
     const { ctx } = mockContext();
-    expect(() =>
-      renderCrossSectionToContext(squareCs, ctx, { width: 100.5, height: 100 }),
-    ).toThrow();
+    expect(() => renderCrossSectionToContext(squareCs, ctx, { width: 100.5, height: 100 })).toThrow(
+      ExportError,
+    );
   });
 
-  // --- Lesson 5: zero-range geometry guard (1 test) ---
+  it('handles non-square geometry in non-square canvas (centers and preserves aspect)', () => {
+    // 20×10 CAD content in 200×100 canvas with padding 10
+    // drawableW = 180, drawableH = 80
+    // scale = min(180/20, 80/10) = min(9, 8) = 8
+    // offsetX = 10 + (180 - 20*8)/2 = 10 + 20/2 = 20
+    // offsetY = 10 + (80 - 10*8)/2 = 10
+    // tx = 20 - 8*0 = 20
+    // ty = 10 + 8*10 = 90
+    const rect: CrossSection = {
+      polygons: [
+        [
+          [0, 0],
+          [20, 0],
+          [20, 10],
+          [0, 10],
+        ],
+      ],
+    };
+    const { ctx, calls } = mockContext();
+    renderCrossSectionToContext(rect, ctx, { width: 200, height: 100, padding: 10 });
+    const setTransformCalls = calls.filter((c) => c.method === 'setTransform');
+    // First is identity reset, second is the geometry transform
+    expect(setTransformCalls.length).toBe(2);
+    const [a, b, c, d, tx, ty] = setTransformCalls[1]!.args as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ];
+    expect(a).toBeCloseTo(8, 6);
+    expect(b).toBeCloseTo(0, 6);
+    expect(c).toBeCloseTo(0, 6);
+    expect(d).toBeCloseTo(-8, 6);
+    expect(tx).toBeCloseTo(20, 6);
+    expect(ty).toBeCloseTo(90, 6);
+  });
 
   it('handles zero-range geometry without producing NaN transform values', () => {
     const point: CrossSection = {
