@@ -74,9 +74,7 @@ export class ManifoldKernel implements Kernel {
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
     const importStart = performance.now();
-    const childSolids = childGeometries.map((g, i) =>
-      this.toSolid(asMesh(g, node.id, i)),
-    );
+    const childSolids = childGeometries.map((g, i) => this.toSolid(asMesh(g, node.id, i)));
     const importMs = performance.now() - importStart;
 
     const opStart = performance.now();
