@@ -53,6 +53,12 @@ export class MemoryStore implements ObjectStore, Pinnable {
     return Promise.resolve();
   }
 
+  clear(): Promise<void> {
+    this.entries.clear();
+    this.pinned.clear();
+    return Promise.resolve();
+  }
+
   pin(hashes: Iterable<Hash>): void {
     this.pinned.clear();
     for (const h of hashes) this.pinned.add(h);

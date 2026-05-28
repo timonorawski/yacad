@@ -60,6 +60,13 @@ export class TieredStore implements ObjectStore, Pinnable {
     await Promise.all([this.l1.delete(key, kind), this.l2.delete(key, kind)]);
   }
 
+  async clear(): Promise<void> {
+    // Drain any write-behind L2 writes first so they don't repopulate the
+    // store after we've cleared it.
+    await this.flush();
+    await Promise.all([this.l1.clear(), this.l2.clear()]);
+  }
+
   pin(hashes: Iterable<Hash>): void {
     this.l1.pin(hashes);
   }

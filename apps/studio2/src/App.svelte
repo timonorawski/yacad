@@ -138,6 +138,18 @@
     downloadJson(archive, `yacad-docs-${new Date().toISOString().slice(0, 10)}.yacad-archive.json`);
   }
 
+  async function clearCache() {
+    if (!client) return;
+    await client.clearCache();
+    // The store is empty now but the on-screen geometry hasn't changed —
+    // nudge the viewport to re-evaluate so the user sees every node as a
+    // miss in the perf panel.
+    if (session) {
+      const ev = new Event('yacad:cache-cleared');
+      window.dispatchEvent(ev);
+    }
+  }
+
   async function importDoc() {
     const text = await uploadJson();
     if (!text) return;
@@ -237,6 +249,7 @@
       onDownloadCurrent={downloadCurrent}
       onDownloadAll={downloadAll}
       onImport={importDoc}
+      onClearCache={clearCache}
     />
   </header>
   <aside class="tree-pane">

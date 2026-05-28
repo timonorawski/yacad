@@ -13,6 +13,7 @@ import {
   type LuaDefinitionResolver,
 } from '@yacad/lua';
 import type {
+  ClearCacheRequest,
   EvaluateRequest,
   HasLuaDefinitionRequest,
   HasMeshBlobRequest,
@@ -111,11 +112,35 @@ export function startHost(scope: WorkerScope): void {
       return;
     }
 
+    if (req.kind === 'clearCache') {
+      void handleClearCache(scope, backend, req);
+      return;
+    }
+
     if (req.kind === 'evaluate') {
       backend ??= createEngine(undefined, combinedResolver);
       void handle(scope, backend, req);
     }
   };
+}
+
+async function handleClearCache(
+  scope: WorkerScope,
+  backend: Promise<Backend> | undefined,
+  req: ClearCacheRequest,
+): Promise<void> {
+  // If the engine hasn't been created yet there's nothing to clear; reply OK
+  // so the main thread doesn't hang.
+  if (backend) {
+    try {
+      const { store } = await backend;
+      await store.clear();
+    } catch (err) {
+      console.error('clearCache failed', err);
+    }
+  }
+  const res: OkResponse = { id: req.id, kind: 'ok' };
+  scope.postMessage(res);
 }
 
 interface Backend {

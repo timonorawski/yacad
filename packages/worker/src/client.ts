@@ -124,6 +124,12 @@ export class WorkerClient {
     return (res as OkResponse).present === true;
   }
 
+  /** Drop every artifact in the worker's cache (L1 + L2). The next evaluate
+   *  will be all misses, so the demo can show the rebuild cost vs. cache hits. */
+  async clearCache(): Promise<void> {
+    await this.send({ id: 0, kind: 'clearCache' });
+  }
+
   /**
    * Generic correlated request/response helper. Allocates an id, posts the
    * request (overwriting any `id` field on the supplied object), and resolves

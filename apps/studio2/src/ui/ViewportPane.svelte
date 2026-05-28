@@ -71,10 +71,15 @@
       viewport?.resize(rect.width, rect.height);
     });
     ro.observe(canvas);
+    // Re-evaluate when the global cache is cleared, so the perf panel shows
+    // every node as a miss (the demo's whole point).
+    const onCacheCleared = () => scheduleEvaluate();
+    window.addEventListener('yacad:cache-cleared', onCacheCleared);
     void evaluate();
 
     return () => {
       ro.disconnect();
+      window.removeEventListener('yacad:cache-cleared', onCacheCleared);
       viewport?.dispose();
       clearTimeout(debounce);
       clearTimeout(statusTimer);

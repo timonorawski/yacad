@@ -6,6 +6,7 @@
     onDownloadCurrent: () => Promise<void>;
     onDownloadAll: () => Promise<void>;
     onImport: () => Promise<void>;
+    onClearCache: () => Promise<void>;
   }
 
   let {
@@ -15,6 +16,7 @@
     onDownloadCurrent,
     onDownloadAll,
     onImport,
+    onClearCache,
   }: Props = $props();
   let menu: HTMLDetailsElement | undefined = $state();
 
@@ -60,6 +62,13 @@
         close();
         void onRefreshSamples();
       }}>Refresh samples</button
+    >
+    <button
+      type="button"
+      onclick={() => {
+        close();
+        void onClearCache();
+      }}>Clear cache</button
     >
     <hr class="header-menu-sep" />
     <a

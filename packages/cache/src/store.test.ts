@@ -73,6 +73,19 @@ describe('MemoryStore', () => {
     expect(await store.has(key('b'), 'mesh')).toBe(false);
     expect(await store.has(key('c'), 'mesh')).toBe(true);
   });
+
+  it('clear() drops every entry, including pinned ones', async () => {
+    const store = new MemoryStore(8);
+    store.pin(['a']);
+    await store.put(key('a'), mesh());
+    await store.put(key('b'), mesh());
+    await store.clear();
+    expect(await store.has(key('a'), 'mesh')).toBe(false);
+    expect(await store.has(key('b'), 'mesh')).toBe(false);
+    // Pinning is reset too — a fresh write after clear() should evict normally.
+    await store.put(key('a'), mesh());
+    expect(store.size).toBe(1);
+  });
 });
 
 describe('IndexedDbStore', () => {
@@ -145,6 +158,20 @@ describe('TieredStore', () => {
     const got = await tiered.get(key('a'), 'mesh');
     expect((got as MeshArtifact).mesh.vertices[0]).toBe(9);
     expect(await l1.has(key('a'), 'mesh')).toBe(true); // promoted on read
+  });
+
+  it('clear() empties both tiers', async () => {
+    const l1 = new MemoryStore();
+    const l2 = freshL2();
+    const tiered = new TieredStore(l1, l2);
+    await tiered.put(key('a'), mesh());
+    await tiered.put(key('b'), mesh());
+    await tiered.flush();
+    await tiered.clear();
+    expect(await l1.has(key('a'), 'mesh')).toBe(false);
+    expect(await l2.has(key('a'), 'mesh')).toBe(false);
+    expect(await l1.has(key('b'), 'mesh')).toBe(false);
+    expect(await l2.has(key('b'), 'mesh')).toBe(false);
   });
 });
 
