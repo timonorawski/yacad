@@ -92,6 +92,7 @@ Root config changes:
 ## Task 1: `@yacad/dag` — schema refactor
 
 **Files:**
+
 - Modify: `packages/dag/src/registry.ts`
 - Create: `packages/dag/src/schema-docs.ts`
 - Modify: `packages/dag/src/index.ts`
@@ -311,6 +312,7 @@ git commit -m "feat(dag): promote kernel paramSchema/summary/outputDoc to regist
 ## Task 2: `@yacad/lua` — derive `KERNEL_TYPE_DOCS` from registry
 
 **Files:**
+
 - Modify: `packages/lua/src/geo-docs.ts`
 - Modify: `packages/lua/src/geo-docs.test.ts`
 
@@ -361,21 +363,27 @@ const EXAMPLES: Record<string, string> = {
   sphere: 'return geo.sphere({ radius = 10, segments = 48 })',
   cylinder: 'return geo.cylinder({ height = 30, radius = 8, segments = 64, center = true })',
   translate: 'return geo.translate({ offset = {15, 0, 0} }, { geo.box({ size = {10, 10, 10} }) })',
-  rotate: 'return geo.rotate({ angles = {0, 90, 0} }, { geo.cylinder({ height = 30, radius = 6 }) })',
+  rotate:
+    'return geo.rotate({ angles = {0, 90, 0} }, { geo.cylinder({ height = 30, radius = 6 }) })',
   union: 'return geo.union({}, { geo.box({ size = {10, 10, 10} }), geo.sphere({ radius = 6 }) })',
-  difference: 'return geo.difference({}, { geo.box({ size = {30, 30, 30}, center = true }), geo.sphere({ radius = 19 }) })',
-  intersection: 'return geo.intersection({}, { geo.box({ size = {10, 10, 10}, center = true }), geo.sphere({ radius = 6 }) })',
+  difference:
+    'return geo.difference({}, { geo.box({ size = {30, 30, 30}, center = true }), geo.sphere({ radius = 19 }) })',
+  intersection:
+    'return geo.intersection({}, { geo.box({ size = {10, 10, 10}, center = true }), geo.sphere({ radius = 6 }) })',
   hull: 'return geo.hull({}, { geo.circle({ radius = 1 }), geo.translate_2d({ offset = {10, 0} }, { geo.circle({ radius = 1 }) }) })',
   circle: 'return geo.circle({ radius = 5, segments = 48 })',
   rectangle: 'return geo.rectangle({ size = {10, 20}, center = true })',
   polygon: 'return geo.polygon({ points = { {0,0}, {10,0}, {5,10} } })',
-  spline: 'return geo.spline({ points = { {10,0}, {3,3}, {0,10}, {-3,3}, {-10,0}, {-3,-3}, {0,-10}, {3,-3} } })',
+  spline:
+    'return geo.spline({ points = { {10,0}, {3,3}, {0,10}, {-3,3}, {-10,0}, {-3,-3}, {0,-10}, {3,-3} } })',
   extrude: 'return geo.extrude({ height = 10 }, { geo.circle({ radius = 5 }) })',
-  revolve: 'return geo.revolve({ axis = "y" }, { geo.polygon({ points = { {3,0}, {4,5}, {0,5} } }) })',
+  revolve:
+    'return geo.revolve({ axis = "y" }, { geo.polygon({ points = { {3,0}, {4,5}, {0,5} } }) })',
   translate_2d: 'return geo.translate_2d({ offset = {5, 0} }, { geo.circle({ radius = 1 }) })',
   rotate_2d: 'return geo.rotate_2d({ angle = 45 }, { geo.rectangle({ size = {2, 1} }) })',
   refine: 'return geo.refine({ n = 2 }, { geo.box({ size = {1, 1, 1} }) })',
-  offset_2d: 'return geo.offset_2d({ delta = 2, joinType = "round" }, { geo.rectangle({ size = {10, 10}, center = true }) })',
+  offset_2d:
+    'return geo.offset_2d({ delta = 2, joinType = "round" }, { geo.rectangle({ size = {10, 10}, center = true }) })',
 };
 
 /**
@@ -446,6 +454,7 @@ git commit -m "refactor(lua): derive KERNEL_TYPE_DOCS from registry; rename para
 ## Task 3: `@yacad/selection` — scaffold the package
 
 **Files:**
+
 - Create: `packages/selection/package.json`
 - Create: `packages/selection/tsconfig.json`
 - Modify: `tsconfig.json` (root, add reference)
@@ -534,6 +543,7 @@ git commit -m "feat(selection): scaffold @yacad/selection package"
 ## Task 4: `@yacad/selection` — Selection class + tests
 
 **Files:**
+
 - Create: `packages/selection/src/selection.ts`
 - Create: `packages/selection/src/selection.test.ts`
 - Modify: `packages/selection/src/index.ts`
@@ -726,6 +736,7 @@ git commit -m "feat(selection): Selection class with subscriber dispatch"
 ## Task 5: `@yacad/mutations` — scaffold + path helpers
 
 **Files:**
+
 - Create: `packages/mutations/package.json`
 - Create: `packages/mutations/tsconfig.json`
 - Modify: `tsconfig.json` (root)
@@ -917,14 +928,22 @@ export function replaceWithin(doc: NodeDoc, path: string, replacement: NodeDoc):
   return rebuild(doc, indices, 0, replacement);
 }
 
-function rebuild(node: NodeDoc, indices: readonly number[], depth: number, replacement: NodeDoc): NodeDoc {
+function rebuild(
+  node: NodeDoc,
+  indices: readonly number[],
+  depth: number,
+  replacement: NodeDoc,
+): NodeDoc {
   const idx = indices[depth]!;
   const children = node.children ?? [];
   if (idx >= children.length) {
-    throw new Error(`path out of range at depth ${depth}: index ${idx}, children ${children.length}`);
+    throw new Error(
+      `path out of range at depth ${depth}: index ${idx}, children ${children.length}`,
+    );
   }
   const child = children[idx]!;
-  const newChild = depth === indices.length - 1 ? replacement : rebuild(child, indices, depth + 1, replacement);
+  const newChild =
+    depth === indices.length - 1 ? replacement : rebuild(child, indices, depth + 1, replacement);
   const newChildren = children.slice();
   newChildren[idx] = newChild;
   return { ...node, children: newChildren };
@@ -948,6 +967,7 @@ git commit -m "feat(mutations): scaffold @yacad/mutations + path helpers"
 ## Task 6: `@yacad/mutations` — `setParam`
 
 **Files:**
+
 - Create: `packages/mutations/src/set-param.ts`
 - Create: `packages/mutations/src/set-param.test.ts`
 - Modify: `packages/mutations/src/index.ts`
@@ -1009,12 +1029,7 @@ import { getAt, replaceWithin } from './paths';
  * Returns a new tree where the node at `path` has `params[key] = value`.
  * Other params on the node are preserved. The original tree is not mutated.
  */
-export function setParam(
-  doc: NodeDoc,
-  path: string,
-  key: string,
-  value: unknown,
-): NodeDoc {
+export function setParam(doc: NodeDoc, path: string, key: string, value: unknown): NodeDoc {
   const target = getAt(doc, path);
   const newParams = { ...(target.params ?? {}), [key]: value };
   const newNode: NodeDoc = { ...target, params: newParams };
@@ -1048,6 +1063,7 @@ git commit -m "feat(mutations): setParam primitive"
 ## Task 7: `@yacad/mutations` — structural primitives
 
 **Files:**
+
 - Create: `packages/mutations/src/structural.ts`
 - Create: `packages/mutations/src/structural.test.ts`
 - Modify: `packages/mutations/src/index.ts`
@@ -1159,7 +1175,9 @@ export function addChild(
   const children = parent.children ?? [];
   const insertAt = index ?? children.length;
   if (insertAt < 0 || insertAt > children.length) {
-    throw new Error(`addChild index ${insertAt} out of range (parent has ${children.length} children)`);
+    throw new Error(
+      `addChild index ${insertAt} out of range (parent has ${children.length} children)`,
+    );
   }
   const newChildren = [...children.slice(0, insertAt), child, ...children.slice(insertAt)];
   return replaceWithin(doc, parentPath, { ...parent, children: newChildren });
@@ -1251,6 +1269,7 @@ git commit -m "feat(mutations): addChild, removeAt, replaceAt, wrapWith, moveChi
 ## Task 8: `apps/studio2` — scaffold app
 
 **Files:**
+
 - Create: `apps/studio2/package.json`
 - Create: `apps/studio2/vite.config.ts`
 - Create: `apps/studio2/tsconfig.json`
@@ -1474,6 +1493,7 @@ git commit -m "feat(studio2): scaffold three-pane shell"
 ## Task 9: `apps/studio2` — worker bootstrap + Svelte state adapters
 
 **Files:**
+
 - Create: `apps/studio2/src/worker.ts`
 - Create: `apps/studio2/src/state/session.svelte.ts`
 - Create: `apps/studio2/src/state/selection.svelte.ts`
@@ -1590,6 +1610,7 @@ git commit -m "feat(studio2): worker bootstrap + Svelte state adapters"
 ## Task 10: `apps/studio2` — DocPicker + initial App wiring
 
 **Files:**
+
 - Create: `apps/studio2/src/ui/DocPicker.svelte`
 - Modify: `apps/studio2/src/App.svelte`
 
@@ -1736,6 +1757,7 @@ git commit -m "feat(studio2): DocPicker + library/session/selection wiring"
 ## Task 11: `apps/studio2` — TreePane + TreeNode + selection
 
 **Files:**
+
 - Create: `apps/studio2/src/ui/TreePane.svelte`
 - Create: `apps/studio2/src/ui/TreeNode.svelte`
 - Modify: `apps/studio2/src/App.svelte`
@@ -1813,13 +1835,13 @@ git commit -m "feat(studio2): DocPicker + library/session/selection wiring"
 Replace the `<aside class="tree-pane">` block with:
 
 ```svelte
-  <aside class="tree-pane">
-    {#if session && selection}
-      <TreePane {session} {selection} />
-    {:else}
-      <em>loading…</em>
-    {/if}
-  </aside>
+<aside class="tree-pane">
+  {#if session && selection}
+    <TreePane {session} {selection} />
+  {:else}
+    <em>loading…</em>
+  {/if}
+</aside>
 ```
 
 Add the import at the top: `import TreePane from './ui/TreePane.svelte';`.
@@ -1877,6 +1899,7 @@ git commit -m "feat(studio2): tree pane with collapse + click-to-select"
 ## Task 12: `apps/studio2` — form field components
 
 **Files:**
+
 - Create: `apps/studio2/src/ui/forms/NumberField.svelte`
 - Create: `apps/studio2/src/ui/forms/IntField.svelte`
 - Create: `apps/studio2/src/ui/forms/BoolField.svelte`
@@ -2256,6 +2279,7 @@ git commit -m "feat(studio2): form field components for every ParamDoc type"
 ## Task 13: `apps/studio2` — inspectors + dispatch
 
 **Files:**
+
 - Create: `apps/studio2/src/ui/inspectors/KernelInspector.svelte`
 - Create: `apps/studio2/src/ui/inspectors/LuaInspector.svelte`
 - Create: `apps/studio2/src/ui/inspectors/DecoderInspector.svelte`
@@ -2292,19 +2316,47 @@ git commit -m "feat(studio2): form field components for every ParamDoc type"
   {#each doc.paramSchema as schema (schema.name)}
     {@const value = (node.params ?? {})[schema.name]}
     {#if schema.enum}
-      <EnumField {schema} value={value as string | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <EnumField
+        {schema}
+        value={value as string | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'number'}
-      <NumberField {schema} value={value as number | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <NumberField
+        {schema}
+        value={value as number | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'int'}
-      <IntField {schema} value={value as number | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <IntField
+        {schema}
+        value={value as number | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'boolean'}
-      <BoolField {schema} value={value as boolean | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <BoolField
+        {schema}
+        value={value as boolean | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'string'}
-      <StringField {schema} value={value as string | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <StringField
+        {schema}
+        value={value as string | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'vec2'}
-      <Vec2Field {schema} value={value as [number, number] | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <Vec2Field
+        {schema}
+        value={value as [number, number] | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {:else if schema.type === 'vec3'}
-      <Vec3Field {schema} value={value as [number, number, number] | undefined} onCommit={(v) => onCommit(schema.name, v)} />
+      <Vec3Field
+        {schema}
+        value={value as [number, number, number] | undefined}
+        onCommit={(v) => onCommit(schema.name, v)}
+      />
     {/if}
   {/each}
 {:else}
@@ -2379,7 +2431,11 @@ Note: `LuaDefinition.schema.params` is a `Readonly<Record<string, LuaParamDecl>>
     {:else if decl.type === 'string'}
       <StringField {schema} value={value as string | undefined} onCommit={(v) => commit(name, v)} />
     {:else if decl.type === 'vec3'}
-      <Vec3Field {schema} value={value as [number, number, number] | undefined} onCommit={(v) => commit(name, v)} />
+      <Vec3Field
+        {schema}
+        value={value as [number, number, number] | undefined}
+        onCommit={(v) => commit(name, v)}
+      />
     {/if}
   {/each}
 {:else if definitionHash}
@@ -2408,7 +2464,7 @@ Note: `LuaDefinition.schema.params` is a `Readonly<Record<string, LuaParamDecl>>
   let { node, session, onCommitHash }: Props = $props();
 
   const blobHash = $derived((node.params ?? {})['blobHash'] as string | undefined);
-  const sizeBytes = $derived(blobHash ? session.blobs.get(blobHash)?.length ?? 0 : 0);
+  const sizeBytes = $derived(blobHash ? (session.blobs.get(blobHash)?.length ?? 0) : 0);
 
   let fileInput: HTMLInputElement;
 
@@ -2529,13 +2585,13 @@ Note: `LuaDefinition.schema.params` is a `Readonly<Record<string, LuaParamDecl>>
 In `apps/studio2/src/App.svelte`, replace the `<aside class="inspector-pane">` content with:
 
 ```svelte
-  <aside class="inspector-pane">
-    {#if session && selection}
-      <InspectorPane {session} {selection} />
-    {:else}
-      <em>loading…</em>
-    {/if}
-  </aside>
+<aside class="inspector-pane">
+  {#if session && selection}
+    <InspectorPane {session} {selection} />
+  {:else}
+    <em>loading…</em>
+  {/if}
+</aside>
 ```
 
 Add the import: `import InspectorPane from './ui/InspectorPane.svelte';`.
@@ -2560,6 +2616,7 @@ git commit -m "feat(studio2): inspector pane with kernel/Lua/decoder dispatch"
 ## Task 14: `apps/studio2` — ToolPalette (wrap-with / add-child / delete)
 
 **Files:**
+
 - Create: `apps/studio2/src/ui/ToolPalette.svelte`
 - Modify: `apps/studio2/src/ui/TreePane.svelte`
 
@@ -2740,6 +2797,7 @@ git commit -m "feat(studio2): tool palette — wrap-with, add child, delete"
 ## Task 15: `apps/studio2` — ViewportPane + live evaluation
 
 **Files:**
+
 - Create: `apps/studio2/src/ui/ViewportPane.svelte`
 - Modify: `apps/studio2/src/App.svelte`
 
@@ -2874,15 +2932,16 @@ This component owns the canvas + the Viewport instance from `@yacad/render`, and
 - [ ] **Step 3: Wire ViewportPane into `App.svelte`**
 
 In `apps/studio2/src/App.svelte`:
+
 - Hold a reference to `client` after creating the WorkerClient.
 - Replace the `<main class="viewport-pane">viewport</main>` block with:
 
 ```svelte
-  <main class="viewport-pane">
-    {#if session && client}
-      <ViewportPane {session} {client} />
-    {/if}
-  </main>
+<main class="viewport-pane">
+  {#if session && client}
+    <ViewportPane {session} {client} />
+  {/if}
+</main>
 ```
 
 Add the import + a `let client = $state<WorkerClient | undefined>(undefined);` declaration. In `onMount`, after constructing `client`, mark it as reactive: `client = newClient;`.
@@ -2907,6 +2966,7 @@ git commit -m "feat(studio2): viewport pane with live evaluation"
 ## Task 16: `apps/studio2` — first-run scene-library seeder
 
 **Files:**
+
 - Create: `apps/studio2/src/seed-scenes.ts`
 - Modify: `apps/studio2/src/App.svelte`
 
@@ -2917,11 +2977,7 @@ import type { DocLibrary } from '@yacad/doc-store';
 import type { NodeDoc } from '@yacad/dag';
 import { defaultHasher } from '@yacad/hash';
 import { canonicalBytes } from '@yacad/canonical';
-import {
-  GEAR_DEFINITION,
-  ARRAY_ALONG_X_DEFINITION,
-  FLOWER_DEFINITION,
-} from '@yacad/e2e/fixtures';
+import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION, FLOWER_DEFINITION } from '@yacad/e2e/fixtures';
 import sceneBox from '../../../packages/e2e/scenes/primitives/box.json?raw';
 import sceneSphere from '../../../packages/e2e/scenes/primitives/sphere.json?raw';
 import sceneCylinder from '../../../packages/e2e/scenes/primitives/cylinder.json?raw';
@@ -3026,7 +3082,10 @@ export async function seedSceneLibrary(library: DocLibrary): Promise<void> {
   const stressScenes: { name: string; doc: NodeDoc }[] = [
     { name: 'Stress: transform chain (×40)', doc: transformChain(40, 5) },
     { name: 'Stress: boolean nest (×5)', doc: boolNest(5) },
-    { name: 'Stress: procedural tree', doc: procTree({ depth: 5, branches: 3, wobble: 1, seed: 42 }) },
+    {
+      name: 'Stress: procedural tree',
+      doc: procTree({ depth: 5, branches: 3, wobble: 1, seed: 42 }),
+    },
   ];
   for (const scene of stressScenes) {
     const session = await library.create(scene.name, scene.doc);
@@ -3069,16 +3128,16 @@ The procedural generators (`transformChain`, `boolNest`, `procTree` + its `TreeO
 Replace the existing initial `void (async () => { … })()` block in `App.svelte`'s `onMount` with:
 
 ```typescript
-    void (async () => {
-      await refreshDocs();
-      if (docs.length === 0) {
-        await seedSceneLibrary(library);
-        await refreshDocs();
-      }
-      if (docs.length > 0) {
-        await openDoc(docs[0].id);
-      }
-    })();
+void (async () => {
+  await refreshDocs();
+  if (docs.length === 0) {
+    await seedSceneLibrary(library);
+    await refreshDocs();
+  }
+  if (docs.length > 0) {
+    await openDoc(docs[0].id);
+  }
+})();
 ```
 
 Add the import at the top: `import { seedSceneLibrary } from './seed-scenes';`.
@@ -3107,6 +3166,7 @@ git commit -m "feat(studio2): first-run scene-library seeder"
 ## Task 17: Playwright e2e + final gate
 
 **Files:**
+
 - Create: `apps/studio2/e2e/studio2.spec.ts`
 - Create: `apps/studio2/playwright.config.ts`
 
