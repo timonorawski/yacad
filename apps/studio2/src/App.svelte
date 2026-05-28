@@ -8,6 +8,7 @@
   import EvalWorker from './worker?worker';
   import { SessionState } from './state/session.svelte';
   import { SelectionState } from './state/selection.svelte';
+  import { seedSceneLibrary } from './seed-scenes';
   import DocPicker from './ui/DocPicker.svelte';
   import TreePane from './ui/TreePane.svelte';
   import InspectorPane from './ui/InspectorPane.svelte';
@@ -50,8 +51,10 @@
     void (async () => {
       await refreshDocs();
       if (docs.length === 0) {
-        await createDoc();
-      } else {
+        await seedSceneLibrary(library);
+        await refreshDocs();
+      }
+      if (docs.length > 0) {
         await openDoc(docs[0]!.id);
       }
     })();
