@@ -187,6 +187,25 @@ function transform2d(
   };
 }
 
+/** A 2D→2D refinement: exactly one 2D child, '2d' output. */
+function refinement2d(
+  type: string,
+  normalizeParams: KernelNodeType['normalizeParams'],
+): KernelNodeType {
+  return {
+    kind: 'kernel',
+    type,
+    output: '2d',
+    checkChildren(children, path) {
+      if (children.length !== 1) {
+        throw new DagError(`"${type}" takes exactly one child`, path);
+      }
+      expectAllOfType(children, '2d', path);
+    },
+    normalizeParams,
+  };
+}
+
 /** An N-ary operation that accepts ≥minChildren children, all of the same
  *  output type (either all-2D or all-3D). Output type matches the children's
  *  type. No params. Used by union, difference, intersection, hull. */
@@ -363,6 +382,41 @@ const defs: NodeTypeDef[] = [
     const p = asRecord(params, path);
     return { angle: num(p, 'angle', path) };
   }),
+  (() => {
+    const OFFSET_JOIN_TYPES = ['round', 'square', 'miter'] as const;
+    type OffsetJoinType = (typeof OFFSET_JOIN_TYPES)[number];
+    return refinement2d('offset_2d', (params, path) => {
+      const p = asRecord(params, path);
+      const deltaRaw = p['delta'];
+      if (typeof deltaRaw !== 'number' || !Number.isFinite(deltaRaw)) {
+        throw new DagError(`"delta" must be a finite number`, path);
+      }
+      const joinTypeRaw = p['joinType'] ?? 'round';
+      if (!OFFSET_JOIN_TYPES.includes(joinTypeRaw as OffsetJoinType)) {
+        throw new DagError(
+          `"joinType" must be one of ${OFFSET_JOIN_TYPES.join(' | ')}`,
+          path,
+        );
+      }
+      const miterLimitRaw = p['miterLimit'];
+      const segmentsRaw = p['segments'];
+      return {
+        delta: deltaRaw,
+        joinType: joinTypeRaw as OffsetJoinType,
+        miterLimit:
+          miterLimitRaw === undefined
+            ? 2
+            : (() => {
+                if (typeof miterLimitRaw !== 'number' || !Number.isFinite(miterLimitRaw)) {
+                  throw new DagError(`"miterLimit" must be a finite number`, path);
+                }
+                return miterLimitRaw;
+              })(),
+        segments:
+          segmentsRaw === undefined ? 16 : optSegments(p, 'segments', path, 16),
+      };
+    });
+  })(),
 ];
 
 const registry = new Map<string, NodeTypeDef>(defs.map((def) => [def.type, def]));

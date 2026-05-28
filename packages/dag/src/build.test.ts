@@ -472,6 +472,39 @@ describe('revolve node type', () => {
   });
 });
 
+describe('offset_2d node type', () => {
+  it('builds with delta and defaults', async () => {
+    const node = await buildGraph({
+      type: 'offset_2d',
+      params: { delta: 2 },
+      children: [{ type: 'rectangle', params: { size: [10, 10] } }],
+    });
+    expect(node.outputType).toBe('2d');
+    expect(node.params['joinType']).toBe('round');
+    expect(node.params['miterLimit']).toBe(2);
+    expect(node.params['segments']).toBe(16);
+  });
+
+  it('accepts negative delta (shrink)', async () => {
+    const node = await buildGraph({
+      type: 'offset_2d',
+      params: { delta: -1 },
+      children: [{ type: 'rectangle', params: { size: [10, 10] } }],
+    });
+    expect(node.params['delta']).toBe(-1);
+  });
+
+  it('rejects unknown joinType', async () => {
+    await expect(
+      buildGraph({
+        type: 'offset_2d',
+        params: { delta: 1, joinType: 'bevel' },
+        children: [{ type: 'rectangle', params: { size: [10, 10] } }],
+      }),
+    ).rejects.toThrow(/joinType/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',

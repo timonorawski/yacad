@@ -439,3 +439,22 @@ it('evaluateTimed propagates child Geometry to handler', async () => {
   const { geometry } = kernel.evaluateTimed(diffNode, [boxGeo, sphereGeo]);
   expect(geometry.kind).toBe('3d');
 });
+
+it('kernel: offset_2d(round, +2) on rectangle produces more vertices', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const rect = kernel.evaluateTimed(
+    await buildGraph({ type: 'rectangle', params: { size: [10, 10], center: true } }),
+    [],
+  ).geometry;
+  const node = await buildGraph({
+    type: 'offset_2d',
+    params: { delta: 2, joinType: 'round', segments: 16 },
+    children: [{ type: 'rectangle', params: { size: [10, 10], center: true } }],
+  });
+  const { geometry } = kernel.evaluateTimed(node, [rect]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    // Original rectangle: 4 verts; rounded: 4 + 4*(segments-1) = 64 (approx)
+    expect(geometry.section.polygons[0]!.length).toBeGreaterThan(4);
+  }
+});

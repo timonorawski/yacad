@@ -97,6 +97,9 @@ export class ManifoldKernel implements Kernel {
     if (node.type === 'rotate_2d') {
       return this.evaluateRotate2d(node, childGeometries);
     }
+    if (node.type === 'offset_2d') {
+      return this.evaluateOffset2d(node, childGeometries);
+    }
 
     // 2D boolean ops: dispatch on child kind when children are 2D.
     if (
@@ -253,6 +256,42 @@ export class ManifoldKernel implements Kernel {
     const polygons = rotated.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
     cs.delete?.();
     rotated.delete?.();
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+    };
+  }
+
+  private evaluateOffset2d(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    const child = asCrossSection(childGeometries[0]!, node.id, 0);
+    const importStart = performance.now();
+    const cs = this.api.CrossSection.ofPolygons(
+      child.polygons as unknown as [number, number][][],
+    );
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    const delta = node.params['delta'] as number;
+    const joinType = node.params['joinType'] as 'round' | 'square' | 'miter';
+    const miterLimit = node.params['miterLimit'] as number;
+    const segments = node.params['segments'] as number;
+
+    // Manifold's JoinType uses capitalized strings: 'Round'|'Square'|'Miter'.
+    // Map our lowercase DAG values to the enum Manifold expects.
+    const manifoldJoinType = (joinType.charAt(0).toUpperCase() + joinType.slice(1)) as
+      | 'Round'
+      | 'Square'
+      | 'Miter';
+
+    // CrossSection.offset(delta, joinType?, miterLimit?, circularSegments?)
+    // circularSegments is the number of vertices per 360° of rounded corners.
+    const offsetted = cs.offset(delta, manifoldJoinType, miterLimit, segments);
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    const polygons = offsetted.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    cs.delete?.();
+    offsetted.delete?.();
     return {
       geometry: { kind: '2d', section: { polygons } },
       timings: { importMs, opMs, exportMs: performance.now() - exportStart },
