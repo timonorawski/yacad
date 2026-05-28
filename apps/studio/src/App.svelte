@@ -4,7 +4,8 @@
   import { meshToBinaryStl } from '@yacad/export-stl';
   import type { Mesh } from '@yacad/geometry';
   import { defaultHasher } from '@yacad/hash';
-  import { hashLuaDefinition } from '@yacad/lua';
+  import { hashLuaDefinition, KERNEL_TYPE_DOCS } from '@yacad/lua';
+  import { listNodeTypes } from '@yacad/dag';
   import {
     GEAR_DEFINITION,
     ARRAY_ALONG_X_DEFINITION,
@@ -56,6 +57,7 @@
   let perNode = $state<EvaluateOutcome['perNode']>([]);
   let roundTripMs = $state<number | null>(null);
   let docsOpen = $state(false);
+  let docsTab = $state<'language' | 'luaApi'>('language');
   let selectedScene = $state('default');
 
   let client: WorkerClient;
@@ -331,6 +333,80 @@
 
   const languageReferenceHtml = marked.parse(languageReferenceMd) as string;
 
+  // Build Lua API docs from the descriptor map, filtered to currently-registered kernel types.
+  const registeredKernelTypes = new Set(
+    listNodeTypes()
+      .filter((t) => !t.type.startsWith('__'))
+      .map((t) => t.type),
+  );
+
+  function buildLuaApiMd(): string {
+    const lines: string[] = [];
+
+    lines.push(`## Lua environment`);
+    lines.push('');
+    lines.push('- `params.<name>` — values declared in the LuaDefinition schema');
+    lines.push('- `inputs.<name>` — child input refs (sentinel resolved by engine)');
+    lines.push('- `inputs.<name>.outputType()` — synchronous geometry-type query');
+    lines.push('- `geo.*` — kernel-backed node constructors (see below)');
+    lines.push('- `math`, `string`, `table` — pure stdlib subsets');
+    lines.push(
+      '- `os`, `io`, `package`, `require`, `print`, `load` — **NOT exposed**',
+    );
+    lines.push(
+      '- `math.random` — seeded deterministically from `definitionHash + canonical(values)`',
+    );
+    lines.push('');
+
+    lines.push('## Return value');
+    lines.push('');
+    lines.push(
+      'A NodeDoc table — `geo.*` calls compose into one. The trailing return value of the script is the emitted sub-DAG.',
+    );
+    lines.push('');
+
+    lines.push('## `geo.*` API');
+    lines.push('');
+
+    for (const doc of KERNEL_TYPE_DOCS) {
+      if (!registeredKernelTypes.has(doc.type)) continue;
+
+      const childrenArg = doc.params.length === 0 ? 'children?' : 'params, children?';
+      lines.push(`### \`geo.${doc.type}(${childrenArg}) → ${doc.outputDoc}\``);
+      lines.push('');
+      lines.push(doc.summary);
+      lines.push('');
+
+      if (doc.params.length > 0) {
+        lines.push('**Parameters:**');
+        lines.push('');
+        for (const p of doc.params) {
+          const req = p.required ? '' : ` *(default: \`${JSON.stringify(p.default)}\`)*`;
+          lines.push(`- \`${p.name}\` (\`${p.type}\`)${req}: ${p.doc}`);
+        }
+        lines.push('');
+      }
+
+      lines.push('**Example:**');
+      lines.push('');
+      lines.push('```lua');
+      lines.push(doc.example);
+      lines.push('```');
+      lines.push('');
+    }
+
+    lines.push('## `geo.node(type, params?, children?)`');
+    lines.push('');
+    lines.push(
+      'Primitive constructor — drop down to this for types not yet wrapped, or for dynamic dispatch. Rejects reserved `__`-prefixed types and expandable types like `lua` itself.',
+    );
+    lines.push('');
+
+    return lines.join('\n');
+  }
+
+  const luaApiHtml = marked.parse(buildLuaApiMd()) as string;
+
   const hitRate = $derived(
     stats && stats.nodes > 0 ? Math.round((stats.hits / stats.nodes) * 100) : 0,
   );
@@ -573,9 +649,30 @@
 
   <aside class="docs" class:open={docsOpen}>
     <div class="docs-header">
-      <h2>Language Reference</h2>
+      <div class="docs-tabs">
+        <button
+          class="tab-btn"
+          class:active={docsTab === 'language'}
+          onclick={() => (docsTab = 'language')}
+        >
+          Language Reference
+        </button>
+        <button
+          class="tab-btn"
+          class:active={docsTab === 'luaApi'}
+          onclick={() => (docsTab = 'luaApi')}
+        >
+          Lua API
+        </button>
+      </div>
       <button class="ghost" onclick={() => (docsOpen = false)}>Close</button>
     </div>
-    <div class="docs-content">{@html languageReferenceHtml}</div>
+    <div class="docs-content">
+      {#if docsTab === 'language'}
+        {@html languageReferenceHtml}
+      {:else}
+        {@html luaApiHtml}
+      {/if}
+    </div>
   </aside>
 </div>
