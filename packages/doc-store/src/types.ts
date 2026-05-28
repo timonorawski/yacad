@@ -46,3 +46,8 @@ export interface SessionOptions {
    */
   readonly skipValidation?: boolean;
 }
+
+export interface LibraryOptions {
+  /** VFS key namespace; defaults to `/docs/`. Must end with `/`. */
+  readonly prefix?: string;
+}

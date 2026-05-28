@@ -1,8 +1,8 @@
 import type { NodeDoc } from '@yacad/dag';
 import type { Vfs } from '@yacad/vfs';
-import { docKey, listBlobsPrefix, listDocsPrefix, metaKey, parseDocId } from './paths';
+import { DEFAULT_PATHS, makePaths, type Paths } from './paths';
 import { DocSession } from './session';
-import type { BlobUploader, DocMeta, NewDocSeed, SessionOptions } from './types';
+import type { BlobUploader, DocMeta, LibraryOptions, NewDocSeed, SessionOptions } from './types';
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
@@ -16,19 +16,28 @@ const DEFAULT_SEED: NodeDoc = {
 /**
  * Multi-document library backed by a Vfs. Owns the persisted form of every
  * known document; hands out a DocSession when one is opened.
+ *
+ * All VFS keys are scoped to a configurable root prefix (default `/docs/`).
+ * Pass `{ prefix: '/samples/' }` to create a separate namespace for seeded
+ * scenes; the two namespaces are completely independent.
  */
 export class DocLibrary {
+  private readonly paths: Paths;
+
   constructor(
     private readonly vfs: Vfs,
     private readonly uploader: BlobUploader,
-  ) {}
+    options: LibraryOptions = {},
+  ) {
+    this.paths = options.prefix !== undefined ? makePaths(options.prefix) : DEFAULT_PATHS;
+  }
 
   /** Lists every persisted document, most-recently-updated first. */
   async list(): Promise<readonly DocMeta[]> {
-    const keys = await this.vfs.list(listDocsPrefix());
+    const keys = await this.vfs.list(this.paths.listDocsPrefix());
     const metas: DocMeta[] = [];
     for (const key of keys) {
-      const id = parseDocId(key);
+      const id = this.paths.parseDocId(key);
       if (!id) continue;
       const bytes = await this.vfs.read(key);
       if (!bytes) continue;
@@ -51,8 +60,8 @@ export class DocLibrary {
     const id = crypto.randomUUID();
     const meta: DocMeta = { id, name, createdAt: now, updatedAt: now };
     const doc: NodeDoc = seed ?? DEFAULT_SEED;
-    await this.vfs.write(metaKey(id), ENC.encode(JSON.stringify(meta)));
-    await this.vfs.write(docKey(id), ENC.encode(JSON.stringify(doc)));
+    await this.vfs.write(this.paths.metaKey(id), ENC.encode(JSON.stringify(meta)));
+    await this.vfs.write(this.paths.docKey(id), ENC.encode(JSON.stringify(doc)));
 
     let session: DocSession;
     try {
@@ -80,13 +89,13 @@ export class DocLibrary {
    * cleanup paths can be unconditional.)
    */
   async rename(id: string, name: string): Promise<void> {
-    const metaBytes = await this.vfs.read(metaKey(id));
+    const metaBytes = await this.vfs.read(this.paths.metaKey(id));
     if (!metaBytes) {
       throw new Error(`no document with id "${id}"`);
     }
     const meta = JSON.parse(DEC.decode(metaBytes)) as DocMeta;
     const updated: DocMeta = { ...meta, name, updatedAt: Date.now() };
-    await this.vfs.write(metaKey(id), ENC.encode(JSON.stringify(updated)));
+    await this.vfs.write(this.paths.metaKey(id), ENC.encode(JSON.stringify(updated)));
   }
 
   /**
@@ -98,18 +107,17 @@ export class DocLibrary {
    * a "ghost" document that can't be opened.
    */
   async delete(id: string): Promise<void> {
-    await this.vfs.delete(metaKey(id));
-    await this.vfs.delete(docKey(id));
-    const blobKeys = await this.vfs.list(listBlobsPrefix(id));
+    await this.vfs.delete(this.paths.metaKey(id));
+    await this.vfs.delete(this.paths.docKey(id));
+    const blobKeys = await this.vfs.list(this.paths.listBlobsPrefix(id));
     for (const k of blobKeys) await this.vfs.delete(k);
   }
 
   /**
    * Opens a document into an editable session. Loads meta + doc + blobs,
-   * pushes new blobs to the worker, and runs validation. Stubbed in this
-   * task — fleshed out in a later task.
+   * pushes new blobs to the worker, and runs validation.
    */
   async open(id: string, options?: SessionOptions): Promise<DocSession> {
-    return DocSession.open(this.vfs, this.uploader, id, options);
+    return DocSession.open(this.vfs, this.uploader, id, options, this.paths);
   }
 }

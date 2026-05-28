@@ -165,3 +165,19 @@ body {
 .status[data-status='error'] {
   color: var(--error);
 }
+.doc-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.doc-picker button {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  font: inherit;
+}
+.doc-picker button:hover {
+  background: var(--panel-border);
+}

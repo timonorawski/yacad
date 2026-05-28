@@ -5,11 +5,12 @@ import {
   docKey,
   listBlobsPrefix,
   listDocsPrefix,
+  makePaths,
   metaKey,
   parseDocId,
 } from './paths';
 
-describe('paths', () => {
+describe('paths (default /docs/ prefix)', () => {
   it('metaKey produces /docs/{id}/meta.json', () => {
     expect(metaKey('abc-123')).toBe('/docs/abc-123/meta.json');
   });
@@ -47,5 +48,26 @@ describe('paths', () => {
     expect(blobHashFromKey('abc-123', '/docs/abc-123/meta.json')).toBeUndefined();
     expect(blobHashFromKey('abc-123', '/docs/other-id/blobs/x.bin')).toBeUndefined();
     expect(blobHashFromKey('abc-123', '/docs/abc-123/blobs/.bin')).toBeUndefined();
+  });
+});
+
+describe('paths (custom prefix via makePaths)', () => {
+  const samples = makePaths('/samples/');
+
+  it('metaKey uses the custom prefix', () => {
+    expect(samples.metaKey('abc-123')).toBe('/samples/abc-123/meta.json');
+  });
+
+  it('listDocsPrefix returns the custom prefix', () => {
+    expect(samples.listDocsPrefix()).toBe('/samples/');
+  });
+
+  it('parseDocId rejects keys outside the custom prefix', () => {
+    expect(samples.parseDocId('/docs/abc/meta.json')).toBeUndefined();
+    expect(samples.parseDocId('/samples/abc/meta.json')).toBe('abc');
+  });
+
+  it('makePaths rejects prefixes that do not end with /', () => {
+    expect(() => makePaths('/samples')).toThrow();
   });
 });

@@ -1,7 +1,7 @@
 import { buildGraph, type NodeDoc } from '@yacad/dag';
 import { defaultHasher, type Hash } from '@yacad/hash';
 import type { Vfs } from '@yacad/vfs';
-import { blobHashFromKey, blobKey, docKey, listBlobsPrefix, metaKey } from './paths';
+import { DEFAULT_PATHS, type Paths } from './paths';
 import type { BlobUploader, DocEvent, DocMeta, SessionOptions } from './types';
 
 const ENC = new TextEncoder();
@@ -26,6 +26,7 @@ export class DocSession {
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly autosaveMs: number;
   private savingPromise: Promise<void> | undefined;
+  private readonly paths: Paths;
 
   private constructor(
     private readonly vfs: Vfs,
@@ -33,11 +34,13 @@ export class DocSession {
     meta: DocMeta,
     doc: NodeDoc,
     options: SessionOptions = {},
+    paths: Paths = DEFAULT_PATHS,
   ) {
     this.id = meta.id;
     this.currentMeta = meta;
     this.currentDoc = deepFreeze(doc);
     this.autosaveMs = options.autosaveMs ?? DEFAULT_AUTOSAVE_MS;
+    this.paths = paths;
   }
 
   get meta(): DocMeta {
@@ -70,19 +73,20 @@ export class DocSession {
     uploader: BlobUploader,
     id: string,
     options?: SessionOptions,
+    paths: Paths = DEFAULT_PATHS,
   ): Promise<DocSession> {
-    const metaBytes = await vfs.read(metaKey(id));
+    const metaBytes = await vfs.read(paths.metaKey(id));
     if (!metaBytes) throw new Error(`no document with id "${id}"`);
     const meta = JSON.parse(DEC.decode(metaBytes)) as DocMeta;
-    const docBytes = await vfs.read(docKey(id));
+    const docBytes = await vfs.read(paths.docKey(id));
     if (!docBytes) throw new Error(`document "${id}" has no document.json`);
     const doc = JSON.parse(DEC.decode(docBytes)) as NodeDoc;
-    const session = new DocSession(vfs, uploader, meta, deepFreeze(doc), options);
+    const session = new DocSession(vfs, uploader, meta, deepFreeze(doc), options, paths);
 
     // Load blobs and seed the session's blob map.
-    const blobKeys = await vfs.list(listBlobsPrefix(id));
+    const blobKeys = await vfs.list(paths.listBlobsPrefix(id));
     for (const key of blobKeys) {
-      const hash = blobHashFromKey(id, key);
+      const hash = paths.blobHashFromKey(id, key);
       if (!hash) continue;
       const bytes = await vfs.read(key);
       if (!bytes) continue;
@@ -212,11 +216,11 @@ export class DocSession {
       this.autosaveTimer = undefined;
     }
     const updatedMeta: DocMeta = { ...this.currentMeta, updatedAt: Date.now() };
-    await this.vfs.write(metaKey(this.id), ENC.encode(JSON.stringify(updatedMeta)));
-    await this.vfs.write(docKey(this.id), ENC.encode(JSON.stringify(this.currentDoc)));
+    await this.vfs.write(this.paths.metaKey(this.id), ENC.encode(JSON.stringify(updatedMeta)));
+    await this.vfs.write(this.paths.docKey(this.id), ENC.encode(JSON.stringify(this.currentDoc)));
     for (const hash of this.unsavedBlobs) {
       const bytes = this.blobMap.get(hash);
-      if (bytes) await this.vfs.write(blobKey(this.id, hash), bytes);
+      if (bytes) await this.vfs.write(this.paths.blobKey(this.id, hash), bytes);
     }
     this.unsavedBlobs.clear();
     this.currentMeta = updatedMeta;

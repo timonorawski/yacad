@@ -15,24 +15,28 @@
   import InspectorPane from './ui/InspectorPane.svelte';
   import ViewportPane from './ui/ViewportPane.svelte';
 
-  let library: DocLibrary;
+  let userLibrary: DocLibrary;
+  let sampleLibrary: DocLibrary;
   let client = $state<WorkerClient | undefined>(undefined);
   let session = $state<SessionState | undefined>(undefined);
   let selection = $state<SelectionState | undefined>(undefined);
-  let docs = $state<{ id: string; name: string }[]>([]);
+  let userDocs = $state<{ id: string; name: string }[]>([]);
+  let sampleDocs = $state<{ id: string; name: string }[]>([]);
 
   async function refreshDocs() {
-    if (!library) return;
-    const list = await library.list();
-    docs = list.map((m) => ({ id: m.id, name: m.name }));
+    if (!userLibrary || !sampleLibrary) return;
+    const [users, samples] = await Promise.all([userLibrary.list(), sampleLibrary.list()]);
+    userDocs = users.map((m) => ({ id: m.id, name: m.name }));
+    sampleDocs = samples.map((m) => ({ id: m.id, name: m.name }));
   }
 
-  async function openDoc(id: string) {
+  async function openDoc(id: string, source: 'user' | 'sample') {
     if (session) {
       await session.session.close();
       session.dispose();
     }
-    const opened = await library.open(id);
+    const lib = source === 'sample' ? sampleLibrary : userLibrary;
+    const opened = await lib.open(id);
     if (client) {
       await syncLuaDefinitionsToWorker(opened, client);
     }
@@ -41,9 +45,28 @@
   }
 
   async function createDoc() {
-    const fresh = await library.create('Untitled');
+    const fresh = await userLibrary.create('Untitled');
     await refreshDocs();
-    await openDoc(fresh.id);
+    await openDoc(fresh.id, 'user');
+  }
+
+  async function refreshSamples() {
+    // Wipe all existing samples, then re-seed.
+    if (session) {
+      await session.session.close();
+      session.dispose();
+      session = undefined;
+      selection = undefined;
+    }
+    const metas = await sampleLibrary.list();
+    for (const meta of metas) {
+      await sampleLibrary.delete(meta.id);
+    }
+    await seedSceneLibrary(sampleLibrary);
+    await refreshDocs();
+    if (sampleDocs.length > 0) {
+      await openDoc(sampleDocs[0]!.id, 'sample');
+    }
   }
 
   onMount(() => {
@@ -51,15 +74,19 @@
     const newClient = new WorkerClient(worker, { wasmUrl, luaWasmUrl });
     client = newClient;
     const vfs = new IndexedDbVfs();
-    library = new DocLibrary(vfs, newClient);
+    userLibrary = new DocLibrary(vfs, newClient);
+    sampleLibrary = new DocLibrary(vfs, newClient, { prefix: '/samples/' });
     void (async () => {
-      await refreshDocs();
-      if (docs.length === 0) {
-        await seedSceneLibrary(library);
-        await refreshDocs();
+      if ((await sampleLibrary.list()).length === 0) {
+        await seedSceneLibrary(sampleLibrary);
       }
-      if (docs.length > 0) {
-        await openDoc(docs[0]!.id);
+      await refreshDocs();
+      if (sampleDocs.length > 0) {
+        await openDoc(sampleDocs[0]!.id, 'sample');
+      } else if (userDocs.length > 0) {
+        await openDoc(userDocs[0]!.id, 'user');
+      } else {
+        await createDoc();
       }
     })();
 
@@ -73,7 +100,14 @@
 
 <div class="studio-shell">
   <header class="topbar">
-    <DocPicker {docs} currentId={session?.session.id ?? null} {openDoc} {createDoc} />
+    <DocPicker
+      {userDocs}
+      {sampleDocs}
+      currentId={session?.session.id ?? null}
+      {openDoc}
+      {createDoc}
+      {refreshSamples}
+    />
   </header>
   <aside class="tree-pane">
     {#if session && selection}
