@@ -73,6 +73,9 @@ export class ManifoldKernel implements Kernel {
     if (node.type === 'rectangle') {
       return this.evaluateRectangle(node);
     }
+    if (node.type === 'polygon') {
+      return this.evaluatePolygon(node);
+    }
 
     // Import: rebuild every child solid up front so the op phase measures only
     // the Manifold operation.
@@ -136,6 +139,21 @@ export class ManifoldKernel implements Kernel {
     return {
       geometry: { kind: '2d', section: { polygons } },
       timings: { importMs, opMs, exportMs },
+    };
+  }
+
+  private evaluatePolygon(node: Node): KernelResult {
+    const importMs = 0;
+    const opStart = performance.now();
+    const points = node.params['points'] as ReadonlyArray<readonly [number, number]>;
+    const cs = this.api.CrossSection.ofPolygons([points]);
+    const opMs = performance.now() - opStart;
+    const exportStart = performance.now();
+    const polygons = cs.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    cs.delete?.();
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
     };
   }
 

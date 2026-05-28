@@ -94,3 +94,30 @@ export function optSegments(
   }
   return v;
 }
+
+export function vec2Array(
+  p: Record<string, unknown>,
+  key: string,
+  path: string,
+  minLen: number,
+): Vec2[] {
+  const v = p[key];
+  if (!Array.isArray(v)) {
+    throw new DagError(`"${key}" must be an array`, path);
+  }
+  if (v.length < minLen) {
+    throw new DagError(`"${key}" must have at least ${minLen} entries`, path);
+  }
+  return v.map((entry, i) => {
+    if (!Array.isArray(entry) || entry.length !== 2) {
+      throw new DagError(`"${key}[${i}]" must be a 2-element array`, path);
+    }
+    for (let j = 0; j < 2; j++) {
+      const n = entry[j];
+      if (typeof n !== 'number' || !Number.isFinite(n)) {
+        throw new DagError(`"${key}[${i}][${j}]" must be a finite number`, path);
+      }
+    }
+    return [entry[0] as number, entry[1] as number] as Vec2;
+  });
+}

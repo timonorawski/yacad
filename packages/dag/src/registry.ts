@@ -1,6 +1,6 @@
 import { DagError, type GeometryType, type Node, type NodeDoc } from './types';
 import type { Hash } from '@yacad/hash';
-import { asRecord, optBool, optSegments, posNum, posVec2, posVec3, vec3 } from './validate';
+import { asRecord, optBool, optSegments, posNum, posVec2, posVec3, vec2Array, vec3 } from './validate';
 
 const DEFAULT_SEGMENTS = 32;
 
@@ -202,6 +202,10 @@ const defs: NodeTypeDef[] = [
       size: posVec2(p, 'size', path),
       center: optBool(p, 'center', path, false),
     };
+  }),
+  primitive2d('polygon', (params, path) => {
+    const p = asRecord(params, path);
+    return { points: vec2Array(p, 'points', path, 3) };
   }),
 ];
 

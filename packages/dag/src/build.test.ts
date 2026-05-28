@@ -189,6 +189,42 @@ describe('rectangle node type', () => {
   });
 });
 
+describe('polygon node type', () => {
+  it('builds with required points', async () => {
+    const node = await buildGraph({
+      type: 'polygon',
+      params: {
+        points: [
+          [0, 0],
+          [10, 0],
+          [5, 10],
+        ],
+      },
+    });
+    expect(node.outputType).toBe('2d');
+  });
+
+  it('rejects fewer than 3 points', async () => {
+    await expect(
+      buildGraph({
+        type: 'polygon',
+        params: {
+          points: [
+            [0, 0],
+            [1, 0],
+          ],
+        },
+      }),
+    ).rejects.toThrow(/at least 3/);
+  });
+
+  it('rejects non-Vec2 entries', async () => {
+    await expect(
+      buildGraph({ type: 'polygon', params: { points: [[0, 0], 'not a point', [5, 5]] } }),
+    ).rejects.toThrow(/2-element/);
+  });
+});
+
 describe('KernelNodeType.output per-instance resolver', () => {
   const SYN: KernelNodeType = {
     kind: 'kernel',
