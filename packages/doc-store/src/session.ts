@@ -1,7 +1,7 @@
 import { buildGraph, type NodeDoc } from '@yacad/dag';
 import { defaultHasher, type Hash } from '@yacad/hash';
 import type { Vfs } from '@yacad/vfs';
-import { blobKey, docKey, metaKey } from './paths';
+import { blobKey, docKey, listBlobsPrefix, metaKey } from './paths';
 import type { BlobUploader, DocEvent, DocMeta, SessionOptions } from './types';
 
 const ENC = new TextEncoder();
@@ -21,6 +21,7 @@ export class DocSession {
   private dirty = false;
   private mutating = false;
   private currentState: 'live' | 'invalidated' = 'live';
+  private currentInvalidationError: Error | undefined;
   private readonly subscribers = new Set<(evt: DocEvent) => void>();
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly autosaveMs: number;
@@ -60,6 +61,9 @@ export class DocSession {
   get state(): 'live' | 'invalidated' {
     return this.currentState;
   }
+  get invalidationError(): Error | undefined {
+    return this.currentInvalidationError;
+  }
 
   static async open(
     vfs: Vfs,
@@ -73,7 +77,39 @@ export class DocSession {
     const docBytes = await vfs.read(docKey(id));
     if (!docBytes) throw new Error(`document "${id}" has no document.json`);
     const doc = JSON.parse(DEC.decode(docBytes)) as NodeDoc;
-    return new DocSession(vfs, uploader, meta, doc, options);
+    const session = new DocSession(vfs, uploader, meta, doc, options);
+
+    // Load blobs and seed the session's blob map.
+    const blobKeys = await vfs.list(listBlobsPrefix(id));
+    for (const key of blobKeys) {
+      const hash = blobHashFromKey(id, key);
+      if (!hash) continue;
+      const bytes = await vfs.read(key);
+      if (!bytes) continue;
+      session.blobMap.set(hash, bytes);
+    }
+
+    // Push blobs the worker doesn't have. Idempotent — re-opens are cheap.
+    for (const [hash, bytes] of session.blobMap) {
+      if (!(await uploader.hasMeshBlob(hash))) {
+        await uploader.putMeshBlob(hash, bytes);
+      }
+    }
+
+    // Validate the persisted doc. Failure transitions to invalidated state;
+    // the error is exposed via `session.invalidationError` so the UI can
+    // render it after open() resolves. No event is emitted from open()
+    // itself — subscribers can't have attached yet. The `invalidated`
+    // event remains in DocEvent for mid-session transitions (e.g., a
+    // future worker-failure path).
+    try {
+      await buildGraph(doc, defaultHasher, '$', session.makeResolver());
+    } catch (err) {
+      session.currentState = 'invalidated';
+      session.currentInvalidationError = err instanceof Error ? err : new Error(String(err));
+    }
+
+    return session;
   }
 
   async mutate(fn: (prev: NodeDoc) => NodeDoc): Promise<void> {
@@ -202,4 +238,15 @@ export class DocSession {
       }
     }
   }
+}
+
+/**
+ * Extract a blob hash from a key of the form `/docs/{id}/blobs/{hash}.bin`,
+ * or `undefined` if the key doesn't match the expected shape.
+ */
+function blobHashFromKey(id: string, key: string): Hash | undefined {
+  const prefix = `/docs/${id}/blobs/`;
+  const suffix = '.bin';
+  if (!key.startsWith(prefix) || !key.endsWith(suffix)) return undefined;
+  return key.slice(prefix.length, key.length - suffix.length);
 }
