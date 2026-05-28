@@ -88,6 +88,88 @@ importers:
         specifier: ^8.0.14
         version: 8.0.14(@types/node@25.9.1)
 
+  apps/studio2:
+    dependencies:
+      '@yacad/canonical':
+        specifier: workspace:*
+        version: link:../../packages/canonical
+      '@yacad/dag':
+        specifier: workspace:*
+        version: link:../../packages/dag
+      '@yacad/doc-store':
+        specifier: workspace:*
+        version: link:../../packages/doc-store
+      '@yacad/e2e':
+        specifier: workspace:*
+        version: link:../../packages/e2e
+      '@yacad/export-stl':
+        specifier: workspace:*
+        version: link:../../packages/export-stl
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../../packages/geometry
+      '@yacad/hash':
+        specifier: workspace:*
+        version: link:../../packages/hash
+      '@yacad/import-gltf':
+        specifier: workspace:*
+        version: link:../../packages/import-gltf
+      '@yacad/import-obj':
+        specifier: workspace:*
+        version: link:../../packages/import-obj
+      '@yacad/import-stl':
+        specifier: workspace:*
+        version: link:../../packages/import-stl
+      '@yacad/kernel-manifold':
+        specifier: workspace:*
+        version: link:../../packages/kernel-manifold
+      '@yacad/lua':
+        specifier: workspace:*
+        version: link:../../packages/lua
+      '@yacad/mutations':
+        specifier: workspace:*
+        version: link:../../packages/mutations
+      '@yacad/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@yacad/selection':
+        specifier: workspace:*
+        version: link:../../packages/selection
+      '@yacad/vfs':
+        specifier: workspace:*
+        version: link:../../packages/vfs
+      '@yacad/worker':
+        specifier: workspace:*
+        version: link:../../packages/worker
+      manifold-3d:
+        specifier: ^3.5.0
+        version: 3.5.0(@gltf-transform/core@4.3.0)(@gltf-transform/extensions@4.3.0)(@gltf-transform/functions@4.3.0)(esbuild-wasm@0.27.7)
+      wasmoon:
+        specifier: 1.16.0
+        version: 1.16.0
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.60.0
+        version: 1.60.0
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^7.1.2
+        version: 7.1.2(svelte@5.55.9(@typescript-eslint/types@8.60.0))(vite@8.0.14(@types/node@25.9.1))
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+      svelte:
+        specifier: ^5.55.9
+        version: 5.55.9(@typescript-eslint/types@8.60.0)
+      svelte-check:
+        specifier: ^4.4.8
+        version: 4.4.8(picomatch@4.0.4)(svelte@5.55.9(@typescript-eslint/types@8.60.0))(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.14
+        version: 8.0.14(@types/node@25.9.1)
+
   packages/cache:
     dependencies:
       '@yacad/geometry':

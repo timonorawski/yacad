@@ -1,0 +1,47 @@
+:root {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  --bg: #1a1a1a;
+  --panel: #232323;
+  --panel-border: #2d2d2d;
+  --fg: #e5e5e5;
+  --accent: #7aa2f7;
+  --error: #f7768e;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+}
+.studio-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: 280px 1fr 320px;
+  grid-template-areas:
+    'topbar topbar topbar'
+    'tree viewport inspector';
+  height: 100vh;
+}
+.topbar {
+  grid-area: topbar;
+  padding: 0.5rem 1rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+}
+.tree-pane {
+  grid-area: tree;
+  background: var(--panel);
+  border-right: 1px solid var(--panel-border);
+  overflow: auto;
+}
+.viewport-pane {
+  grid-area: viewport;
+  position: relative;
+}
+.inspector-pane {
+  grid-area: inspector;
+  background: var(--panel);
+  border-left: 1px solid var(--panel-border);
+  overflow: auto;
+  padding: 0.75rem;
+}

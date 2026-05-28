@@ -1,0 +1,44 @@
+{
+  "name": "@yacad/studio2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report"
+  },
+  "dependencies": {
+    "@yacad/canonical": "workspace:*",
+    "@yacad/dag": "workspace:*",
+    "@yacad/doc-store": "workspace:*",
+    "@yacad/e2e": "workspace:*",
+    "@yacad/export-stl": "workspace:*",
+    "@yacad/geometry": "workspace:*",
+    "@yacad/hash": "workspace:*",
+    "@yacad/import-gltf": "workspace:*",
+    "@yacad/import-obj": "workspace:*",
+    "@yacad/import-stl": "workspace:*",
+    "@yacad/kernel-manifold": "workspace:*",
+    "@yacad/lua": "workspace:*",
+    "@yacad/mutations": "workspace:*",
+    "@yacad/render": "workspace:*",
+    "@yacad/selection": "workspace:*",
+    "@yacad/vfs": "workspace:*",
+    "@yacad/worker": "workspace:*",
+    "manifold-3d": "^3.5.0",
+    "wasmoon": "1.16.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@yacad/tsconfig": "workspace:*",
+    "svelte": "^5.55.9",
+    "svelte-check": "^4.4.8",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14"
+  }
+}
