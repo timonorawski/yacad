@@ -27,14 +27,18 @@ export interface KernelResult {
 /**
  * Evaluates one DAG node to a geometry, given its children's already-evaluated
  * geometries. Deterministic given its inputs (CLAUDE.md #2): no clock, RNG, or I/O.
+ *
+ * The methods are async because some node kinds (e.g. `warp`) need to await a
+ * Lua-runtime call during evaluation. Pure-geometry node kinds complete
+ * synchronously and the Promise resolves on the same microtask tick.
  */
 export interface Kernel {
   readonly name: string;
   readonly version: string;
   /** Evaluate to a geometry. */
-  evaluate(node: Node, childGeometries: readonly Geometry[]): Geometry;
+  evaluate(node: Node, childGeometries: readonly Geometry[]): Promise<Geometry>;
   /** Evaluate to a geometry plus a per-phase timing breakdown. */
-  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): KernelResult;
+  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): Promise<KernelResult>;
 }
 
 /** Thrown when a node receives a child geometry of the wrong kind. */
@@ -74,11 +78,15 @@ export class ManifoldKernel implements Kernel {
 
   constructor(private readonly api: ManifoldToplevel) {}
 
-  evaluate(node: Node, childGeometries: readonly Geometry[]): Geometry {
-    return this.evaluateTimed(node, childGeometries).geometry;
+  async evaluate(node: Node, childGeometries: readonly Geometry[]): Promise<Geometry> {
+    return (await this.evaluateTimed(node, childGeometries)).geometry;
   }
 
-  evaluateTimed(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+  async evaluateTimed(node: Node, childGeometries: readonly Geometry[]): Promise<KernelResult> {
+    return this.evaluateTimedSync(node, childGeometries);
+  }
+
+  private evaluateTimedSync(node: Node, childGeometries: readonly Geometry[]): KernelResult {
     // Dispatch to 2D handler for 2D node types (no import needed — no child meshes).
     if (node.type === 'circle') {
       return this.evaluateCircle(node);

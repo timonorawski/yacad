@@ -13,12 +13,9 @@ beforeAll(async () => {
 // Evaluate a leaf-or-subtree document by recursively building + evaluating it.
 async function evalDoc(doc: unknown): Promise<Mesh> {
   const node = await buildGraph(doc);
-  const evalNode = (n: typeof node): Geometry =>
-    kernel.evaluate(
-      n,
-      n.children.map((c) => evalNode(c)),
-    );
-  const geometry = evalNode(node);
+  const evalNode = async (n: typeof node): Promise<Geometry> =>
+    kernel.evaluate(n, await Promise.all(n.children.map((c) => evalNode(c))));
+  const geometry = await evalNode(node);
   if (!isMesh(geometry)) throw new Error('Expected 3D geometry');
   return geometry.mesh;
 }
@@ -95,9 +92,9 @@ describe('ManifoldKernel', () => {
           { type: 'sphere', params: { radius: 6, segments: 48 } },
         ],
       });
-      const childGeometries = node.children.map((c) => kernel.evaluate(c, []));
-      const a = kernel.evaluate(node, childGeometries);
-      const b = kernel.evaluate(node, childGeometries);
+      const childGeometries = await Promise.all(node.children.map((c) => kernel.evaluate(c, [])));
+      const a = await kernel.evaluate(node, childGeometries);
+      const b = await kernel.evaluate(node, childGeometries);
       if (!isMesh(a) || !isMesh(b)) throw new Error('Expected 3D geometry');
       expect(a.mesh.vertices).toEqual(b.mesh.vertices);
       expect(a.mesh.indices).toEqual(b.mesh.indices);
@@ -108,7 +105,7 @@ describe('ManifoldKernel', () => {
 it('returns Geometry with kind="3d" for box', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const node = await buildGraph({ type: 'box', params: { size: [10, 10, 10], center: true } });
-  const { geometry } = kernel.evaluateTimed(node, []);
+  const { geometry } = await kernel.evaluateTimed(node, []);
   expect(geometry.kind).toBe('3d');
   if (isMesh(geometry)) {
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
@@ -118,7 +115,7 @@ it('returns Geometry with kind="3d" for box', async () => {
 it('kernel evaluates circle to a CrossSection', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const node = await buildGraph({ type: 'circle', params: { radius: 5, segments: 16 } });
-  const { geometry } = kernel.evaluateTimed(node, []);
+  const { geometry } = await kernel.evaluateTimed(node, []);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBe(1);
@@ -132,7 +129,7 @@ it('kernel evaluates rectangle to a 4-vertex CrossSection', async () => {
     type: 'rectangle',
     params: { size: [10, 20], center: true },
   });
-  const { geometry } = kernel.evaluateTimed(node, []);
+  const { geometry } = await kernel.evaluateTimed(node, []);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons[0]!.length).toBe(4);
@@ -151,7 +148,7 @@ it('kernel evaluates polygon to a CrossSection with the supplied points', async 
       ],
     },
   });
-  const { geometry } = kernel.evaluateTimed(node, []);
+  const { geometry } = await kernel.evaluateTimed(node, []);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons[0]!.length).toBe(3);
@@ -172,7 +169,7 @@ it('kernel evaluates spline to a tessellated CrossSection', async () => {
       segmentsPerCurve: 8,
     },
   });
-  const { geometry } = kernel.evaluateTimed(node, []);
+  const { geometry } = await kernel.evaluateTimed(node, []);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     // 4 control points × 8 segments = 32 tessellated points
@@ -187,8 +184,8 @@ it('kernel evaluates translate_2d: shifts polygon centroid by offset', async () 
     params: { offset: [10, 20] },
     children: [{ type: 'circle', params: { radius: 1, segments: 4 } }],
   });
-  const childGeo = kernel.evaluate(node.children[0]!, []);
-  const { geometry } = kernel.evaluateTimed(node, [childGeo]);
+  const childGeo = await kernel.evaluate(node.children[0]!, []);
+  const { geometry } = await kernel.evaluateTimed(node, [childGeo]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     // Centroid of all vertices should be close to the offset (10, 20)
@@ -208,8 +205,8 @@ it('kernel evaluates rotate_2d: rotates polygon by angle in degrees', async () =
     params: { angle: 90 },
     children: [{ type: 'rectangle', params: { size: [2, 1] } }],
   });
-  const childGeo = kernel.evaluate(node.children[0]!, []);
-  const { geometry } = kernel.evaluateTimed(node, [childGeo]);
+  const childGeo = await kernel.evaluate(node.children[0]!, []);
+  const { geometry } = await kernel.evaluateTimed(node, [childGeo]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     // After 90 degree rotation, width and height should be swapped
@@ -235,9 +232,9 @@ it('kernel evaluates 2D union of two circles', async () => {
       { type: 'circle', params: { radius: 5 } },
     ],
   });
-  const aGeo = kernel.evaluateTimed(circleA, []).geometry;
-  const bGeo = kernel.evaluateTimed(circleB, []).geometry;
-  const { geometry } = kernel.evaluateTimed(node, [aGeo, bGeo]);
+  const aGeo = (await kernel.evaluateTimed(circleA, [])).geometry;
+  const bGeo = (await kernel.evaluateTimed(circleB, [])).geometry;
+  const { geometry } = await kernel.evaluateTimed(node, [aGeo, bGeo]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBeGreaterThan(0);
@@ -258,9 +255,9 @@ it('kernel evaluates 2D difference of rectangle and circle', async () => {
       { type: 'circle', params: { radius: 5 } },
     ],
   });
-  const rectGeo = kernel.evaluateTimed(rectNode, []).geometry;
-  const circGeo = kernel.evaluateTimed(circNode, []).geometry;
-  const { geometry } = kernel.evaluateTimed(node, [rectGeo, circGeo]);
+  const rectGeo = (await kernel.evaluateTimed(rectNode, [])).geometry;
+  const circGeo = (await kernel.evaluateTimed(circNode, [])).geometry;
+  const { geometry } = await kernel.evaluateTimed(node, [rectGeo, circGeo]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBeGreaterThan(0);
@@ -278,9 +275,9 @@ it('kernel evaluates 2D intersection (overlapping circles)', async () => {
       { type: 'circle', params: { radius: 5 } },
     ],
   });
-  const aGeo = kernel.evaluateTimed(circleA, []).geometry;
-  const bGeo = kernel.evaluateTimed(circleB, []).geometry;
-  const { geometry } = kernel.evaluateTimed(node, [aGeo, bGeo]);
+  const aGeo = (await kernel.evaluateTimed(circleA, [])).geometry;
+  const bGeo = (await kernel.evaluateTimed(circleB, [])).geometry;
+  const { geometry } = await kernel.evaluateTimed(node, [aGeo, bGeo]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     // Intersection of two identical circles is the circle itself
@@ -307,13 +304,15 @@ it('kernel evaluates 2D hull of two offset circles (stadium shape)', async () =>
       },
     ],
   });
-  const aGeo = kernel.evaluateTimed(circleA, []).geometry;
-  const bInnerGeo = kernel.evaluateTimed(
-    await buildGraph({ type: 'circle', params: { radius: 5, segments: 32 } }),
-    [],
+  const aGeo = (await kernel.evaluateTimed(circleA, [])).geometry;
+  const bInnerGeo = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'circle', params: { radius: 5, segments: 32 } }),
+      [],
+    )
   ).geometry;
-  const bGeo = kernel.evaluateTimed(circleB, [bInnerGeo]).geometry;
-  const { geometry } = kernel.evaluateTimed(node, [aGeo, bGeo]);
+  const bGeo = (await kernel.evaluateTimed(circleB, [bInnerGeo])).geometry;
+  const { geometry } = await kernel.evaluateTimed(node, [aGeo, bGeo]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     // Hull of two offset circles should be non-empty
@@ -323,16 +322,18 @@ it('kernel evaluates 2D hull of two offset circles (stadium shape)', async () =>
 
 it('kernel evaluates extrude(rectangle(10x10), height=5) to a box-equivalent mesh', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const rect = kernel.evaluateTimed(
-    await buildGraph({ type: 'rectangle', params: { size: [10, 10], center: true } }),
-    [],
+  const rect = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'rectangle', params: { size: [10, 10], center: true } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'extrude',
     params: { height: 5 },
     children: [{ type: 'rectangle', params: { size: [10, 10], center: true } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [rect]);
+  const { geometry } = await kernel.evaluateTimed(node, [rect]);
   expect(geometry.kind).toBe('3d');
   if (geometry.kind === '3d') {
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
@@ -359,9 +360,9 @@ it('kernel evaluates revolve(translate_2d(circle), axis=y) to a torus-like 3D me
       },
     ],
   });
-  const innerGeo = kernel.evaluateTimed(innerCircle, []).geometry;
-  const translatedGeo = kernel.evaluateTimed(translated, [innerGeo]).geometry;
-  const { geometry } = kernel.evaluateTimed(node, [translatedGeo]);
+  const innerGeo = (await kernel.evaluateTimed(innerCircle, [])).geometry;
+  const translatedGeo = (await kernel.evaluateTimed(translated, [innerGeo])).geometry;
+  const { geometry } = await kernel.evaluateTimed(node, [translatedGeo]);
   expect(geometry.kind).toBe('3d');
   if (geometry.kind === '3d') {
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
@@ -404,9 +405,9 @@ it('kernel evaluates revolve with axis=x to a 3D mesh with correct orientation',
       },
     ],
   });
-  const innerGeo = kernel.evaluateTimed(innerCircle, []).geometry;
-  const translatedGeo = kernel.evaluateTimed(translated, [innerGeo]).geometry;
-  const { geometry } = kernel.evaluateTimed(node, [translatedGeo]);
+  const innerGeo = (await kernel.evaluateTimed(innerCircle, [])).geometry;
+  const translatedGeo = (await kernel.evaluateTimed(translated, [innerGeo])).geometry;
+  const { geometry } = await kernel.evaluateTimed(node, [translatedGeo]);
   expect(geometry.kind).toBe('3d');
   if (geometry.kind === '3d') {
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
@@ -450,11 +451,11 @@ it('evaluate2dBoolean does not leak WASM heap across many iterations', async () 
       { type: 'circle', params: { radius: 5, segments: 8 } },
     ],
   });
-  const circleGeo = kernel.evaluateTimed(circleNode, []).geometry;
+  const circleGeo = (await kernel.evaluateTimed(circleNode, [])).geometry;
   // 1000 iterations of union(circle, circle) — if intermediates leak, WASM heap
   // exhausts long before this completes.
   for (let i = 0; i < 1000; i++) {
-    kernel.evaluateTimed(unionNode, [circleGeo, circleGeo]);
+    await kernel.evaluateTimed(unionNode, [circleGeo, circleGeo]);
   }
   // Completing without OOM/throw is the assertion.
   expect(true).toBe(true);
@@ -477,24 +478,23 @@ it('evaluateTimed propagates child Geometry to handler', async () => {
       { type: 'sphere', params: { radius: 6, segments: 32 } },
     ],
   });
-  const boxGeo = kernel.evaluateTimed(boxNode, []).geometry;
-  const sphereGeo = kernel.evaluateTimed(sphereNode, []).geometry;
-  const { geometry } = kernel.evaluateTimed(diffNode, [boxGeo, sphereGeo]);
+  const boxGeo = (await kernel.evaluateTimed(boxNode, [])).geometry;
+  const sphereGeo = (await kernel.evaluateTimed(sphereNode, [])).geometry;
+  const { geometry } = await kernel.evaluateTimed(diffNode, [boxGeo, sphereGeo]);
   expect(geometry.kind).toBe('3d');
 });
 
 it('kernel refine(n=2) on box produces 4x the triangle count', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const box = kernel.evaluateTimed(
-    await buildGraph({ type: 'box', params: { size: [1, 1, 1] } }),
-    [],
+  const box = (
+    await kernel.evaluateTimed(await buildGraph({ type: 'box', params: { size: [1, 1, 1] } }), [])
   ).geometry;
   const node = await buildGraph({
     type: 'refine',
     params: { n: 2 },
     children: [{ type: 'box', params: { size: [1, 1, 1] } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [box]);
+  const { geometry } = await kernel.evaluateTimed(node, [box]);
   expect(geometry.kind).toBe('3d');
   if (geometry.kind === '3d' && box.kind === '3d') {
     const refinedTriCount = geometry.mesh.indices.length / 3;
@@ -505,16 +505,18 @@ it('kernel refine(n=2) on box produces 4x the triangle count', async () => {
 
 it('kernel: offset_2d(round, +2) on rectangle produces more vertices', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const rect = kernel.evaluateTimed(
-    await buildGraph({ type: 'rectangle', params: { size: [10, 10], center: true } }),
-    [],
+  const rect = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'rectangle', params: { size: [10, 10], center: true } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'offset_2d',
     params: { delta: 2, joinType: 'round', segments: 16 },
     children: [{ type: 'rectangle', params: { size: [10, 10], center: true } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [rect]);
+  const { geometry } = await kernel.evaluateTimed(node, [rect]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     // Original rectangle: 4 verts; rounded: 4 + 4*(segments-1) = 64 (approx)
@@ -537,16 +539,18 @@ function countCorners(pts: ReadonlyArray<readonly [number, number]>): number {
 
 it('section: unit cube cut at z=0 with normal +Z produces a square cross-section', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const box = kernel.evaluateTimed(
-    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
-    [],
+  const box = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'section',
     params: { origin: [0, 0, 0], normal: [0, 0, 1] },
     children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [box]);
+  const { geometry } = await kernel.evaluateTimed(node, [box]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBe(1);
@@ -565,16 +569,18 @@ it('section: unit cube cut at z=0 with normal +Z produces a square cross-section
 
 it('section: plane above the solid produces an empty CrossSection', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const box = kernel.evaluateTimed(
-    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
-    [],
+  const box = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'section',
     params: { origin: [0, 0, 5], normal: [0, 0, 1] },
     children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [box]);
+  const { geometry } = await kernel.evaluateTimed(node, [box]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBe(0);
@@ -583,16 +589,18 @@ it('section: plane above the solid produces an empty CrossSection', async () => 
 
 it('section: sphere(r=5) at z=3 produces a circle of bounds ≈ ±4', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const sphere = kernel.evaluateTimed(
-    await buildGraph({ type: 'sphere', params: { radius: 5, segments: 64 } }),
-    [],
+  const sphere = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'sphere', params: { radius: 5, segments: 64 } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'section',
     params: { origin: [0, 0, 3], normal: [0, 0, 1] },
     children: [{ type: 'sphere', params: { radius: 5, segments: 64 } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [sphere]);
+  const { geometry } = await kernel.evaluateTimed(node, [sphere]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBe(1);
@@ -608,16 +616,18 @@ it('section: sphere(r=5) at z=3 produces a circle of bounds ≈ ±4', async () =
 
 it('section: diagonal cut of a cube with normal [1,1,0] produces a rectangular section', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const box = kernel.evaluateTimed(
-    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
-    [],
+  const box = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'section',
     params: { origin: [0, 0, 0], normal: [1, 1, 0] },
     children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [box]);
+  const { geometry } = await kernel.evaluateTimed(node, [box]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBe(1);
@@ -629,16 +639,18 @@ it('section: diagonal cut of a cube with normal [1,1,0] produces a rectangular s
 
 it('section: body-diagonal cut of a cube produces a hexagonal section', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const box = kernel.evaluateTimed(
-    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
-    [],
+  const box = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'section',
     params: { origin: [0, 0, 0], normal: [1, 1, 1] },
     children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
   });
-  const { geometry } = kernel.evaluateTimed(node, [box]);
+  const { geometry } = await kernel.evaluateTimed(node, [box]);
   expect(geometry.kind).toBe('2d');
   if (geometry.kind === '2d') {
     expect(geometry.section.polygons.length).toBe(1);
@@ -651,16 +663,18 @@ it('section: body-diagonal cut of a cube produces a hexagonal section', async ()
 
 it('section: same inputs produce byte-identical polygons (determinism)', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const box = kernel.evaluateTimed(
-    await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
-    [],
+  const box = (
+    await kernel.evaluateTimed(
+      await buildGraph({ type: 'box', params: { size: [2, 2, 2], center: true } }),
+      [],
+    )
   ).geometry;
   const node = await buildGraph({
     type: 'section',
     params: { origin: [0, 0, 0.5], normal: [1, 1, 1] },
     children: [{ type: 'box', params: { size: [2, 2, 2], center: true } }],
   });
-  const a = kernel.evaluateTimed(node, [box]).geometry;
-  const b = kernel.evaluateTimed(node, [box]).geometry;
+  const a = (await kernel.evaluateTimed(node, [box])).geometry;
+  const b = (await kernel.evaluateTimed(node, [box])).geometry;
   expect(a).toEqual(b);
 });
