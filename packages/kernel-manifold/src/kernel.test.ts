@@ -246,7 +246,10 @@ it('kernel evaluates 2D union of two circles', async () => {
 
 it('kernel evaluates 2D difference of rectangle and circle', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
-  const rectNode = await buildGraph({ type: 'rectangle', params: { size: [20, 20], center: true } });
+  const rectNode = await buildGraph({
+    type: 'rectangle',
+    params: { size: [20, 20], center: true },
+  });
   const circNode = await buildGraph({ type: 'circle', params: { radius: 5 } });
   const node = await buildGraph({
     type: 'difference',

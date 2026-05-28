@@ -1,4 +1,8 @@
-import { type CrossSection as ManifoldCrossSection, type Manifold as Solid, type ManifoldToplevel } from 'manifold-3d';
+import {
+  type CrossSection as ManifoldCrossSection,
+  type Manifold as Solid,
+  type ManifoldToplevel,
+} from 'manifold-3d';
 import type { Node, Vec3 } from '@yacad/dag';
 import type { CrossSection, Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
@@ -253,7 +257,10 @@ export class ManifoldKernel implements Kernel {
     if (node.type === 'hull') {
       return this.evaluate2dHull(node, childGeometries);
     }
-    const op = ((): ((a: ManifoldCrossSection, b: ManifoldCrossSection) => ManifoldCrossSection) => {
+    const op = ((): ((
+      a: ManifoldCrossSection,
+      b: ManifoldCrossSection,
+    ) => ManifoldCrossSection) => {
       switch (node.type) {
         case 'union':
           return (a, b) => a.add(b);
