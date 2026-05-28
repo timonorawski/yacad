@@ -1,3 +1,4 @@
+import * as luaparse from 'luaparse';
 import type { LuaDefinition } from './schema';
 
 export type ValidationCategory =
@@ -44,6 +45,57 @@ function formatSummary(issues: readonly ValidationIssue[]): string {
 /** Static validation of a LuaDefinition. Throws LuaValidationError if any
  *  issues are found; otherwise returns normally. Deterministic, pure, safe
  *  for editor-time use. Full implementation lands across subsequent tasks. */
-export function validateLuaSource(_def: LuaDefinition): void {
-  // Stub — real implementation lands in Task 7+.
+export function validateLuaSource(def: LuaDefinition): void {
+  const issues: ValidationIssue[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let ast: any;
+  try {
+    ast = luaparse.parse(def.code, {
+      luaVersion: '5.3',
+      locations: true,
+      comments: false,
+      scope: false,
+    });
+  } catch (e) {
+    issues.push(mapParseError(e));
+    throw new LuaValidationError(issues);
+  }
+
+  // AST-walk phases land in Task 8+. For now, a well-parsed program produces
+  // no issues.
+  void ast;
+
+  if (issues.length > 0) {
+    throw new LuaValidationError(issues);
+  }
+}
+
+function mapParseError(e: unknown): ValidationIssue {
+  const err = e as { message?: string; line?: number; column?: number };
+  const message = err.message ?? 'parse error';
+  const line = typeof err.line === 'number' ? err.line : 1;
+  // luaparse columns are 0-indexed; normalize to 1-indexed.
+  const column = typeof err.column === 'number' ? err.column + 1 : 1;
+
+  // Heuristic: detect Lua 5.4 attribute syntax. luaparse 5.3 mode rejects
+  // `local x <const> = ...` with a message like:
+  //   "[1:8] unexpected symbol '<' near 'const'"
+  // The `<` token itself is the unexpected symbol, appearing just before
+  // `const` or `close`. We match both the symbol token and the keyword.
+  if (/unexpected symbol '<' near '(const|close)'/.test(message)) {
+    return {
+      category: 'unsupported-syntax',
+      message: `Lua 5.4 attributes (<const>/<close>) are not supported; use a plain local. (${message})`,
+      line,
+      column,
+    };
+  }
+
+  return {
+    category: 'unparseable',
+    message,
+    line,
+    column,
+  };
 }
