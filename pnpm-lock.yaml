@@ -205,6 +205,16 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/export-svg:
+    dependencies:
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../geometry
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/geometry:
     devDependencies:
       '@yacad/tsconfig':
