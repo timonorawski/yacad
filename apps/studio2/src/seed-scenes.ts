@@ -255,7 +255,10 @@ export async function seedSceneLibrary(library: DocLibrary): Promise<void> {
       defConstant: GEAR_DEFINITION,
       buildDoc: (hash) => ({
         type: 'lua',
-        params: { definitionHash: hash, values: { teeth: 12, radius: 12 } },
+        params: {
+          definitionHash: hash,
+          values: { teeth: 18, module: 1.0, pressureAngle: 20, thickness: 4, arbor: 2 },
+        },
       }),
     },
     {
