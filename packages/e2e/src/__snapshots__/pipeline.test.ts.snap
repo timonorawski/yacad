@@ -137,13 +137,13 @@ exports[`scene → STL pipeline > composite/revolved-vase > matches the captured
   "bbox": {
     "max": [
       5,
+      0,
       5,
-      20,
     ],
     "min": [
       -5,
+      -20,
       -5,
-      0,
     ],
   },
   "nodes": 2,

@@ -234,13 +234,16 @@ export class ManifoldKernel implements Kernel {
     const translated = cs.translate([dx, dy]);
     const opMs = performance.now() - opStart;
     const exportStart = performance.now();
-    const polygons = translated.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
-    cs.delete?.();
-    translated.delete?.();
-    return {
-      geometry: { kind: '2d', section: { polygons } },
-      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
-    };
+    try {
+      const polygons = translated.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+      return {
+        geometry: { kind: '2d', section: { polygons } },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
+    } finally {
+      cs.delete?.();
+      translated.delete?.();
+    }
   }
 
   private evaluateRotate2d(node: Node, childGeometries: readonly Geometry[]): KernelResult {
@@ -253,13 +256,16 @@ export class ManifoldKernel implements Kernel {
     const rotated = cs.rotate(angle);
     const opMs = performance.now() - opStart;
     const exportStart = performance.now();
-    const polygons = rotated.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
-    cs.delete?.();
-    rotated.delete?.();
-    return {
-      geometry: { kind: '2d', section: { polygons } },
-      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
-    };
+    try {
+      const polygons = rotated.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+      return {
+        geometry: { kind: '2d', section: { polygons } },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
+    } finally {
+      cs.delete?.();
+      rotated.delete?.();
+    }
   }
 
   private evaluateOffset2d(node: Node, childGeometries: readonly Geometry[]): KernelResult {
@@ -287,13 +293,16 @@ export class ManifoldKernel implements Kernel {
     const opMs = performance.now() - opStart;
 
     const exportStart = performance.now();
-    const polygons = offsetted.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
-    cs.delete?.();
-    offsetted.delete?.();
-    return {
-      geometry: { kind: '2d', section: { polygons } },
-      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
-    };
+    try {
+      const polygons = offsetted.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+      return {
+        geometry: { kind: '2d', section: { polygons } },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
+    } finally {
+      cs.delete?.();
+      offsetted.delete?.();
+    }
   }
 
   private evaluateRevolve(node: Node, childGeometries: readonly Geometry[]): KernelResult {
@@ -306,34 +315,39 @@ export class ManifoldKernel implements Kernel {
     const segments = node.params['segments'] as number;
     const degrees = node.params['degrees'] as number;
 
-    // Manifold.revolve always revolves around the Y axis (in 2D input space),
-    // mapping Y→Z in the output. For axis='y' we pass the polygon as-is.
-    // For axis='x' we revolve around Y to get a Y-axis torus, then post-rotate
-    // the 3D solid 90° around Z so the rotation axis becomes X.
-    // (Pre-rotating the polygon to avoid clipping is not necessary because the
-    // profile — e.g., a circle offset on +X — already lies on the correct side.)
-    const inputPolys = polygons;
+    // Manifold.revolve revolves around Y and then remaps the revolve axis to Z
+    // in the 3D output (per Manifold docs: "setting this as the Z-axis").
+    // So after revolve, the ring axis is Z.
+    //
+    // For axis='y': we want ring axis = Y. Rotate Z→Y: rotate([90,0,0]).
+    //   R_x(90°): (x,y,z) → (x,-z,y). Z vector (0,0,1) → (0,1,0) = +Y. ✓
+    // For axis='x': we want ring axis = X. Rotate Z→X: rotate([0,-90,0]).
+    //   R_y(-90°): (x,y,z) → (z,y,-x). Z vector (0,0,1) → (1,0,0) = +X. ✓
     const importMs = performance.now() - importStart;
 
     const opStart = performance.now();
     const m = this.api.Manifold.revolve(
-      inputPolys as unknown as Parameters<typeof this.api.Manifold.revolve>[0],
+      polygons as unknown as Parameters<typeof this.api.Manifold.revolve>[0],
       segments,
       degrees,
     );
-    // For axis='x': rotate the Y-axis torus 90° around Z → rotation axis becomes X.
-    const result = axis === 'x' ? m.rotate([0, 0, 90]) : m;
+    // Post-rotate so the ring axis aligns with the requested 3D axis.
+    const result =
+      axis === 'x' ? m.rotate([0, -90, 0]) : axis === 'y' ? m.rotate([90, 0, 0]) : m;
     const opMs = performance.now() - opStart;
 
     const exportStart = performance.now();
-    const mesh = this.toMesh(result);
-    // Clean up WASM objects. When axis='x', m and result are different objects.
-    if (m !== result) m.delete?.();
-    result.delete?.();
-    return {
-      geometry: { kind: '3d', mesh },
-      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
-    };
+    try {
+      const mesh = this.toMesh(result);
+      return {
+        geometry: { kind: '3d', mesh },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
+    } finally {
+      // axis='x' and axis='y' both produce a post-rotated result distinct from m.
+      if (m !== result) m.delete?.();
+      result.delete?.();
+    }
   }
 
   private evaluateExtrude(node: Node, childGeometries: readonly Geometry[]): KernelResult {
@@ -352,13 +366,16 @@ export class ManifoldKernel implements Kernel {
     const opMs = performance.now() - opStart;
 
     const exportStart = performance.now();
-    const mesh = this.toMesh(m);
-    cs.delete?.();
-    m.delete?.();
-    return {
-      geometry: { kind: '3d', mesh },
-      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
-    };
+    try {
+      const mesh = this.toMesh(m);
+      return {
+        geometry: { kind: '3d', mesh },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
+    } finally {
+      cs.delete?.();
+      m.delete?.();
+    }
   }
 
   /**
@@ -406,20 +423,29 @@ export class ManifoldKernel implements Kernel {
 
     const opStart = performance.now();
     let acc = sections[0]!;
+    // Track WASM objects produced by op() that are not in sections[] and must be deleted.
+    const intermediates: ManifoldCrossSection[] = [];
     for (let i = 1; i < sections.length; i++) {
       const next = op(acc, sections[i]!);
-      // acc is a new object after op; the old one is still owned by sections[] — don't delete it here.
+      // After the first iteration acc is a fresh WASM object (not in sections[]).
+      if (i > 1) intermediates.push(acc);
       acc = next;
     }
     const opMs = performance.now() - opStart;
 
     const exportStart = performance.now();
-    const polygons = acc.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
-    for (const s of sections) s.delete?.();
-    return {
-      geometry: { kind: '2d', section: { polygons } },
-      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
-    };
+    try {
+      const polygons = acc.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+      return {
+        geometry: { kind: '2d', section: { polygons } },
+        timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+      };
+    } finally {
+      for (const s of sections) s.delete?.();
+      for (const m of intermediates) m.delete?.();
+      // When there were multiple children, acc is a product of op(), not in sections[].
+      if (sections.length > 1) acc.delete?.();
+    }
   }
 
   /**

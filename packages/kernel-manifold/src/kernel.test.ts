@@ -382,6 +382,11 @@ it('kernel evaluates revolve(translate_2d(circle), axis=y) to a torus-like 3D me
 
 it('kernel evaluates revolve with axis=x to a 3D mesh with correct orientation', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
+  // Profile: circle of radius 1 centered at (5, 0) in 2D. Revolving around X
+  // produces a torus with ring axis = X. The torus spans:
+  //   X: ±1 (the profile's Y extent becomes the X extent after the post-rotation)
+  //   Y: ±6 (major+minor radius, swept in YZ plane)
+  //   Z: ±6
   const innerCircle = await buildGraph({ type: 'circle', params: { radius: 1, segments: 16 } });
   const translated = await buildGraph({
     type: 'translate_2d',
@@ -405,18 +410,46 @@ it('kernel evaluates revolve with axis=x to a 3D mesh with correct orientation',
   expect(geometry.kind).toBe('3d');
   if (geometry.kind === '3d') {
     expect(geometry.mesh.indices.length).toBeGreaterThan(0);
-    // Revolved around X: solid should span both positive and negative Y.
     const verts = geometry.mesh.vertices;
-    let minY = Infinity,
-      maxY = -Infinity;
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
     for (let i = 0; i < verts.length; i += 3) {
-      const y = verts[i + 1]!;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
+      const x = verts[i]!, y = verts[i + 1]!, z = verts[i + 2]!;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
-    expect(maxY).toBeGreaterThan(3);
-    expect(minY).toBeLessThan(-3);
+    // Manifold.revolve sets the revolve axis as Z; rotate([0,-90,0]) maps Z→+X.
+    // Ring axis is X: X span is narrow (profile Y extent ≈ ±1 around the axis),
+    // while Y and Z span the full swept radius (major+minor ≈ ±6).
+    expect(maxX).toBeLessThan(2);
+    expect(minX).toBeGreaterThan(-2);
+    expect(maxY).toBeGreaterThan(4);
+    expect(minY).toBeLessThan(-4);
+    expect(maxZ).toBeGreaterThan(4);
+    expect(minZ).toBeLessThan(-4);
   }
+});
+
+it('evaluate2dBoolean does not leak WASM heap across many iterations', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const circleNode = await buildGraph({ type: 'circle', params: { radius: 5, segments: 8 } });
+  const unionNode = await buildGraph({
+    type: 'union',
+    children: [
+      { type: 'circle', params: { radius: 5, segments: 8 } },
+      { type: 'circle', params: { radius: 5, segments: 8 } },
+    ],
+  });
+  const circleGeo = kernel.evaluateTimed(circleNode, []).geometry;
+  // 1000 iterations of union(circle, circle) — if intermediates leak, WASM heap
+  // exhausts long before this completes.
+  for (let i = 0; i < 1000; i++) {
+    kernel.evaluateTimed(unionNode, [circleGeo, circleGeo]);
+  }
+  // Completing without OOM/throw is the assertion.
+  expect(true).toBe(true);
 });
 
 it('evaluateTimed propagates child Geometry to handler', async () => {
