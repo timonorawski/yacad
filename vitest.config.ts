@@ -39,7 +39,11 @@ export default defineConfig({
     globals: false,
     passWithNoTests: true,
     setupFiles: ['./vitest.setup.ts'],
-    include: ['packages/*/src/**/*.test.ts', 'bench/**/*.test.ts'],
+    include: [
+      'packages/*/src/**/*.test.ts',
+      'apps/studio2/src/**/*.test.ts',
+      'bench/**/*.test.ts',
+    ],
     exclude: ['**/node_modules/**', '**/.git/**', 'bench/**/*.bench.ts'],
   },
 });

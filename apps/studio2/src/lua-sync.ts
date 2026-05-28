@@ -1,9 +1,28 @@
 import type { NodeDoc } from '@yacad/dag';
 import type { DocSession } from '@yacad/doc-store';
-import type { LuaDefinition } from '@yacad/lua';
+import { validateLuaSource, canonicalizeDefinition, type LuaDefinition } from '@yacad/lua';
+import type { Hash } from '@yacad/hash';
 import type { WorkerClient } from '@yacad/worker';
 
 const DEC = new TextDecoder();
+const ENC = new TextEncoder();
+
+/**
+ * Validate a LuaDefinition and persist its canonical bytes as a blob.
+ *
+ * This is the single chokepoint for introducing a new LuaDefinition into the
+ * session.  It runs `validateLuaSource` before writing — any static-analysis
+ * failure throws `LuaValidationError`, preventing invalid definitions from
+ * reaching the in-memory blob store or the worker.
+ */
+export async function addLuaDefinition(
+  session: DocSession,
+  def: LuaDefinition,
+): Promise<Hash> {
+  validateLuaSource(def); // throws LuaValidationError on static-analysis failure
+  const bytes = ENC.encode(canonicalizeDefinition(def));
+  return session.addBlob(bytes);
+}
 
 /**
  * Re-route every Lua-definition blob carried by the session into the worker's
