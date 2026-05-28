@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SANDBOX_GLOBALS } from './sandbox-globals';
+import { SANDBOX_GLOBALS, SANDBOX_STRIP_SCRIPT } from './sandbox-globals';
 
 describe('SANDBOX_GLOBALS.topLevel', () => {
   it('includes the three library tables', () => {
@@ -63,6 +63,28 @@ describe('SANDBOX_GLOBALS.libraryMembers', () => {
     expect(tbl).toBeDefined();
     for (const name of ['concat', 'insert', 'remove', 'sort', 'unpack']) {
       expect(tbl!.has(name)).toBe(true);
+    }
+  });
+});
+
+describe('SANDBOX_STRIP_SCRIPT', () => {
+  it('nils out every base-library entry NOT in topLevel that Wasmoon loads', () => {
+    for (const name of ['dofile', 'loadfile', 'load', 'loadstring', 'require', 'print', 'collectgarbage']) {
+      expect(SANDBOX_STRIP_SCRIPT).toMatch(new RegExp(`^${name}\\s*=\\s*nil\\s*$`, 'm'));
+    }
+  });
+
+  it('nils math.randomseed (stripped after the runtime seeds it)', () => {
+    expect(SANDBOX_STRIP_SCRIPT).toMatch(/^math\.randomseed\s*=\s*nil\s*$/m);
+  });
+
+  it('nils string.dump', () => {
+    expect(SANDBOX_STRIP_SCRIPT).toMatch(/^string\.dump\s*=\s*nil\s*$/m);
+  });
+
+  it('does NOT nil anything in topLevel', () => {
+    for (const name of SANDBOX_GLOBALS.topLevel) {
+      expect(SANDBOX_STRIP_SCRIPT).not.toMatch(new RegExp(`^${name}\\s*=\\s*nil`, 'm'));
     }
   });
 });

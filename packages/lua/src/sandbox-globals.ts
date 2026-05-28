@@ -40,3 +40,63 @@ export const SANDBOX_GLOBALS: {
     ])],
   ]),
 };
+
+/**
+ * Lua source executed by the runtime AFTER loadLibrary(Base|Math|String|Table)
+ * to nil out every identifier brought in by those libraries that is NOT in the
+ * whitelist. Derived once at module load from SANDBOX_GLOBALS so the runtime
+ * and validator cannot drift.
+ *
+ * The script does NOT nil entries that aren't in the loaded libraries to begin
+ * with (e.g., `os` isn't loaded so doesn't need stripping).
+ */
+export const SANDBOX_STRIP_SCRIPT: string = (() => {
+  // Entries that Wasmoon's LuaLibraries.Base brings in. Pinned here rather than
+  // discovered at runtime because the validator runs without Wasmoon.
+  const baseLibrary = new Set<string>([
+    'assert', 'collectgarbage', 'dofile', 'error', 'getmetatable',
+    'ipairs', 'load', 'loadfile', 'loadstring', 'next', 'pairs',
+    'pcall', 'print', 'rawequal', 'rawget', 'rawlen', 'rawset',
+    'require', 'select', 'setmetatable', 'tonumber', 'tostring',
+    'type', 'unpack', 'xpcall', '_G', '_VERSION',
+  ]);
+
+  // Library member sets as opened by loadLibrary, minus our whitelist.
+  const libraryAvailable = new Map<string, ReadonlySet<string>>([
+    ['math', new Set([
+      'abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'deg', 'exp', 'floor',
+      'fmod', 'huge', 'log', 'max', 'maxinteger', 'min', 'mininteger',
+      'modf', 'pi', 'rad', 'random', 'randomseed', 'sin', 'sqrt', 'tan',
+      'tointeger', 'type', 'ult',
+    ])],
+    ['string', new Set([
+      'byte', 'char', 'dump', 'find', 'format', 'gmatch', 'gsub', 'len',
+      'lower', 'match', 'pack', 'packsize', 'rep', 'reverse', 'sub',
+      'unpack', 'upper',
+    ])],
+    ['table', new Set([
+      'concat', 'insert', 'move', 'pack', 'remove', 'sort', 'unpack',
+    ])],
+  ]);
+
+  const lines: string[] = [];
+
+  // Strip top-level base entries not in the whitelist.
+  for (const name of baseLibrary) {
+    if (!SANDBOX_GLOBALS.topLevel.has(name)) {
+      lines.push(`${name} = nil`);
+    }
+  }
+
+  // Strip per-library members not in the per-library whitelist.
+  for (const [libName, available] of libraryAvailable) {
+    const allowed = SANDBOX_GLOBALS.libraryMembers.get(libName) ?? new Set();
+    for (const member of available) {
+      if (!allowed.has(member)) {
+        lines.push(`${libName}.${member} = nil`);
+      }
+    }
+  }
+
+  return lines.join('\n');
+})();
