@@ -182,6 +182,16 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/export-dxf:
+    dependencies:
+      '@yacad/geometry':
+        specifier: workspace:*
+        version: link:../geometry
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/export-stl:
     dependencies:
       '@yacad/geometry':
