@@ -23,6 +23,7 @@ export default defineConfig({
       '@yacad/lua': pkg('lua'),
       '@yacad/worker': pkg('worker'),
       '@yacad/render': pkg('render'),
+      '@yacad/selection': pkg('selection'),
       '@yacad/export-stl': pkg('export-stl'),
       '@yacad/import-stl': pkg('import-stl'),
       '@yacad/import-obj': pkg('import-obj'),
