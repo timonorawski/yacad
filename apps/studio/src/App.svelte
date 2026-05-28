@@ -3,6 +3,9 @@
   import { marked } from 'marked';
   import { meshToBinaryStl } from '@yacad/export-stl';
   import type { Mesh } from '@yacad/geometry';
+  import { defaultHasher } from '@yacad/hash';
+  import { hashLuaDefinition } from '@yacad/lua';
+  import { GEAR_DEFINITION, ARRAY_ALONG_X_DEFINITION } from '@yacad/e2e/fixtures';
   import { Viewport } from '@yacad/render';
   import { WorkerClient, type EvaluateOutcome } from '@yacad/worker';
   import type { NodeDoc } from '@yacad/dag';
@@ -50,6 +53,22 @@
   let lastMesh = $state<Mesh | undefined>(undefined);
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let evalSeq = 0;
+
+  // Lua definition hashes — populated once on mount (async hash of canonical form).
+  let gearHash = $state('');
+  let arrayAlongXHash = $state('');
+  // Tracks which definition hashes have already been pushed to the worker.
+  const pushedDefinitions = new Set<string>();
+
+  /** Push a Lua definition to the worker exactly once per hash. */
+  async function ensureLuaDefinition(
+    hash: string,
+    def: typeof GEAR_DEFINITION | typeof ARRAY_ALONG_X_DEFINITION,
+  ): Promise<void> {
+    if (!hash || pushedDefinitions.has(hash)) return;
+    pushedDefinitions.add(hash);
+    await client.putLuaDefinition(hash, def);
+  }
 
   // Stress-test scene generators — too verbose or too parametric to keep as
   // static files, so they're built on demand for the picker. They mirror the
@@ -206,6 +225,40 @@
     seed: 1,
   };
 
+  const luaScenes = $derived([
+    {
+      id: 'lua-gear',
+      label: 'Lua: gear (teeth=8, radius=5)',
+      text: pretty({
+        type: 'lua',
+        params: { definitionHash: gearHash, values: { teeth: 8, radius: 5.0 } },
+      } as NodeDoc),
+      defHash: gearHash,
+      def: GEAR_DEFINITION,
+    },
+    {
+      id: 'lua-gear-customized',
+      label: 'Lua: gear customized (teeth=12, radius=3)',
+      text: pretty({
+        type: 'lua',
+        params: { definitionHash: gearHash, values: { teeth: 12, radius: 3.0 } },
+      } as NodeDoc),
+      defHash: gearHash,
+      def: GEAR_DEFINITION,
+    },
+    {
+      id: 'lua-array-of-spheres',
+      label: 'Lua: array of spheres (count=4, spacing=3)',
+      text: pretty({
+        type: 'lua',
+        params: { definitionHash: arrayAlongXHash, values: { count: 4, spacing: 3.0 } },
+        children: [{ type: 'sphere', params: { radius: 1, segments: 32 } }],
+      } as NodeDoc),
+      defHash: arrayAlongXHash,
+      def: ARRAY_ALONG_X_DEFINITION,
+    },
+  ]);
+
   const sceneLibrary = [
     { id: 'default', label: 'Default: box - sphere', text: DEFAULT_DOC },
     { id: 'box', label: 'Primitive: box', text: sceneBox },
@@ -241,7 +294,7 @@
       label: 'Stress: tree (real-world, every branch unique)',
       text: pretty(procTree({ ...treeBaseOpts, wobble: 1, seed: 42 })),
     },
-  ] as const;
+  ];
 
   const languageReferenceHtml = marked.parse(languageReferenceMd) as string;
 
@@ -275,6 +328,15 @@
     });
     ro.observe(canvas);
 
+    // Pre-compute Lua definition hashes so scene text is ready when the user
+    // opens the dropdown. Hashing is async but fast (SubtleCrypto SHA-256).
+    void hashLuaDefinition(GEAR_DEFINITION, defaultHasher).then((h) => {
+      gearHash = h;
+    });
+    void hashLuaDefinition(ARRAY_ALONG_X_DEFINITION, defaultHasher).then((h) => {
+      arrayAlongXHash = h;
+    });
+
     void evaluate();
 
     return () => {
@@ -305,11 +367,17 @@
     }
   }
 
-  function pickScene(id: string): void {
-    const scene = sceneLibrary.find((entry) => entry.id === id);
+  async function pickScene(id: string): Promise<void> {
+    const staticScene = sceneLibrary.find((entry) => entry.id === id);
+    const luaScene = luaScenes.find((entry) => entry.id === id);
+    const scene = staticScene ?? luaScene;
     if (!scene) return;
     selectedScene = scene.id;
     text = JSON.stringify(JSON.parse(scene.text), null, 2);
+    // For Lua scenes, push the definition to the worker before evaluating.
+    if (luaScene) {
+      await ensureLuaDefinition(luaScene.defHash, luaScene.def);
+    }
     void evaluate();
   }
 
@@ -375,6 +443,9 @@
         >
           <option value="custom">Custom (current editor)</option>
           {#each sceneLibrary as scene}
+            <option value={scene.id}>{scene.label}</option>
+          {/each}
+          {#each luaScenes as scene}
             <option value={scene.id}>{scene.label}</option>
           {/each}
         </select>

@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 const src = (rel: string) => fileURLToPath(new URL(`../../packages/${rel}`, import.meta.url));
+const srcFile = (name: string, file: string) =>
+  fileURLToPath(new URL(`../../packages/${name}/src/${file}`, import.meta.url));
 
 // Alias workspace packages to their TypeScript source so `dev` needs no prior
 // `tsc -b` and edits to packages hot-reload. The '/host' subpath is listed
@@ -22,6 +24,9 @@ export default defineConfig({
       { find: '@yacad/engine', replacement: src('engine/src/index.ts') },
       { find: '@yacad/render', replacement: src('render/src/index.ts') },
       { find: '@yacad/export-stl', replacement: src('export-stl/src/index.ts') },
+      { find: '@yacad/lua', replacement: src('lua/src/index.ts') },
+      // Sub-path alias for the shared E2E fixtures (mirrors vitest.config.ts)
+      { find: '@yacad/e2e/fixtures', replacement: srcFile('e2e', 'fixtures.ts') },
     ],
   },
   // ES-format workers so the host can `import` engine/kernel modules.

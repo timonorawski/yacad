@@ -27,3 +27,26 @@ export const GEAR_DEFINITION: LuaDefinition = {
     'return geo.union({}, parts)',
   ].join('\n'),
 };
+
+/**
+ * Array-along-X: repeats a child body `count` times along the X axis with
+ * `spacing` between each copy. Shared by the lua-with-input E2E scene and the
+ * studio's "lua-array-of-spheres" sample scene.
+ */
+export const ARRAY_ALONG_X_DEFINITION: LuaDefinition = {
+  schema: {
+    inputs: [{ name: 'body', type: '3d' }],
+    params: {
+      count: { type: 'int', default: 3, min: 1, max: 16 },
+      spacing: { type: 'number', default: 3.0 },
+    },
+    output: '3d',
+  },
+  code: [
+    'local parts = {}',
+    'for i = 1, params.count do',
+    '  parts[#parts + 1] = geo.translate({offset = {(i - 1) * params.spacing, 0, 0}}, { inputs.body })',
+    'end',
+    'return geo.union({}, parts)',
+  ].join('\n'),
+};
