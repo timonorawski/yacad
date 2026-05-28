@@ -1,4 +1,4 @@
-import { type Manifold as Solid, type ManifoldToplevel } from 'manifold-3d';
+import { type CrossSection as ManifoldCrossSection, type Manifold as Solid, type ManifoldToplevel } from 'manifold-3d';
 import type { Node, Vec3 } from '@yacad/dag';
 import type { CrossSection, Geometry, Mesh } from '@yacad/geometry';
 import { KERNEL_NAME, KERNEL_VERSION } from './loader';
@@ -92,6 +92,18 @@ export class ManifoldKernel implements Kernel {
     }
     if (node.type === 'rotate_2d') {
       return this.evaluateRotate2d(node, childGeometries);
+    }
+
+    // 2D boolean ops: dispatch on child kind when children are 2D.
+    if (
+      (node.type === 'union' ||
+        node.type === 'difference' ||
+        node.type === 'intersection' ||
+        node.type === 'hull') &&
+      childGeometries.length > 0 &&
+      childGeometries[0]!.kind === '2d'
+    ) {
+      return this.evaluate2dOp(node, childGeometries);
     }
 
     // Import: rebuild every child solid up front so the op phase measures only
@@ -233,6 +245,93 @@ export class ManifoldKernel implements Kernel {
     };
   }
 
+  /**
+   * Dispatch 2D boolean/hull operations for union, difference, intersection, and hull.
+   * All children must be 2D geometry (kind === '2d').
+   */
+  private evaluate2dOp(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    if (node.type === 'hull') {
+      return this.evaluate2dHull(node, childGeometries);
+    }
+    const op = ((): ((a: ManifoldCrossSection, b: ManifoldCrossSection) => ManifoldCrossSection) => {
+      switch (node.type) {
+        case 'union':
+          return (a, b) => a.add(b);
+        case 'difference':
+          return (a, b) => a.subtract(b);
+        case 'intersection':
+          return (a, b) => a.intersect(b);
+        default:
+          throw new Error(`manifold kernel: unexpected 2D op "${node.type}"`);
+      }
+    })();
+    return this.evaluate2dBoolean(node, childGeometries, op);
+  }
+
+  /**
+   * Reduce N 2D children with a binary CrossSection operation (union/difference/intersection).
+   * Import, fold-left with op, export — timing broken out per phase.
+   */
+  private evaluate2dBoolean(
+    node: Node,
+    childGeometries: readonly Geometry[],
+    op: (a: ManifoldCrossSection, b: ManifoldCrossSection) => ManifoldCrossSection,
+  ): KernelResult {
+    const importStart = performance.now();
+    const sections = childGeometries.map((g, i) =>
+      this.api.CrossSection.ofPolygons(
+        asCrossSection(g, node.id, i).polygons as unknown as [number, number][][],
+      ),
+    );
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    let acc = sections[0]!;
+    for (let i = 1; i < sections.length; i++) {
+      const next = op(acc, sections[i]!);
+      // acc is a new object after op; the old one is still owned by sections[] — don't delete it here.
+      acc = next;
+    }
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    const polygons = acc.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    for (const s of sections) s.delete?.();
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+    };
+  }
+
+  /**
+   * 2D convex hull of N children.
+   * CrossSection.hull() is unary — for N > 1 we union first then hull,
+   * which is equivalent to hulling all contours together.
+   */
+  private evaluate2dHull(node: Node, childGeometries: readonly Geometry[]): KernelResult {
+    const importStart = performance.now();
+    const sections = childGeometries.map((g, i) =>
+      this.api.CrossSection.ofPolygons(
+        asCrossSection(g, node.id, i).polygons as unknown as [number, number][][],
+      ),
+    );
+    const importMs = performance.now() - importStart;
+
+    const opStart = performance.now();
+    // Use the static CrossSection.hull(polygons[]) to hull all sections at once.
+    const hulled = this.api.CrossSection.hull(sections);
+    const opMs = performance.now() - opStart;
+
+    const exportStart = performance.now();
+    const polygons = hulled.toPolygons() as ReadonlyArray<ReadonlyArray<[number, number]>>;
+    for (const s of sections) s.delete?.();
+    hulled.delete?.();
+    return {
+      geometry: { kind: '2d', section: { polygons } },
+      timings: { importMs, opMs, exportMs: performance.now() - exportStart },
+    };
+  }
+
   /** Run the node's Manifold operation over already-imported child solids. */
   private runOp(node: Node, childSolids: readonly Solid[]): Solid {
     const { Manifold } = this.api;
@@ -266,6 +365,10 @@ export class ManifoldKernel implements Kernel {
         return Manifold.union(childSolids as Solid[]);
       case 'difference':
         return Manifold.difference(childSolids as Solid[]);
+      case 'intersection':
+        return Manifold.intersection(childSolids as Solid[]);
+      case 'hull':
+        return Manifold.hull(childSolids as Solid[]);
       default:
         throw new Error(`manifold kernel cannot evaluate node type "${node.type}"`);
     }

@@ -370,6 +370,52 @@ it('circle caches by crossSection artifact kind (warm hit skips kernel)', async 
   expect(warm.stats.hits).toBe(1);
 });
 
+it('engine end-to-end: 2D difference of rectangle and circle', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'difference',
+    children: [
+      { type: 'rectangle', params: { size: [20, 20], center: true } },
+      { type: 'circle', params: { radius: 5 } },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('engine end-to-end: 2D intersection of two circles', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'intersection',
+    children: [
+      { type: 'circle', params: { radius: 5 } },
+      { type: 'circle', params: { radius: 5 } },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
+it('engine end-to-end: 2D hull of two circles', async () => {
+  const store = new MemoryStore();
+  const engine = new Engine(store, kernel);
+  const node = await buildGraph({
+    type: 'hull',
+    children: [
+      { type: 'circle', params: { radius: 5 } },
+      {
+        type: 'translate_2d',
+        params: { offset: [10, 0] },
+        children: [{ type: 'circle', params: { radius: 5 } }],
+      },
+    ],
+  });
+  const result = await engine.evaluate(node);
+  expect(result.geometry.kind).toBe('2d');
+});
+
 it('engine.evaluate returns Geometry with kind="3d" for a 3D root', async () => {
   const store = new MemoryStore();
   const engine = new Engine(store, kernel);

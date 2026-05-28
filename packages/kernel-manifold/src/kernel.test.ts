@@ -220,6 +220,104 @@ it('kernel evaluates rotate_2d: rotates polygon by angle in degrees', async () =
   }
 });
 
+// ---------------------------------------------------------------------------
+// 2D boolean ops
+// ---------------------------------------------------------------------------
+
+it('kernel evaluates 2D union of two circles', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const circleA = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  const circleB = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  const node = await buildGraph({
+    type: 'union',
+    children: [
+      { type: 'circle', params: { radius: 5 } },
+      { type: 'circle', params: { radius: 5 } },
+    ],
+  });
+  const aGeo = kernel.evaluateTimed(circleA, []).geometry;
+  const bGeo = kernel.evaluateTimed(circleB, []).geometry;
+  const { geometry } = kernel.evaluateTimed(node, [aGeo, bGeo]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBeGreaterThan(0);
+  }
+});
+
+it('kernel evaluates 2D difference of rectangle and circle', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const rectNode = await buildGraph({ type: 'rectangle', params: { size: [20, 20], center: true } });
+  const circNode = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  const node = await buildGraph({
+    type: 'difference',
+    children: [
+      { type: 'rectangle', params: { size: [20, 20], center: true } },
+      { type: 'circle', params: { radius: 5 } },
+    ],
+  });
+  const rectGeo = kernel.evaluateTimed(rectNode, []).geometry;
+  const circGeo = kernel.evaluateTimed(circNode, []).geometry;
+  const { geometry } = kernel.evaluateTimed(node, [rectGeo, circGeo]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    expect(geometry.section.polygons.length).toBeGreaterThan(0);
+  }
+});
+
+it('kernel evaluates 2D intersection (overlapping circles)', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const circleA = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  const circleB = await buildGraph({ type: 'circle', params: { radius: 5 } });
+  const node = await buildGraph({
+    type: 'intersection',
+    children: [
+      { type: 'circle', params: { radius: 5 } },
+      { type: 'circle', params: { radius: 5 } },
+    ],
+  });
+  const aGeo = kernel.evaluateTimed(circleA, []).geometry;
+  const bGeo = kernel.evaluateTimed(circleB, []).geometry;
+  const { geometry } = kernel.evaluateTimed(node, [aGeo, bGeo]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    // Intersection of two identical circles is the circle itself
+    expect(geometry.section.polygons.length).toBeGreaterThan(0);
+  }
+});
+
+it('kernel evaluates 2D hull of two offset circles (stadium shape)', async () => {
+  const kernel = new ManifoldKernel(await loadManifold());
+  const circleA = await buildGraph({ type: 'circle', params: { radius: 5, segments: 32 } });
+  const circleB = await buildGraph({
+    type: 'translate_2d',
+    params: { offset: [10, 0] },
+    children: [{ type: 'circle', params: { radius: 5, segments: 32 } }],
+  });
+  const node = await buildGraph({
+    type: 'hull',
+    children: [
+      { type: 'circle', params: { radius: 5, segments: 32 } },
+      {
+        type: 'translate_2d',
+        params: { offset: [10, 0] },
+        children: [{ type: 'circle', params: { radius: 5, segments: 32 } }],
+      },
+    ],
+  });
+  const aGeo = kernel.evaluateTimed(circleA, []).geometry;
+  const bInnerGeo = kernel.evaluateTimed(
+    await buildGraph({ type: 'circle', params: { radius: 5, segments: 32 } }),
+    [],
+  ).geometry;
+  const bGeo = kernel.evaluateTimed(circleB, [bInnerGeo]).geometry;
+  const { geometry } = kernel.evaluateTimed(node, [aGeo, bGeo]);
+  expect(geometry.kind).toBe('2d');
+  if (geometry.kind === '2d') {
+    // Hull of two offset circles should be non-empty
+    expect(geometry.section.polygons.length).toBeGreaterThan(0);
+  }
+});
+
 it('evaluateTimed propagates child Geometry to handler', async () => {
   const kernel = new ManifoldKernel(await loadManifold());
   const boxNode = await buildGraph({
