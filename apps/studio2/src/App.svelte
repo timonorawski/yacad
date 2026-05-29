@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { IndexedDbVfs } from '@yacad/vfs';
+  import type { Vfs } from '@yacad/vfs';
   import { DocLibrary } from '@yacad/doc-store';
   import { WorkerClient } from '@yacad/worker';
   import type { EvaluateOutcome } from '@yacad/worker';
@@ -30,6 +30,12 @@
   import InspectorPane from './ui/InspectorPane.svelte';
   import ViewportPane from './ui/ViewportPane.svelte';
   import PerformancePanel from './ui/PerformancePanel.svelte';
+
+  interface Props {
+    vfs: Vfs;
+    viewerMode: boolean;
+  }
+  let { vfs, viewerMode }: Props = $props();
 
   let userLibrary: DocLibrary;
   let sampleLibrary: DocLibrary;
@@ -208,11 +214,10 @@
     const worker = new EvalWorker();
     const newClient = new WorkerClient(worker, { wasmUrl, luaWasmUrl });
     client = newClient;
-    const vfs = new IndexedDbVfs();
     userLibrary = new DocLibrary(vfs, newClient);
     sampleLibrary = new DocLibrary(vfs, newClient, { prefix: '/samples/' });
     void (async () => {
-      if ((await sampleLibrary.list()).length === 0) {
+      if (!viewerMode && (await sampleLibrary.list()).length === 0) {
         await seedSceneLibrary(sampleLibrary);
       }
       await refreshDocs();

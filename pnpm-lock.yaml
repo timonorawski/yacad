@@ -226,6 +226,9 @@ importers:
       '@yacad/mutations':
         specifier: workspace:*
         version: link:../../packages/mutations
+      '@yacad/remote-vfs':
+        specifier: workspace:*
+        version: link:../../packages/remote-vfs
       '@yacad/render':
         specifier: workspace:*
         version: link:../../packages/render

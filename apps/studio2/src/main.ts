@@ -11,6 +11,8 @@ import { IMPORT_STL_NODE_TYPE, IMPORT_STL_TYPE } from '@yacad/import-stl';
 import { IMPORT_OBJ_NODE_TYPE, IMPORT_OBJ_TYPE } from '@yacad/import-obj';
 import { IMPORT_GLTF_NODE_TYPE, IMPORT_GLTF_TYPE } from '@yacad/import-gltf';
 import type { LuaDefinition } from '@yacad/lua';
+import { IndexedDbVfs, type Vfs } from '@yacad/vfs';
+import { RemoteVfs } from '@yacad/remote-vfs';
 import App from './App.svelte';
 
 const DEC = new TextDecoder();
@@ -70,6 +72,19 @@ const LUA_STUB: ExpandableNodeType = {
 };
 if (!getNodeType('lua')) registerNodeType(LUA_STUB);
 
+const params = new URLSearchParams(window.location.search);
+const backendKind = params.get('backend') ?? 'indexeddb';
+const viewerMode = backendKind === 'remote';
+
+let vfs: Vfs;
+if (backendKind === 'remote') {
+  const ws = params.get('ws');
+  if (!ws) throw new Error('?backend=remote requires &ws=ws://...');
+  vfs = new RemoteVfs({ url: ws });
+} else {
+  vfs = new IndexedDbVfs();
+}
+
 const root = document.getElementById('app');
 if (!root) throw new Error('#app root not found');
-mount(App, { target: root });
+mount(App, { target: root, props: { vfs, viewerMode } });
