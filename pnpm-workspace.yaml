@@ -2,3 +2,6 @@ packages:
   - 'tooling/*'
   - 'packages/*'
   - 'apps/*'
+
+onlyBuiltDependencies:
+  - esbuild

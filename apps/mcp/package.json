@@ -3,18 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/server.js",
+  "main": "./dist/main.js",
   "bin": {
-    "yacad-mcp": "./dist/server.js"
+    "yacad-mcp": "./dist/main.js"
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && node scripts/bundle.mjs",
     "clean": "tsc -b --clean",
-    "start": "node ./dist/server.js",
+    "start": "node ./dist/main.js",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@napi-rs/canvas": "^0.1.100",
     "@yacad/cache": "workspace:*",
     "@yacad/canonical": "workspace:*",
     "@yacad/dag": "workspace:*",
@@ -35,11 +36,14 @@
     "@yacad/remote-vfs": "workspace:*",
     "@yacad/vfs": "workspace:*",
     "@yacad/vfs-fs": "workspace:*",
+    "manifold-3d": "^3.5.0",
+    "wasmoon": "1.16.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/ws": "^8.5.10",
-    "@yacad/tsconfig": "workspace:*"
+    "@yacad/tsconfig": "workspace:*",
+    "esbuild": "^0.28.0"
   }
 }
