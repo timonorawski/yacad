@@ -18,9 +18,10 @@ The original reference implementation, kept for compatibility and Playwright e2e
 
 The current Svelte 5 studio, auto-deployed from `main`:
 
-- **Three-pane shell** — tree / viewport / inspector layout (familiar from Houdini/Blender).
+- **Three-pane shell** — tree / viewport / inspector layout (familiar from Houdini/Blender). On mobile (< 900 px) the tree and inspector become slide-in sheets toggled by toolbar buttons; on desktop (≥ 900 px) both open by default alongside the viewport.
 - **Tree view** — collapse, select, single-highlight; shows node type labels and geometry-kind icons. Lua nodes get an expansion toggle (◆) to reveal the generated sub-DAG inline; derived nodes render with visual distinction (muted, italic, dashed indent) and read-only inspectors.
 - **Property inspector** dispatching by node kind: paramSchema-driven forms for kernel nodes (with type-specific widgets for `int`, `number`, `boolean`, `string`, `vec2`, `vec3`, `vec2-array`, `enum`, plus `exclusiveGroup` fieldsets for mutually exclusive params); Lua inspector with live validation issues; decoder inspector. Derived (generated) nodes show a "Generated node" badge and enforce read-only mode.
+- **Node focus mode** — clicking a node row in the tree focuses that node: the performance panel filters to its subtree and the viewport scopes to its evaluated geometry. Clicking another node or the background exits focus. Powered by `focusedNodeId` / `focusedHash` state in `App.svelte`.
 - **Monaco slide-over Lua editor** — syntax highlighting, Revert / Save buttons, always-visible validation status chip (pass/fail + ms timing, debounced 150 ms).
 - **Structural-mutation tool palette** — auto-generated wrap-with and add-child pickers from the node-type registry; delete, unwrap.
 - **Document library** — multi-document picker; open, create, rename, delete. Persisted in IndexedDB via `@yacad/vfs` + `@yacad/doc-store`. First-run seeded from v1's example scenes (including the showcase fixtures).
@@ -30,23 +31,33 @@ The current Svelte 5 studio, auto-deployed from `main`:
 - **Export gadget** — per-node STL / SVG / DXF / PNG, gated on the node's geometry kind.
 - **Viewport toolbar** — display mode cycle (solid / wireframe / solid+edges), camera presets (front / back / left / right / top / bottom / isometric), perspective toggle, zoom controls (fit / + / −).
 - **Docs drawer** — in-app panels for Language Reference, Lua API reference, Architecture, and Features docs.
+- **Live remote-viewer mode** — launch with `?backend=remote&ws=ws://host:port/ws` to mirror an MCP server session read-only. All editing UI is hidden. WebSocket broadcasts (`current-doc-changed`, `doc-changed`, `blob-added`, `meta-changed`, `library-changed`) keep the tree, inspector, blob set, and document list in sync with the server. Backend selected in `main.ts`; WS subscriptions wired in `App.svelte`.
 
 ### Common authoring
 
-- **Sandboxed Lua code nodes.** Wasmoon-based Lua 5.4 with `openStandardLibs: false` + selective `math` / `string` / `table` loaders. `math.randomseed` seeded then stripped; `require`, `print`, `load`, `loadstring` stripped from the environment. A Lua node carries its source plus a parameter and input schema; the runtime expands it into a sub-DAG that the engine then walks.
+- **Sandboxed Lua code nodes.** Wasmoon-based Lua 5.4 with `openStandardLibs: false` + selective `math` / `string` / `table` loaders. For LuaNode: `math.randomseed` is called with a deterministic seed derived from the definition hash, then stripped; `math.random` survives. For `warp` nodes: both `math.random` and `math.randomseed` are stripped (per-vertex randomness breaks the Merkle cache). `require`, `print`, `load`, `loadstring` stripped in all modes. A Lua node carries its source plus a parameter and input schema; the runtime expands it into a sub-DAG that the engine then walks.
 - **Lua static validation.** `validateLuaSource` runs AST-level checks before any definition is committed: rejects undeclared `params.*` and `inputs.*` references, sandbox API violations, and malformed `geo.<type>` calls.
 - **Showcase scene library** — six annotated parametric scenes seeded into the document library: house (13 params, gable roof), castle (12 params, curtain walls + crenellations), tree (12 params, recursive Lua + imported glTF leaves), torus knot (6 params, demonstrating the `warp` node), chamfered box (exploratory boolean-composition fillet), and filleted slab (exploratory boolean-composition chamfer).
 
 ### MCP server (`apps/mcp`)
 
-An MCP (Model Context Protocol) server exposing the full DAG pipeline as tool calls for agentic workflows:
+A stdio MCP server that holds an authoritative `DocSession` and simultaneously serves a freshly-built studio2 viewer over HTTP+WS — giving an agent a live browser window into the model it is editing.
 
-- **Library management** — list, open, create, delete documents.
-- **Document reading** — get full document tree, inspect node at path.
-- **Mutations** — setParam, addChild, moveChild, removeAt, replaceAt, wrapWith, unwrap, plus `addLuaDefinition` for Lua code nodes.
-- **Exports** — STL, SVG, DXF, PNG (gated on geometry kind).
-- **Cache control** — clear cache, rotate access token.
-- **Viewer** — get viewer URL, set current document for live viewing.
+- **Composition.** One Node process: MCP SDK over stdio for tool dispatch; `Engine + ManifoldKernel + WasmoonLuaRuntime + WasmoonWarpEvaluator` for evaluation; `FilesystemVfs` (`@yacad/vfs-fs`) for persistence; HTTP serving `apps/studio2/dist/`; WS endpoint at `/ws` mounting `@yacad/remote-vfs`'s `RemoteVfsServer`. Studio2 in the browser uses `RemoteVfs` instead of IndexedDB — the VFS layout on disk is identical so the `DocLibrary` is unchanged.
+- **Setup.** Copy `.mcp.json.example` to `.mcp.json`, replace the absolute path, restart Claude Code. `run.sh` rebuilds the bundled MCP and studio2 on every launch so the served viewer always reflects current source. In `--no-viewer` mode the rebuild is skipped.
+- **Tool surface: 30 tools in eight groups.**
+  - Library (5) — `listDocs`, `createDoc`, `openDoc`, `deleteDoc`, `setCurrentDoc`. Manage the document library and control which doc has viewer focus.
+  - Read (3) — `getDoc`, `getNodeAt`, `evaluate`. Inspect the DAG tree and evaluate geometry (returns bbox, triangle count, cache stats).
+  - Mutate (8) — `addChild`, `wrapWith`, `unwrap`, `removeAt`, `moveChild`, `replaceAt`, `setParam`, `setParams`. Full structural and param-level DAG mutations.
+  - Lua (2) — `addLuaDefinition` (validate, register, and persist a `LuaDefinition` blob into the current doc — requires a current doc open first), `validateLuaCode` (dry-run validation, never registers).
+  - Export (4) — `exportStl` (3D → binary STL, base64), `exportSvg` / `exportDxf` / `exportPng` (2D → base64). Export tools are gated on node geometry kind.
+  - Cache (1) — `clearCache`. Drops the engine cache; next evaluate is all misses.
+  - Server (2) — `getViewerUrl` (returns URL with token when applicable), `rotateAccessToken` (generates a fresh token and drops connected viewers).
+  - Docs (5) — `listNodeTypes`, `getNodeTypeDoc`, `getLanguageReference`, `getLuaApiReference`, `getExamples`. Read-only introspection of the node-type registry and showcase examples; no current doc required.
+- **Viewer mode.** Studio2 is served from the same process with `?backend=remote&ws=...` query params so it reads state from the MCP's VFS over WS. Live-broadcasting keeps the viewer in sync: `current-doc-changed` fires on `createDoc` / `openDoc` / `setCurrentDoc`; `doc-changed` / `meta-changed` / `blob-added` fire from per-session event subscriptions on every mutation; `library-changed` fires on `createDoc` / `deleteDoc`.
+- **Access control.** Localhost binds (`127.0.0.1` / `localhost` / `::1`) require no token. Any other `--host` value generates a random 32-hex-char token at startup, printed to stderr; the token is required as `?token=...` on every HTTP request and WS upgrade. `rotateAccessToken` generates a new token and closes existing WS connections (they reconnect with the new URL). `getViewerUrl` always returns the URL with the token baked in.
+- **Flags.** `--port N` (default `5179`) — HTTP+WS port. `--host HOST` (default `127.0.0.1`) — bind address; non-localhost enables token enforcement. `--library-dir PATH` (default `./.yacad-mcp/vfs`) — persistence root. `--no-viewer` — skip HTTP+WS; MCP runs headless.
+- **Persistence.** Per-project under `<cwd>/.yacad-mcp/vfs/`. `@yacad/vfs-fs`'s `FilesystemVfs` mirrors the IndexedDB path layout exactly (`/docs/{id}/meta.json`, `/docs/{id}/document.json`, `/docs/{id}/blobs/{hash}.bin`); atomic writes via write-temp-then-rename.
 
 ## Geometry kernel
 
@@ -103,6 +114,15 @@ Each import is a `Decoder` node type: it takes a blob hash, the runtime resolves
 - **Per-node timings + cache-hit instrumentation** surfaced by the engine, displayed in the studio's stats panel.
 - **Artifacts:** `mesh`, `bbox`, `crossSection`, `luaDefinition`, `expandedDoc` (cached resolved sub-DAG for Lua node inspection).
 
+## VFS & persistence
+
+- **`@yacad/vfs` — async-uniform `Vfs` interface.** Four methods: `read`, `write`, `delete`, `list(prefix)`. Values are opaque `Uint8Array` bytes; callers own encoding. Same interface across all backends; consumers never see the tier.
+- **Backends shipped:** `MemoryVfs` (in-process; used by tests) and `IndexedDbVfs` (browser default; survives page reload). Key layout under a configurable root prefix: `/docs/{id}/meta.json`, `/docs/{id}/document.json`, `/docs/{id}/blobs/{hash}.bin`. A separate prefix (`/samples/`) mirrors the same layout for the sample library.
+- **`@yacad/vfs-fs` — `FilesystemVfs` (Node).** Atomic writes via write-to-`{key}.tmp` then `rename`; a crashed process cannot leave half-written files. Used by the MCP server; persists project-local docs under `./.yacad-mcp/vfs/` by default.
+- **`@yacad/remote-vfs` — `RemoteVfs` (browser) + `RemoteVfsServer` (Node).** Wraps any `Vfs` over a WebSocket with JSON-RPC framing (`vfs.read`, `vfs.write`, `vfs.delete`, `vfs.list`) plus a server-event push channel. The server can flag a connection `readOnly`; writes and deletes are rejected with `viewer-read-only` (used in the MCP viewer mode). `RemoteVfs` reconnects with exponential backoff and queues pending RPCs while the socket is down.
+- **`@yacad/doc-store` — `DocLibrary` and `DocSession`.** Both sit over any `Vfs`. `DocLibrary` handles create / list / open / delete / rename. `DocSession` owns the open document's in-memory state: undo/redo snapshots, autosave, blob-set management, validation, and an event stream (`doc-changed`, `meta-changed`, `blob-added`, `persisted`, `invalidated`).
+- **Composition.** Standalone studio: `IndexedDbVfs` → `DocLibrary`. MCP server: `FilesystemVfs` → `DocLibrary`, with `RemoteVfsServer` exposing the same VFS over `/ws` so a studio2 browser using `RemoteVfs` can read docs and receive live-change events. Same `DocLibrary` code on both sides; only the storage tier differs.
+
 ## Not yet
 
 Explicitly out of scope or not yet started. See [ROADMAP.md](ROADMAP.md) for the full deferred list.
@@ -119,9 +139,9 @@ Explicitly out of scope or not yet started. See [ROADMAP.md](ROADMAP.md) for the
 ## Engineering substrate
 
 - **TypeScript pnpm monorepo** with workspace packages and project references. `tsc -b` is the type-correctness gate; CI runs build + lint + format:check + test + build:app.
-- **Vitest** for unit tests; tests colocated with source (`foo.ts` + `foo.test.ts`). 248+ test files across the workspace.
+- **Vitest** for unit tests; tests colocated with source (`foo.ts` + `foo.test.ts`). 75 test files across the workspace.
 - **`@yacad/e2e`** — full-pipeline scene→STL snapshot tests plus `packages/e2e/showcase/` scenes (house, castle, tree, torus-knot, chamfered-box, filleted-slab). Captured geometry summaries (vertex count, bbox, hash) catch silent regressions.
-- **Playwright smoke** — `apps/studio/e2e/studio.spec.ts` covers the cold-start path, incremental recompute, 2D/3D scene switching, mesh-import scenes, Lua scenes, and export-button gating. `apps/studio2` has its own Playwright suite including a LuaInspector validation test.
+- **Playwright smoke** — `apps/studio/e2e/studio.spec.ts` covers the cold-start path, incremental recompute, 2D/3D scene switching, mesh-import scenes, Lua scenes, and export-button gating. `apps/studio2/e2e/` has its own Playwright suite (`studio2.spec.ts` + `lua-validation.spec.ts`). `apps/mcp/e2e/mutation-updates-viewer.spec.ts` covers the MCP-to-viewer live-update path.
 - **ESLint flat config + Prettier.** Format and lint pass as CI gates.
-- **GitHub Actions CI** — `ci.yml` (build + unit + lint + format), `browser-e2e.yml` (Playwright), `perf.yml` (kernel performance regression check), `deploy.yml` (studio v2 → GitHub Pages on push to `main`).
+- **GitHub Actions CI** — `ci.yml` (build + lint + format:check + test + build:app), `browser-e2e.yml` (Playwright, studio v1), `perf.yml` (kernel performance regression check), `deploy.yml` (studio v2 → GitHub Pages on push to `main`).
 - **Per-phase design + plan docs** — every non-trivial feature ships a design spec (`docs/superpowers/specs/`) committed alongside the code. The history of decisions is in the repo.
