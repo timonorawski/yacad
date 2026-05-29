@@ -379,7 +379,7 @@ Sweeps a 2D region around the chosen axis to produce a 3D solid.
 ```json
 {
   "type": "revolve",
-  "params": { "axis": "y", "segments": 64, "degrees": 360 },
+  "params": { "segments": 64, "degrees": 360 },
   "children": [
     {
       "type": "polygon",
@@ -397,7 +397,7 @@ Sweeps a 2D region around the chosen axis to produce a 3D solid.
 }
 ```
 
-- `axis`: optional `"y"`, `"x"`, or `"z"`, default `"y"`. `"y"` and `"x"` remap Manifold's native revolve ring-axis to the chosen world axis. `"z"` leaves the result in Manifold's native revolve frame (ring axis = Z), which is what `warp` vertex-deformation recipes expect (the torus-knot showcase uses this).
+- `axis`: optional `"z"`, `"y"`, or `"x"`, default `"z"`. `"z"` (default) keeps the ring axis aligned with Z, matching the canonical Z-up convention. `"y"` and `"x"` post-rotate the ring axis to the named world axis.
 - `segments`: optional integer ≥ 3, default `32`. Number of subdivisions around the sweep.
 - `degrees`: optional finite number, default `360`. Sweep arc — less than 360 produces an open-arc sweep.
 

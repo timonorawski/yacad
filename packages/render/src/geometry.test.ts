@@ -20,8 +20,9 @@ describe('meshToBufferGeometry', () => {
     const normal = geometry.getAttribute('normal');
     expect(normal).toBeTruthy();
     expect(normal.count).toBe(3);
-    // XY-plane triangle → +Z normal.
-    expect(normal.getZ(0)).toBeCloseTo(1, 6);
+    // Kernel XY-plane triangle → after Z-up→Y-up swizzle, lies on the XZ
+    // plane (three.js Y=0). Normal points along +Y in three.js.
+    expect(normal.getY(0)).toBeCloseTo(1, 6);
   });
 });
 

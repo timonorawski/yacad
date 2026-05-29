@@ -1,7 +1,9 @@
 import {
   AmbientLight,
+  AxesHelper,
   Box3,
   Box3Helper,
+  CanvasTexture,
   Color,
   DirectionalLight,
   EdgesGeometry,
@@ -14,12 +16,14 @@ import {
   OrthographicCamera,
   PerspectiveCamera,
   Scene,
+  Sprite,
+  SpriteMaterial,
   Vector3,
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { BBox, Geometry, Mesh } from '@yacad/geometry';
-import { geometryToObject3D, meshToBufferGeometry } from './geometry';
+import { geometryToObject3D, kernelToViewport, meshToBufferGeometry } from './geometry';
 import type { TriangulateApi } from './cross-section-mesh';
 
 /** Display modes for 3D meshes. */
@@ -74,6 +78,7 @@ export class Viewport {
       key,
       new AmbientLight(0xffffff, 0.5),
       new GridHelper(200, 20, 0x444444, 0x2a2a2a),
+      ...buildAxisLabels(),
     );
 
     this.animate();
@@ -106,7 +111,13 @@ export class Viewport {
 
   /** Show a bounding-box wireframe placeholder while evaluation runs. */
   showPlaceholder(bbox: BBox): void {
-    const box = new Box3(new Vector3(...bbox.min), new Vector3(...bbox.max));
+    const lo = kernelToViewport(...bbox.min);
+    const hi = kernelToViewport(...bbox.max);
+    // After swizzle the min/max components may swap — recompute.
+    const box = new Box3(
+      new Vector3(Math.min(lo[0], hi[0]), Math.min(lo[1], hi[1]), Math.min(lo[2], hi[2])),
+      new Vector3(Math.max(lo[0], hi[0]), Math.max(lo[1], hi[1]), Math.max(lo[2], hi[2])),
+    );
     this.replace(new Box3Helper(box, new Color(0x666666)));
   }
 
@@ -138,9 +149,14 @@ export class Viewport {
     this.fitBox(box);
   }
 
-  /** Fit a specific bounding box into the viewport. */
+  /** Fit a specific bounding box (kernel Z-up coords) into the viewport. */
   zoomToBox(bbox: BBox): void {
-    const box = new Box3(new Vector3(...bbox.min), new Vector3(...bbox.max));
+    const lo = kernelToViewport(...bbox.min);
+    const hi = kernelToViewport(...bbox.max);
+    const box = new Box3(
+      new Vector3(Math.min(lo[0], hi[0]), Math.min(lo[1], hi[1]), Math.min(lo[2], hi[2])),
+      new Vector3(Math.max(lo[0], hi[0]), Math.max(lo[1], hi[1]), Math.max(lo[2], hi[2])),
+    );
     this.fitBox(box);
   }
 
@@ -381,4 +397,47 @@ export class Viewport {
     this.controls.update();
     this.renderer.render(this.scene, this.activeCamera);
   };
+}
+
+// ---------------------------------------------------------------------------
+// Axis labels — show the canonical kernel coordinate system (X, Y, Z with
+// Z-up) in the viewport. The geometry is already transformed from kernel
+// Z-up to three.js Y-up, so:
+//   Three.js +X = kernel +X   (red,   label "X")
+//   Three.js +Y = kernel +Z   (green, label "Z")
+//   Three.js +Z = kernel -Y   (blue,  label "Y", but arrow points -Y)
+//
+// We draw the AxesHelper as-is (standard three.js RGB=XYZ) and place text
+// sprites at the tips with the kernel axis names.
+// ---------------------------------------------------------------------------
+
+function makeTextSprite(text: string, color: string): Sprite {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.font = 'bold 80px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.fillText(text, size / 2, size / 2);
+  const tex = new CanvasTexture(canvas);
+  const mat = new SpriteMaterial({ map: tex, depthTest: false });
+  const sprite = new Sprite(mat);
+  sprite.scale.set(4, 4, 1);
+  return sprite;
+}
+
+function buildAxisLabels(): Object3D[] {
+  const len = 12;
+  const axes = new AxesHelper(len);
+  // Kernel axis labels at the tips (in three.js viewport coordinates).
+  const xLabel = makeTextSprite('X', '#ff4444');
+  xLabel.position.set(len + 2, 0, 0);
+  const zLabel = makeTextSprite('Z', '#44ff44'); // three.js +Y = kernel +Z
+  zLabel.position.set(0, len + 2, 0);
+  const yLabel = makeTextSprite('Y', '#4488ff'); // three.js -Z = kernel +Y
+  yLabel.position.set(0, 0, -(len + 2));
+  return [axes, xLabel, zLabel, yLabel];
 }

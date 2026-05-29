@@ -163,7 +163,7 @@ YACAD uses a **Z-up right-handed coordinate system** for all geometry operations
 | **Y** | Front–back (depth) |
 | **Z** | Up–down (height)   |
 
-**2D shapes** live on the **XY plane** (Z = 0). `extrude` lifts them along **+Z**. `section` slices a 3D solid with a plane and returns a 2D cross-section on that plane; the default slicing plane is XY at the origin. `revolve` defaults to rotating around the **Y axis** (producing upright solids in the viewport).
+**2D shapes** live on the **XY plane** (Z = 0). `extrude` lifts them along **+Z**. `section` slices a 3D solid with a plane and returns a 2D cross-section on that plane; the default slicing plane is XY at the origin. `revolve` defaults to rotating around the **Z axis** (the up direction), matching Manifold's native frame.
 
 **Exports** respect this convention directly:
 
@@ -171,7 +171,7 @@ YACAD uses a **Z-up right-handed coordinate system** for all geometry operations
 - **DXF**: 2D coordinates pass through as-is (Y-up in the DXF sense matches the XY plane).
 - **SVG / PNG**: Y axis is flipped (CAD Y-up → screen Y-down).
 
-**Rendering**: the three.js viewport uses Y-up natively. Currently no rotation transform is applied between kernel output and renderer — kernel `(x, y, z)` maps 1:1 to three.js `(x, y, z)`. This means the viewport's visual "up" is the Y axis while the kernel's "up" is Z. A future pass will apply a coordinate transform in the renderer to align these (tracked in `.knowledge/decisions/`).
+**Rendering**: the three.js viewport uses Y-up natively. The render package applies a coordinate swizzle `(x, y, z) → (x, z, -y)` when converting kernel geometry to three.js `BufferGeometry` (`meshToBufferGeometry`, `crossSectionToBufferGeometry`, and outline rendering). This maps kernel Z-up to viewport Y-up while preserving right-handedness. The viewport displays axis labels showing the kernel convention (X red, Y blue, Z green pointing up).
 
 ## Deliberately out of scope
 

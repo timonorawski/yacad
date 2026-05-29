@@ -21,11 +21,12 @@ export function crossSectionToBufferGeometry(
 ): BufferGeometry {
   const polygons = cs.polygons as ReadonlyArray<ReadonlyArray<[number, number]>>;
 
-  // Flatten all polygon vertices into a single vertex list (x, y, 0 per vertex).
+  // Flatten all polygon vertices, swizzling kernel 2D (x, y) on XY plane
+  // to three.js Y-up: (x, 0, -y) on the XZ ground plane.
   const verts: number[] = [];
   for (const poly of polygons) {
     for (const [x, y] of poly) {
-      verts.push(x, y, 0);
+      verts.push(x, 0, -y);
     }
   }
 

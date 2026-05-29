@@ -426,7 +426,7 @@ describe('extrude node type', () => {
 });
 
 describe('revolve node type', () => {
-  it('builds with default 360 degrees around Y', async () => {
+  it('builds with default 360 degrees around Z', async () => {
     const node = await buildGraph({
       type: 'revolve',
       params: {},
@@ -439,7 +439,7 @@ describe('revolve node type', () => {
       ],
     });
     expect(node.outputType).toBe('3d');
-    expect(node.params['axis']).toBe('y');
+    expect(node.params['axis']).toBe('z');
     expect(node.params['degrees']).toBe(360);
   });
 

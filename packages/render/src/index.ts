@@ -1,4 +1,4 @@
-export { meshToBufferGeometry, geometryToObject3D } from './geometry';
+export { meshToBufferGeometry, geometryToObject3D, kernelToViewport } from './geometry';
 export { crossSectionToBufferGeometry } from './cross-section-mesh';
 export type { TriangulateApi } from './cross-section-mesh';
 export { Viewport } from './viewport';

@@ -199,7 +199,7 @@ export class ManifoldKernel implements Kernel {
       return this.evaluateExtrude(node, childGeometries);
     }
 
-    // 2D→3D bridge: revolve a CrossSection around Y (or X) axis.
+    // 2D→3D bridge: revolve a CrossSection around Z (default), Y, or X axis.
     if (node.type === 'revolve') {
       return this.evaluateRevolve(node, childGeometries);
     }
