@@ -160,7 +160,7 @@
     class="focus-close-btn"
     title="Exit focused view (Esc)"
     onclick={() => onUnfocus?.()}
-    aria-label="Exit focused view">&times;</button
+    aria-label="Exit focused view">&times; Unfocus</button
   >
 {/if}
 <div class="viewport-footer">

@@ -793,26 +793,23 @@ body {
   border-color: var(--accent);
 }
 
-/* Focus close button — viewport top-right overlay */
+/* Focus close button — viewport bottom-center overlay */
 .focus-close-btn {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 20;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
   border: none;
-  border-radius: 50%;
-  width: 2rem;
-  height: 2rem;
-  font-size: 1.2rem;
-  line-height: 1;
+  border-radius: 1rem;
+  padding: 0.3rem 1rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   opacity: 0.8;
   transition: opacity 0.15s ease;
+  white-space: nowrap;
 }
 .focus-close-btn:hover {
   opacity: 1;
