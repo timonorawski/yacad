@@ -170,6 +170,11 @@ export class Engine {
     };
   }
 
+  /** Drops all cached artifacts. Next evaluate is all misses. */
+  async clearCache(): Promise<void> {
+    await this.store.clear();
+  }
+
   private async walk(node: Node, tier: string, perNode: NodeEval[]): Promise<Geometry> {
     const nodeStart = performance.now();
     const key = this.keyFor(node, tier);
