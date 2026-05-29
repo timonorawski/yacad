@@ -94,7 +94,11 @@
 
   async function openDoc(id: string, source: 'user' | 'sample') {
     if (session) {
-      await session.session.close();
+      // close() may flush a dirty session via vfs.write; in viewer mode the
+      // RemoteVfs is read-only so the write rejects. Swallow — the dispose
+      // below still cleans the in-memory state, and the source of truth lives
+      // on the MCP server anyway.
+      await session.session.close().catch(() => undefined);
       session.dispose();
     }
     const lib = source === 'sample' ? sampleLibrary : userLibrary;
@@ -232,34 +236,73 @@
     })();
 
     // In viewer mode, subscribe to live doc updates pushed over WS so the
-    // tree and inspector stay in sync when the MCP server mutates a document.
-    let unsubCurrentDoc: (() => void) | undefined;
-    let unsubDocChanged: (() => void) | undefined;
+    // tree, inspector, doc list, and blob set all track the MCP server.
+    // Each handler is best-effort: WS broadcasts arrive asynchronously and a
+    // throw would become an unhandled rejection that silently breaks future
+    // delivery, so we wrap every observer in catch + console.error.
+    const unsubs: Array<() => void> = [];
     if (viewerMode && vfs instanceof RemoteVfs) {
-      // `current-doc-changed` fires when the MCP server sets a new current doc.
-      // Open it (or switch to it if already open).
-      unsubCurrentDoc = vfs.on('current-doc-changed', (payload) => {
-        const p = payload as { id: string };
-        void openDoc(p.id, 'user');
-      });
-      // `doc-changed` fires when the server mutates the currently-open doc.
-      // Apply the new document tree directly to the in-memory session so
-      // Svelte re-renders the tree and inspector without replacing the session
-      // (which would reset selection state). Autosave will fail with
-      // viewer-read-only, which is expected and intentionally ignored here.
-      unsubDocChanged = vfs.on('doc-changed', (payload) => {
-        const p = payload as { id: string; doc: import('@yacad/dag').NodeDoc };
-        if (session && session.session.id === p.id) {
-          void session.session.mutate(() => p.doc).catch(() => undefined);
-        }
-      });
+      // current-doc-changed: server moved focus to a different doc.
+      unsubs.push(
+        vfs.on('current-doc-changed', (payload) => {
+          const p = payload as { id: string };
+          if (session && session.session.id === p.id) return;
+          void openDoc(p.id, 'user').catch((err: unknown) => {
+            console.error('viewer: current-doc-changed handler failed', err);
+          });
+        }),
+      );
+
+      // doc-changed: tree mutation on the currently-open doc. Apply directly
+      // so Svelte re-renders without replacing the session (preserves the
+      // user's selection). Autosave will reject with viewer-read-only —
+      // intentionally swallowed.
+      unsubs.push(
+        vfs.on('doc-changed', (payload) => {
+          const p = payload as { id: string; doc: import('@yacad/dag').NodeDoc };
+          if (session && session.session.id === p.id) {
+            void session.session.mutate(() => p.doc).catch(() => undefined);
+          }
+        }),
+      );
+
+      // blob-added: a new blob (Lua def, mesh import) was added to a session.
+      // Push it into the open session's blob set so the validator and the
+      // inspector pick it up. Same write-rejection ignored.
+      unsubs.push(
+        vfs.on('blob-added', (payload) => {
+          const p = payload as { id: string; hash: string; base64: string };
+          if (!session || session.session.id !== p.id) return;
+          if (session.session.blobs.has(p.hash)) return;
+          const bytes = Uint8Array.from(atob(p.base64), (c) => c.charCodeAt(0));
+          void session.session.addBlob(bytes).catch(() => undefined);
+        }),
+      );
+
+      // meta-changed: doc name etc. updated. Refresh the visible lists.
+      unsubs.push(
+        vfs.on('meta-changed', () => {
+          void refreshDocs().catch((err: unknown) => {
+            console.error('viewer: meta-changed refreshDocs failed', err);
+          });
+        }),
+      );
+
+      // library-changed: docs created/deleted on the server. Keep the
+      // viewer's lists in sync so the picker (if shown) matches reality.
+      unsubs.push(
+        vfs.on('library-changed', () => {
+          void refreshDocs().catch((err: unknown) => {
+            console.error('viewer: library-changed refreshDocs failed', err);
+          });
+        }),
+      );
     }
 
     return () => {
-      unsubCurrentDoc?.();
-      unsubDocChanged?.();
+      for (const u of unsubs) u();
       worker.terminate();
-      session?.session.close();
+      session?.session.close().catch(() => undefined);
       session?.dispose();
     };
   });
