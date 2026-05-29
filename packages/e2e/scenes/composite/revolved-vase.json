@@ -1,6 +1,6 @@
 {
   "type": "revolve",
-  "params": { "axis": "y", "segments": 64, "degrees": 360 },
+  "params": { "axis": "z", "segments": 64, "degrees": 360 },
   "children": [
     {
       "type": "polygon",
@@ -11,8 +11,12 @@
           [3, 10],
           [5, 15],
           [4, 20],
-          [0, 20],
-          [0, 0]
+          [3, 20],
+          [4, 15],
+          [2, 10],
+          [3, 5],
+          [2, 1],
+          [0, 1]
         ]
       }
     }
