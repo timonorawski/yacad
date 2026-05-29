@@ -44,7 +44,7 @@ The active Svelte 5 studio, launched by `pnpm dev` and auto-deployed from `main`
 A stdio MCP server that holds an authoritative `DocSession` and simultaneously serves a freshly-built studio2 viewer over HTTP+WS — giving an agent a live browser window into the model it is editing.
 
 - **Composition.** One Node process: MCP SDK over stdio for tool dispatch; `Engine + ManifoldKernel + WasmoonLuaRuntime + WasmoonWarpEvaluator` for evaluation; `FilesystemVfs` (`@yacad/vfs-fs`) for persistence; HTTP serving `apps/studio2/dist/`; WS endpoint at `/ws` mounting `@yacad/remote-vfs`'s `RemoteVfsServer`. Studio2 in the browser uses `RemoteVfs` instead of IndexedDB — the VFS layout on disk is identical so the `DocLibrary` is unchanged.
-- **Setup.** Copy `.mcp.json.example` to `.mcp.json`, replace the absolute path, restart Claude Code. `run.sh` rebuilds the bundled MCP and studio2 on every launch so the served viewer always reflects current source. In `--no-viewer` mode the rebuild is skipped.
+- **Setup.** Copy `.mcp.json.example` to `.mcp.json`, replace the absolute path, restart Claude Code. `run.sh` rebuilds the bundled MCP and studio2 on every launch so the served viewer always reflects current source, with build output redirected to `./.yacad-mcp/logs/startup-build.log` so stdout stays clean for the stdio MCP transport. In `--no-viewer` mode the studio2 rebuild is skipped.
 - **Tool surface: 30 tools in eight groups.**
   - Library (5) — `listDocs`, `createDoc`, `openDoc`, `deleteDoc`, `setCurrentDoc`. Manage the document library and control which doc has viewer focus.
   - Read (3) — `getDoc`, `getNodeAt`, `evaluate`. Inspect the DAG tree and evaluate geometry (returns bbox, triangle count, cache stats).
@@ -56,7 +56,7 @@ A stdio MCP server that holds an authoritative `DocSession` and simultaneously s
   - Docs (5) — `listNodeTypes`, `getNodeTypeDoc`, `getLanguageReference`, `getLuaApiReference`, `getExamples`. Read-only introspection of the node-type registry and showcase examples; no current doc required.
 - **Viewer mode.** Studio2 is served from the same process with `?backend=remote&ws=...` query params so it reads state from the MCP's VFS over WS. Live-broadcasting keeps the viewer in sync: `current-doc-changed` fires on `createDoc` / `openDoc` / `setCurrentDoc`; `doc-changed` / `meta-changed` / `blob-added` fire from per-session event subscriptions on every mutation; `library-changed` fires on `createDoc` / `deleteDoc`.
 - **Access control.** Localhost binds (`127.0.0.1` / `localhost` / `::1`) require no token. Any other `--host` value generates a random 32-hex-char token at startup, printed to stderr; the token is required as `?token=...` on every HTTP request and WS upgrade. `rotateAccessToken` generates a new token and closes existing WS connections (they reconnect with the new URL). `getViewerUrl` always returns the URL with the token baked in.
-- **Flags.** `--port N` (default `5179`) — HTTP+WS port. `--host HOST` (default `127.0.0.1`) — bind address; non-localhost enables token enforcement. `--library-dir PATH` (default `./.yacad-mcp/vfs`) — persistence root. `--no-viewer` — skip HTTP+WS; MCP runs headless.
+- **Flags.** `--port N` (default `5179`) — HTTP+WS port; `--port auto` asks the OS for a free ephemeral port and reports the discovered viewer URL. `--host HOST` (default `127.0.0.1`) — bind address; non-localhost enables token enforcement. `--library-dir PATH` (default `./.yacad-mcp/vfs`) — persistence root. `--no-viewer` — skip HTTP+WS; MCP runs headless. `--open-viewer` — best-effort browser launch after viewer startup. The local convenience `apps/mcp/run.sh` defaults to `--port auto --open-viewer` unless explicitly overridden.
 - **Persistence.** Per-project under `<cwd>/.yacad-mcp/vfs/`. `@yacad/vfs-fs`'s `FilesystemVfs` mirrors the IndexedDB path layout exactly (`/docs/{id}/meta.json`, `/docs/{id}/document.json`, `/docs/{id}/blobs/{hash}.bin`); atomic writes via write-temp-then-rename.
 
 ## Geometry kernel
@@ -139,7 +139,7 @@ Explicitly out of scope or not yet started. See [ROADMAP.md](ROADMAP.md) for the
 ## Engineering substrate
 
 - **TypeScript pnpm monorepo** with workspace packages and project references. `tsc -b` is the type-correctness gate; CI runs build + lint + format:check + test + build:app.
-- **Vitest** for unit tests; tests colocated with source (`foo.ts` + `foo.test.ts`). 76 test files across the workspace.
+- **Vitest** for unit tests; tests colocated with source (`foo.ts` + `foo.test.ts`). 80 test files across the workspace.
 - **`@yacad/e2e`** — full-pipeline scene→STL snapshot tests plus `packages/e2e/showcase/` scenes (house, castle, tree, torus-knot, chamfered-box, filleted-slab). Captured geometry summaries (vertex count, bbox, hash) catch silent regressions.
 - **Playwright smoke** — `apps/studio2/e2e/` is the active browser suite, covering startup/viewport readiness, cache behavior, inspector edits, structural mutations, 2D/3D document switching, Lua validation, export gating, and STL downloads. `apps/studio/e2e/studio.spec.ts` remains legacy-only v1 coverage. `apps/mcp/e2e/mutation-updates-viewer.spec.ts` covers the MCP-to-viewer live-update path.
 - **ESLint flat config + Prettier.** Format and lint pass as CI gates.

@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { AddressInfo } from 'node:net';
 import { WebSocketServer, WebSocket as NodeWebSocket } from 'ws';
 import { RemoteVfsServer } from '@yacad/remote-vfs';
 import { FilesystemVfs } from '@yacad/vfs-fs';
@@ -22,7 +23,7 @@ const MIME: Record<string, string> = {
 const LOCALHOST_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
 export interface HttpServerOptions {
-  readonly port: number;
+  readonly port: number | 'auto';
   /** Bind address. Non-localhost binding turns on token enforcement. */
   readonly host: string;
   readonly libraryDir: string;
@@ -45,6 +46,7 @@ function newToken(): string {
 export async function startHttpServer(opts: HttpServerOptions): Promise<HttpServerHandle> {
   const needsToken = !LOCALHOST_HOSTS.has(opts.host);
   let token: string | undefined = needsToken ? newToken() : undefined;
+  let actualPort = opts.port === 'auto' ? 0 : opts.port;
 
   const vfs = new FilesystemVfs({ rootDir: opts.libraryDir });
   const vfsServer = new RemoteVfsServer({ vfs, readOnly: true });
@@ -54,7 +56,7 @@ export async function startHttpServer(opts: HttpServerOptions): Promise<HttpServ
       res.writeHead(400);
       return res.end();
     }
-    const url = new URL(req.url, `http://${opts.host}:${opts.port}`);
+    const url = new URL(req.url, `http://${opts.host}:${actualPort}`);
     // Token enforcement on HTTP: required for every request when in token mode.
     if (token !== undefined && url.searchParams.get('token') !== token) {
       res.writeHead(401, { 'content-type': 'text/plain' });
@@ -84,7 +86,7 @@ export async function startHttpServer(opts: HttpServerOptions): Promise<HttpServ
       socket.destroy();
       return;
     }
-    const url = new URL(req.url, `http://${opts.host}:${opts.port}`);
+    const url = new URL(req.url, `http://${opts.host}:${actualPort}`);
     if (url.pathname !== '/ws') {
       socket.destroy();
       return;
@@ -99,15 +101,23 @@ export async function startHttpServer(opts: HttpServerOptions): Promise<HttpServ
   });
   vfsServer.attach(wss);
 
-  await new Promise<void>((resolveListen) =>
-    http.listen(opts.port, opts.host, () => resolveListen()),
-  );
+  await new Promise<void>((resolveListen, rejectListen) => {
+    http.once('error', rejectListen);
+    http.listen(actualPort, opts.host, () => {
+      http.off('error', rejectListen);
+      const address = http.address();
+      if (typeof address === 'object' && address !== null) {
+        actualPort = (address as AddressInfo).port;
+      }
+      resolveListen();
+    });
+  });
 
   const buildUrl = (): string => {
     const tokenSuffix = token !== undefined ? `&token=${token}` : '';
     return (
-      `http://${opts.host}:${opts.port}/` +
-      `?backend=remote&ws=ws://${opts.host}:${opts.port}/ws${tokenSuffix}`
+      `http://${opts.host}:${actualPort}/` +
+      `?backend=remote&ws=ws://${opts.host}:${actualPort}/ws${tokenSuffix}`
     );
   };
 

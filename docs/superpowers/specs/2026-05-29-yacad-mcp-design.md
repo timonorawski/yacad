@@ -10,7 +10,7 @@ A secondary, deliberate goal: use this surface as a **stress test for the valida
 
 ## Architecture
 
-One Node process registered in `.mcp.json`, launched by a `run.sh` wrapper that runs `pnpm --filter @yacad/studio2 build` first so the served viewer is always current with the studio2 source. The MCP holds **all** authoritative state — the agent's tools mutate a Node-side `DocLibrary`, an embedded `Engine + ManifoldKernel + WasmoonLuaRuntime + WasmoonWarpEvaluator` evaluates geometry, and an HTTP+WS server (same process) serves the freshly-built studio2 dist plus a WS endpoint for live state.
+One Node process registered in `.mcp.json`, launched by a `run.sh` wrapper that rebuilds the MCP and runs `pnpm --filter @yacad/studio2 build` first so the served viewer is always current with the studio2 source. The wrapper redirects build output to a local startup log so stdout remains reserved for the stdio MCP transport. The MCP holds **all** authoritative state — the agent's tools mutate a Node-side `DocLibrary`, an embedded `Engine + ManifoldKernel + WasmoonLuaRuntime + WasmoonWarpEvaluator` evaluates geometry, and an HTTP+WS server (same process) serves the freshly-built studio2 dist plus a WS endpoint for live state.
 
 Studio2 in the browser runs as today — its own kernel in a worker for fast viewport rendering — but reads doc state from the MCP via a new `RemoteVfs` backend instead of IndexedDB. v1 viewer is read-only; bidirectional editing and selection-state back-channel are explicitly out of scope.
 
@@ -63,10 +63,11 @@ The Node executable. Wires together:
 
 Flags:
 
-- `--port N` (default `5179`)
+- `--port N` (default `5179`); `--port auto` binds an OS-assigned free port and reports the discovered viewer URL
 - `--host HOST` (default `127.0.0.1`) — bind address for the HTTP+WS server. When the host is anything other than `127.0.0.1` / `localhost` / `::1`, the server generates a random access token at startup and requires it on every HTTP request and WS upgrade (query param `?token=...`). Localhost-only mode never requires a token.
 - `--library-dir PATH` (default `./.yacad-mcp/vfs`)
 - `--no-viewer` — skip HTTP+WS entirely; MCP runs headless (no port bound, viewer build not required for startup — `run.sh` should respect this if invoked accordingly)
+- `--open-viewer` — after startup, make a best-effort attempt to open the viewer URL in the default browser. Failure logs a warning and never fails MCP startup.
 
 Prints the viewer URL to stderr on start so Claude can show it to the user.
 
@@ -75,15 +76,15 @@ Prints the viewer URL to stderr on start so Claude can show it to the user.
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-# Rebuild studio2 so the served viewer reflects the current source.
-# Skip when MCP is being launched headless.
-if [[ "${YACAD_MCP_NO_VIEWER:-}" != "1" ]]; then
-  pnpm --filter @yacad/studio2 build
-fi
-exec node "$(dirname "$0")/dist/server.js" "$@"
+# Rebuild MCP and studio2 so the served viewer reflects current source;
+# build output is redirected to .yacad-mcp/logs/startup-build.log.
+# Unless explicit args override them, local launches inject:
+#   --port auto
+#   --open-viewer
+exec node "$(dirname "$0")/dist/main.js" "$@"
 ```
 
-This is what `.mcp.json` invokes. Every MCP restart rebuilds the viewer — resolves the "studio2 iteration" concern from Approach 1.
+This is what `.mcp.json` invokes. Every MCP restart rebuilds the viewer — resolves the "studio2 iteration" concern from Approach 1. Build output goes to `./.yacad-mcp/logs/startup-build.log` (or `YACAD_MCP_LOG_DIR/startup-build.log`) instead of stdout, because stdout belongs to the stdio MCP protocol. The production server binary keeps conservative defaults (`--port 5179`, no browser launch); `run.sh` is the local convenience layer.
 
 ### `apps/studio2` (modified)
 

@@ -4,34 +4,64 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { setupRuntime } from './library-setup';
 import type { Ctx } from './context';
 import { TOOLS } from './tools';
 import { startHttpServer } from './http-server';
 import { subscribeSession, broadcastCurrentDocChanged } from './broadcaster';
+import { openViewerUrl } from './open-viewer';
 
-interface Flags {
-  port: number;
+export interface Flags {
+  port: number | 'auto';
   host: string;
   libraryDir: string;
   noViewer: boolean;
+  openViewer: boolean;
 }
 
-function parseFlags(): Flags {
+function parsePort(raw: string): number | 'auto' {
+  if (raw === 'auto') return 'auto';
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`--port must be an integer between 0 and 65535, or "auto"; got "${raw}"`);
+  }
+  return port;
+}
+
+function hasPortArg(args: readonly string[]): boolean {
+  return args.some((arg) => arg === '--port' || arg.startsWith('--port='));
+}
+
+function hasArg(args: readonly string[], name: string): boolean {
+  return args.some((arg) => arg === name);
+}
+
+export function defaultRunArgs(args: readonly string[]): string[] {
+  const out = [...args];
+  if (!hasPortArg(out)) out.unshift('--port', 'auto');
+  if (!hasArg(out, '--open-viewer') && !hasArg(out, '--no-viewer')) out.push('--open-viewer');
+  return out;
+}
+
+export function parseFlags(args = process.argv.slice(2)): Flags {
   const { values } = parseArgs({
+    args,
     options: {
       port: { type: 'string', default: '5179' },
       host: { type: 'string', default: '127.0.0.1' },
       'library-dir': { type: 'string', default: './.yacad-mcp/vfs' },
       'no-viewer': { type: 'boolean', default: false },
+      'open-viewer': { type: 'boolean', default: false },
     },
     strict: false,
   });
   return {
-    port: Number(values['port']),
+    port: parsePort(String(values['port'])),
     host: String(values['host']),
     libraryDir: resolve(String(values['library-dir'])),
     noViewer: Boolean(values['no-viewer']),
+    openViewer: Boolean(values['open-viewer']),
   };
 }
 
@@ -55,6 +85,12 @@ async function main(): Promise<void> {
     ctx.vfsServer = handle.vfsServer;
     ctx.viewer = handle.viewer;
     process.stderr.write(`[yacad-mcp] viewer at ${handle.viewer.url()}\n`);
+    if (flags.openViewer) {
+      const opened = await openViewerUrl(handle.viewer.url());
+      if (!opened) {
+        process.stderr.write(`[yacad-mcp] warning: could not open browser automatically\n`);
+      }
+    }
     if (handle.viewer.currentToken()) {
       process.stderr.write(
         `[yacad-mcp] token mode: access token = ${handle.viewer.currentToken()}\n`,
@@ -117,7 +153,9 @@ async function main(): Promise<void> {
   await server.connect(new StdioServerTransport());
 }
 
-main().catch((err) => {
-  process.stderr.write(`[yacad-mcp] fatal: ${(err as Error).stack ?? err}\n`);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    process.stderr.write(`[yacad-mcp] fatal: ${(err as Error).stack ?? err}\n`);
+    process.exit(1);
+  });
+}
