@@ -10,7 +10,7 @@ The same pattern that underlies Git, IPFS, Bazel, and Nix, applied to CAD.
 
 The target audience sits in a gap: between Tinkercad's accessibility, OpenSCAD's expressiveness, and Thingiverse's social/remix layer. No existing tool covers all three corners.
 
-Status: early prototype. The core pipeline (DAG → cache → Manifold kernel → Web Worker → three.js viewport) is shipped. A second-generation studio UI is in progress. See [docs/features.md](docs/features.md) for what's usable today and [docs/ROADMAP.md](docs/ROADMAP.md) for what's planned.
+Status: early prototype. The core pipeline (DAG → cache → Manifold kernel → Web Worker → three.js viewport) is shipped. A second-generation studio UI (`apps/studio2`) is live at [cad.yamplay.cc](https://cad.yamplay.cc). See [docs/features.md](docs/features.md) for what's usable today and [docs/ROADMAP.md](docs/ROADMAP.md) for what's planned.
 
 ## Philosophy
 
@@ -32,7 +32,7 @@ A few principles, distilled from [docs/vision.md](docs/vision.md), that shape ev
 
 ## Try it
 
-**Live demo:** [cad.yamplay.cc](https://cad.yamplay.cc) — the in-progress studio v2 (auto-deployed from `main`).
+**Live demo:** [cad.yamplay.cc](https://cad.yamplay.cc) — studio v2 (auto-deployed from `main`).
 
 ### Run it locally
 

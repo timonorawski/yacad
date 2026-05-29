@@ -1,6 +1,6 @@
 # YACAD DAG Language Reference
 
-This reference describes the JSON DAG document consumed by `buildGraph` and used by the studio editor. It covers all 24 node types shipping today: the seven Phase 0 primitives, the LuaNode (Phase 1), twelve 2D-layer node types (Phase 2), the three mesh-import decoders (`import-stl`, `import-obj`, `import-gltf` — Phase 2.5), and the `section` 3D→2D bridge.
+This reference describes the JSON DAG document consumed by `buildGraph` and used by the studio editor. It covers all 25 node types shipping today: the seven Phase 0 primitives, the LuaNode (Phase 1), twelve 2D-layer node types (Phase 2), the three mesh-import decoders (`import-stl`, `import-obj`, `import-gltf` — Phase 2.5), the `section` 3D→2D bridge, and the `warp` per-vertex Lua deformation.
 
 ## Document shape
 
@@ -30,7 +30,7 @@ The output type also picks the cache artifact kind (`crossSection` vs `mesh`), s
 | --------------------------------------------------------------------------------------------------- | ---------------- | ----------------- |
 | [`box`](#box) / [`sphere`](#sphere) / [`cylinder`](#cylinder)                                       | 3D               | 0                 |
 | [`circle`](#circle) / [`rectangle`](#rectangle) / [`polygon`](#polygon) / [`spline`](#spline)       | 2D               | 0                 |
-| [`translate`](#translate) / [`rotate`](#rotate)                                                     | 3D               | exactly 1 (3D)    |
+| [`translate`](#translate) / [`rotate`](#rotate) / [`warp`](#warp)                                   | 3D               | exactly 1 (3D)    |
 | [`translate_2d`](#translate_2d) / [`rotate_2d`](#rotate_2d)                                         | 2D               | exactly 1 (2D)    |
 | [`union`](#union) / [`difference`](#difference) / [`intersection`](#intersection) / [`hull`](#hull) | matches children | ≥1 same dimension |
 | [`offset_2d`](#offset_2d)                                                                           | 2D               | exactly 1 (2D)    |
@@ -186,6 +186,28 @@ The curve **passes through every control point** (Catmull-Rom interpolation, not
 ```
 
 - `angles`: required vector in degrees `[x, y, z]`. Rotations applied X → Y → Z (Manifold convention).
+
+### `warp`
+
+Deforms a 3D mesh by running a Lua function on every vertex. The function receives the current position as locals `x`, `y`, `z` and must return the new `x`, `y`, `z`.
+
+```json
+{
+  "type": "warp",
+  "params": {
+    "code": "return x * 1.5, y, z",
+    "values": {}
+  },
+  "children": [{ "type": "sphere", "params": { "radius": 10 } }]
+}
+```
+
+- `code`: required non-empty string. Lua function body. Receives `x`, `y`, `z` as locals; must return three numbers (new `x`, `y`, `z`). The sandbox matches LuaNode: no I/O, no clock, no RNG (`math.random` is stripped). The callback must be a pure function of `(x, y, z)` and `params.values`.
+- `values`: optional record (default `{}`). Arbitrary key/value pairs made available to `code` as the `params` global. Participates in the semantic hash — changing `values` invalidates the cache entry.
+
+The `values` record is declared with `ParamDoc.type === 'record'` — the studio inspector lists the field but does not yet expose an editor widget. Edit via the raw JSON path or wrap `warp` in a `lua` node that generates the record programmatically.
+
+The torus-knot showcase demonstrates a non-trivial use: a `revolve`d torus is warped by a Lua snippet that implements the (p, q) torus-knot parametric curve.
 
 ## 2D transforms
 
@@ -375,7 +397,7 @@ Sweeps a 2D region around the chosen axis to produce a 3D solid.
 }
 ```
 
-- `axis`: optional `"y"` or `"x"`, default `"y"`. The 3D axis around which the profile sweeps.
+- `axis`: optional `"y"`, `"x"`, or `"z"`, default `"y"`. `"y"` and `"x"` remap Manifold's native revolve ring-axis to the chosen world axis. `"z"` leaves the result in Manifold's native revolve frame (ring axis = Z), which is what `warp` vertex-deformation recipes expect (the torus-knot showcase uses this).
 - `segments`: optional integer ≥ 3, default `32`. Number of subdivisions around the sweep.
 - `degrees`: optional finite number, default `360`. Sweep arc — less than 360 produces an open-arc sweep.
 

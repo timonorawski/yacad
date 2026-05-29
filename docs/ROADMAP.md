@@ -6,12 +6,17 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 
 ## Shipped phases
 
-- **Phase 0 (POC)** — Merkle DAG + Manifold kernel + worker + studio + 7 primitives.
+- **Phase 0 (POC)** — Merkle DAG + Manifold kernel + worker + studio v1 + 7 primitives.
 - **Phase 1 (LuaNode)** — Sandboxed Lua code nodes with `ExpandableNodeType` abstraction. See [specs/2026-05-27-luanode-design.md](superpowers/specs/2026-05-27-luanode-design.md).
 - **Phase 2 (2D layer)** — 14 new node types: 2D primitives, transforms, ops, bridges, refinement. See [specs/2026-05-27-2d-layer-design.md](superpowers/specs/2026-05-27-2d-layer-design.md).
+- **Mesh imports (Phase 2.5)** — `import-stl`, `import-obj`, `import-gltf` decoder nodes. `DecoderNodeType` pattern for future 3MF / parametric-format readers.
 - **Section node** — 3D→2D bridge (arbitrary-plane slicing). See [specs/2026-05-28-section-design.md](superpowers/specs/2026-05-28-section-design.md).
 - **2D vector exports** — DXF/SVG/PNG exporters for any 2D-root scene. See [specs/2026-05-28-2d-vector-exports-design.md](superpowers/specs/2026-05-28-2d-vector-exports-design.md).
 - **Lua static validation** — AST-level rejection of undeclared schema refs, sandbox violations, and malformed `geo.<type>` calls before `putLuaDefinition`. See [specs/2026-05-28-lua-static-validation-design.md](superpowers/specs/2026-05-28-lua-static-validation-design.md).
+- **`warp` node** — Per-vertex Lua-callback 3D mesh deformation. `WasmoonWarpEvaluator` compiles the Lua snippet to a synchronous vertex callback; caches as a regular kernel node (`code + values + child_mesh` → semantic hash).
+- **Studio v2 foundation** — `@yacad/vfs` (async-uniform KV byte store), `@yacad/doc-store` (multi-document library + session + undo/redo), `@yacad/mutations` (pure NodeDoc transformer primitives), `@yacad/selection` (single-select state). See [specs/2026-05-28-studio-v2-foundation-design.md](superpowers/specs/2026-05-28-studio-v2-foundation-design.md).
+- **Studio v2 tree editor** — `apps/studio2` Svelte 5 app: three-pane shell (tree / viewport / inspector), paramSchema-driven kernel inspector, Lua inspector with live validation issues, decoder inspector, Monaco slide-over Lua editor with validation-status chip, auto-generated wrap-with / add-child palettes, document picker, document import/export, performance panel, STL/SVG/DXF/PNG export gadget. See [specs/2026-05-28-studio-v2-tree-editor-design.md](superpowers/specs/2026-05-28-studio-v2-tree-editor-design.md).
+- **GitHub Pages deploy** — studio v2 auto-deployed to `cad.yamplay.cc` on every push to `main`. See [specs/2026-05-28-github-pages-studio2-design.md](superpowers/specs/2026-05-28-github-pages-studio2-design.md).
 
 ## Deferred — 2D / 3D geometry
 
@@ -19,7 +24,6 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 - **`trimByPlane` (half-space cut)** — _surfaced by section spec._ Manifold has it: `trimByPlane(normal, originOffset): Manifold`. Cuts a solid with a plane, keeping one half. Useful for sectioning + extruding back to solid in one step.
 - **Smooth / smoothByNormals / smoothOut** — _surfaced by 2D layer spec._ Mesh smoothing (3D refinement). Manifold's `smooth` family. No new capability class, just refinement of buildable shapes.
 - **Minkowski sum / difference** — _surfaced by 2D layer spec._ Not in Manifold 3.5.0 natively; needs emulation via extrude+union for prismatic cases or escape to OCCT for general 3D.
-- **`warp` (Lua-callback driven)** — _surfaced by 2D layer spec._ Per-vertex coordinate transformation via a Lua callback (hashable, sandboxable). Architecturally: a kernel-backed node taking a 3D (or 2D) child + Lua source string in params, runs the source per-vertex inside `WasmoonLuaRuntime`. Requires performance work for per-vertex Lua dispatch.
 - **Holes in `polygon`** — _surfaced by 2D layer spec._ Currently you compose holes via `difference(outer, inner)` — works correctly. A native multi-contour polygon would be marginally more efficient but adds schema complexity.
 - **Open `path_2d` type + sweep operations** — _surfaced by 2D layer spec._ New geometry kind in the type system (`'path_2d'` distinct from `'2d'`-as-closed-region). Enables sweep-along-path. Substantial design surface.
 - **`extrude` with Lua-callback profile** — _surfaced by 2D layer spec._ Lua-driven scaling/twist function along the extrusion. Pairs with `warp` (same Lua-callback infrastructure).
@@ -47,17 +51,17 @@ Format per item: **one-line summary** — _surfaced by_ phase/spec — sketch of
 
 - **Library / sharing of LuaDefinitions** — _surfaced by LuaNode spec._ Content addressing already gives deduplication and remote-sharing primitives for free; an explicit library UI / search is deferred until usage patterns inform it.
 - **Computed properties on `InputRef` (bbox, etc.)** — _surfaced by LuaNode spec._ `inputs.foo.outputType()` exists synchronously. Future: `inputs.foo.bbox()` (cached artifact per spec §VFS / Object Store) for bbox-driven Lua layout.
-- **WYSIWYG editor** — _surfaced by vision._ The whole tree view + viewport selection + parameter inspector. Largest unbuilt piece.
+- **WYSIWYG 3D editing** — _surfaced by vision / studio v2 spec._ 3D click→node hit-testing, bounding-box widget, contextual 3D tool palette. Spec 3 of the studio v2 sequence; the tree-editor phase (spec 2) is shipped; this phase is next.
 - **WYSIWYG section gesture** — _surfaced by section spec._ Click an anchor in the viewport, orbit to set the normal direction — generates a `section` node parametrically.
+- **Inline Monaco squiggles** — _surfaced by lua-editor-validation spec._ The `ValidationIssue.line`/`column` fields exist; first release ships only the header count chip. Red squiggles are the natural follow-up.
+- **Resizable pane splitters** — _surfaced by studio v2 tree-editor spec._ Studio v2 ships fixed-proportion layout; user-draggable splitters with persisted sizes are deferred.
 
 ## Deferred — import / export / ecosystem
 
-- **STL import** (as opaque leaf nodes) — _surfaced by vision._ Phase 1 of the roadmap mentions basic STL import. Useful for legacy models with no parametric source.
-- **OpenSCAD import** — _surfaced by vision._ Phase 2 of the roadmap. SCAD AST → DAG translation.
-- **FreeCAD (FCStd) import** — _surfaced by vision._ Phase 3 of the roadmap.
-- **STEP import / export (via OCCT)** — _surfaced by vision._ Phase 3 of the roadmap. Bound to OCCT integration.
-- **3MF export** — _surfaced by vision._ Phase 3 of the roadmap.
-- **Print bridge (slicer + Klipper dispatch)** — _surfaced by vision._ Phase 3 of the roadmap.
+- **OpenSCAD import** — _surfaced by vision._ SCAD AST → DAG translation.
+- **FreeCAD (FCStd) import** — _surfaced by vision._ Future roadmap item.
+- **STEP import / export (via OCCT)** — _surfaced by vision._ Bound to OCCT integration.
+- **Print bridge (slicer + Klipper dispatch)** — _surfaced by vision._ Future roadmap item.
 
 ## Deferred — intelligence / agentic
 
