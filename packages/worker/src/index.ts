@@ -4,6 +4,8 @@ export type {
   EvaluateRequest,
   EvaluateOk,
   EvaluateErr,
+  GetExpandedDocOk,
+  GetExpandedDocErr,
   GetGeometryRequest,
   GetGeometryOk,
   GetGeometryErr,

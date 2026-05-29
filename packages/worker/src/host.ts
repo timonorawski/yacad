@@ -18,6 +18,7 @@ import {
 import type {
   ClearCacheRequest,
   EvaluateRequest,
+  GetExpandedDocRequest,
   GetGeometryRequest,
   HasLuaDefinitionRequest,
   HasMeshBlobRequest,
@@ -128,6 +129,11 @@ export function startHost(scope: WorkerScope): void {
 
     if (req.kind === 'getGeometry') {
       void handleGetGeometry(scope, backend, req);
+      return;
+    }
+
+    if (req.kind === 'getExpandedDoc') {
+      void handleGetExpandedDoc(scope, backend, req);
       return;
     }
 
@@ -287,6 +293,48 @@ async function handleGetGeometry(
     scope.postMessage({
       id: req.id,
       kind: 'geometry',
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+async function handleGetExpandedDoc(
+  scope: WorkerScope,
+  backend: Promise<Backend> | undefined,
+  req: GetExpandedDocRequest,
+): Promise<void> {
+  if (!backend) {
+    scope.postMessage({ id: req.id, kind: 'expandedDoc', ok: false, error: 'engine not initialized' });
+    return;
+  }
+  try {
+    const { store } = await backend;
+    const tier = req.tier ?? 'final';
+    const key: CacheKey = {
+      semanticHash: req.hash,
+      producedBy: {
+        kernel: '__expansion',
+        kernelVersion: '0',
+        engineVersion: ENGINE_VERSION,
+        qualityTier: tier,
+      },
+    };
+    const artifact = await store.get(key, 'expandedDoc');
+    if (artifact && artifact.kind === 'expandedDoc') {
+      scope.postMessage({ id: req.id, kind: 'expandedDoc', ok: true, doc: artifact.doc });
+      return;
+    }
+    scope.postMessage({
+      id: req.id,
+      kind: 'expandedDoc',
+      ok: false,
+      error: `no cached expansion doc for hash ${req.hash}`,
+    });
+  } catch (err) {
+    scope.postMessage({
+      id: req.id,
+      kind: 'expandedDoc',
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     });

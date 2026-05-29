@@ -145,6 +145,17 @@ export class WorkerClient {
     return null;
   }
 
+  /**
+   * Look up a cached expansion doc by its semantic hash. Returns the resolved
+   * NodeDoc if found, or `null` if nothing is cached. Pure cache read.
+   */
+  async getExpandedDoc(hash: string, tier = 'final'): Promise<import('@yacad/dag').NodeDoc | null> {
+    const res = await this.send({ id: 0, kind: 'getExpandedDoc', hash, tier });
+    const g = res as { ok: boolean; doc?: unknown };
+    if (g.ok) return (g as { ok: true; doc: import('@yacad/dag').NodeDoc }).doc;
+    return null;
+  }
+
   /** Drop every artifact in the worker's cache (L1 + L2). The next evaluate
    *  will be all misses, so the demo can show the rebuild cost vs. cache hits. */
   async clearCache(): Promise<void> {

@@ -1,6 +1,7 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
 import type { Geometry } from '@yacad/geometry';
 import type { LuaDefinition, ValidationIssue } from '@yacad/lua';
+import type { NodeDoc } from '@yacad/dag';
 
 /**
  * One-shot initialization carrying the `manifold.wasm` URL, which the main
@@ -87,6 +88,18 @@ export interface GetGeometryRequest {
   readonly tier?: string;
 }
 
+/**
+ * Look up a cached expansion doc by its semantic hash. This is a pure cache
+ * read — no DAG walking or evaluation. Returns the resolved NodeDoc if found.
+ */
+export interface GetExpandedDocRequest {
+  readonly id: number;
+  readonly kind: 'getExpandedDoc';
+  readonly hash: string;
+  /** Quality tier to look up (defaults to 'final'). */
+  readonly tier?: string;
+}
+
 export type WorkerRequest =
   | InitRequest
   | EvaluateRequest
@@ -95,7 +108,8 @@ export type WorkerRequest =
   | PutMeshBlobRequest
   | HasMeshBlobRequest
   | ClearCacheRequest
-  | GetGeometryRequest;
+  | GetGeometryRequest
+  | GetExpandedDocRequest;
 
 export interface EvaluateOk {
   readonly id: number;
@@ -164,10 +178,28 @@ export interface GetGeometryErr {
   readonly error: string;
 }
 
+/** Successful response to a `getExpandedDoc` request — carries the cached doc. */
+export interface GetExpandedDocOk {
+  readonly id: number;
+  readonly kind: 'expandedDoc';
+  readonly ok: true;
+  readonly doc: NodeDoc;
+}
+
+/** Error response to a `getExpandedDoc` request — hash not found in cache. */
+export interface GetExpandedDocErr {
+  readonly id: number;
+  readonly kind: 'expandedDoc';
+  readonly ok: false;
+  readonly error: string;
+}
+
 export type WorkerResponse =
   | EvaluateOk
   | EvaluateErr
   | OkResponse
   | ValidationErrorResponse
   | GetGeometryOk
-  | GetGeometryErr;
+  | GetGeometryErr
+  | GetExpandedDocOk
+  | GetExpandedDocErr;
