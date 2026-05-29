@@ -10,6 +10,8 @@ import { parseArgs } from 'node:util';
 import { setupRuntime } from './library-setup';
 import type { Ctx } from './context';
 import { TOOLS } from './tools';
+import { startHttpServer } from './http-server';
+import { subscribeSession, broadcastCurrentDocChanged } from './broadcaster';
 
 interface Flags {
   port: number;
@@ -47,9 +49,20 @@ async function main(): Promise<void> {
     viewer: undefined,
   };
 
-  // HTTP+WS is set up by Task 16. For Task 15 we just leave a stub:
   if (!flags.noViewer) {
-    process.stderr.write(`[yacad-mcp] viewer wiring not yet implemented; running headless\n`);
+    const handle = await startHttpServer({
+      port: flags.port,
+      host: flags.host,
+      libraryDir: flags.libraryDir,
+    });
+    ctx.vfsServer = handle.vfsServer;
+    ctx.viewer = handle.viewer;
+    process.stderr.write(`[yacad-mcp] viewer at ${handle.viewer.url()}\n`);
+    if (handle.viewer.currentToken()) {
+      process.stderr.write(
+        `[yacad-mcp] token mode: access token = ${handle.viewer.currentToken()}\n`,
+      );
+    }
   } else {
     process.stderr.write(`[yacad-mcp] running headless (--no-viewer)\n`);
   }
@@ -82,6 +95,25 @@ async function main(): Promise<void> {
       };
     }
     const result = await tool.handler(ctx, args ?? {});
+
+    // Side-effect: keep all open sessions subscribed so mutation events flow.
+    if (ctx.vfsServer) {
+      for (const session of ctx.sessions.values()) {
+        subscribeSession(session, ctx.vfsServer);
+      }
+      // current-doc-changed for tools that affect focus.
+      if (['createDoc', 'openDoc', 'setCurrentDoc'].includes(name)) {
+        broadcastCurrentDocChanged(ctx);
+      }
+      // library-changed when the doc set itself changes.
+      if (['createDoc', 'deleteDoc'].includes(name)) {
+        const metas = await ctx.library.list();
+        ctx.vfsServer.broadcast('library-changed', {
+          docs: metas.map((m) => ({ id: m.id, name: m.name })),
+        });
+      }
+    }
+
     return {
       content: [{ type: 'text', text: JSON.stringify(result) }],
       isError: !result.ok,

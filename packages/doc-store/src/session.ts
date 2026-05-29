@@ -188,6 +188,7 @@ export class DocSession {
       this.blobMap.set(hash, new Uint8Array(bytes));
       this.unsavedBlobs.add(hash);
       this.markDirty();
+      this.emit({ kind: 'blob-added', hash });
     }
     if (!(await this.uploader.hasMeshBlob(hash))) {
       await this.uploader.putMeshBlob(hash, bytes);
