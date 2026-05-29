@@ -16,3 +16,5 @@ apps/*/test-results/
 # Claude Code agent worktrees
 .claude/worktrees/
 .worktrees/
+.mcp.json
+.yacad-mcp/
