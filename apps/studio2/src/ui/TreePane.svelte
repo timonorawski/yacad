@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { NodeDoc } from '@yacad/dag';
   import type { SessionState } from '../state/session.svelte';
   import type { SelectionState } from '../state/selection.svelte';
   import type { ExportFormat } from '../exports';
@@ -16,9 +17,10 @@
     client?: WorkerClient | undefined;
     perNode?: readonly NodeEval[] | undefined;
     onFocusNode?: (nodeId: string) => void;
+    onSelectDerived?: (path: string, doc: NodeDoc) => void;
   }
 
-  let { session, selection, outputTypes, onExport, viewerMode, client, perNode, onFocusNode }: Props = $props();
+  let { session, selection, outputTypes, onExport, viewerMode, client, perNode, onFocusNode, onSelectDerived }: Props = $props();
 </script>
 
 <div class="tree-pane-inner">
@@ -35,5 +37,6 @@
     {client}
     {perNode}
     {onFocusNode}
+    {onSelectDerived}
   />
 </div>

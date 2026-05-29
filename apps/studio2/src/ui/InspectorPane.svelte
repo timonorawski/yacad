@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getAt, setParam, setParams } from '@yacad/mutations';
-  import { getNodeType } from '@yacad/dag';
+  import { getNodeType, type NodeDoc } from '@yacad/dag';
   import { decodeLuaDefinitionBytes } from '../lua-sync';
   import KernelInspector from './inspectors/KernelInspector.svelte';
   import LuaInspector from './inspectors/LuaInspector.svelte';
@@ -16,12 +16,18 @@
     viewerMode: boolean;
     onFocusNode?: ((nodeId: string) => void) | undefined;
     focusedNodeId?: string | null | undefined;
+    derivedNodeDoc?: NodeDoc | undefined;
   }
 
-  let { session, selection, onEditLua, viewerMode, onFocusNode, focusedNodeId }: Props = $props();
+  let { session, selection, onEditLua, viewerMode, onFocusNode, focusedNodeId, derivedNodeDoc }: Props = $props();
 
   const selectedNode = $derived.by(() => {
     if (!selection.selectedId) return undefined;
+    // Derived nodes (from expanded sub-DAGs) aren't in the authored doc.
+    // Their NodeDoc is reported by TreeNode via the derivedNodeDoc prop.
+    if (selection.selectedId.includes('/__expanded/')) {
+      return derivedNodeDoc;
+    }
     try {
       return getAt(session.doc, selection.selectedId);
     } catch {

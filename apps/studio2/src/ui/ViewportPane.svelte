@@ -38,6 +38,7 @@
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let statusTimer: ReturnType<typeof setTimeout> | undefined;
   let evalSeq = 0;
+  let lastSessionId: string | undefined;
   const STATUS_DEFER_MS = 50;
   const EVAL_DEBOUNCE_MS = 150;
 
@@ -88,6 +89,12 @@
       stats = outcome.stats;
       error = '';
       status = 'idle';
+      // Zoom to fit when a different document is loaded.
+      const sid = session.session.id;
+      if (sid !== lastSessionId) {
+        lastSessionId = sid;
+        viewport.zoomToExtents();
+      }
       onEvaluated?.(outcome);
     } catch (e) {
       if (seq !== evalSeq) return;

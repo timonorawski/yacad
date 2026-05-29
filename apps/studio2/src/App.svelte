@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { NodeDoc } from '@yacad/dag';
   import type { Vfs } from '@yacad/vfs';
   import { RemoteVfs } from '@yacad/remote-vfs';
   import { DocLibrary } from '@yacad/doc-store';
@@ -74,6 +75,22 @@
     const sel = selection?.selectedId;
     if (focusedNodeId && sel !== focusedNodeId) {
       unfocus();
+    }
+  });
+
+  // Derived node doc: when a derived (expanded sub-DAG) node is selected in the
+  // tree, the TreeNode reports its NodeDoc here so InspectorPane can display it.
+  let derivedNodeDoc = $state<NodeDoc | undefined>(undefined);
+
+  function handleSelectDerived(_path: string, doc: NodeDoc) {
+    derivedNodeDoc = doc;
+  }
+
+  // Clear derived doc when selection changes away from a derived node.
+  $effect(() => {
+    const sel = selection?.selectedId;
+    if (!sel || !sel.includes('/__expanded/')) {
+      derivedNodeDoc = undefined;
     }
   });
 
@@ -403,6 +420,7 @@
           {client}
           perNode={evalOutcome?.perNode}
           onFocusNode={focusNode}
+          onSelectDerived={handleSelectDerived}
         />
         <PerformancePanel outcome={evalOutcome} />
       {:else}
@@ -418,6 +436,7 @@
           {viewerMode}
           onFocusNode={focusNode}
           focusedNodeId={focusedNodeId}
+          {derivedNodeDoc}
         />
       {:else}
         <em>loading…</em>

@@ -18,6 +18,7 @@
     isDerived?: boolean | undefined;
     perNode?: readonly NodeEval[] | undefined;
     onFocusNode?: ((nodeId: string) => void) | undefined;
+    onSelectDerived?: ((path: string, doc: NodeDoc) => void) | undefined;
   }
 
   let {
@@ -31,6 +32,7 @@
     isDerived,
     perNode,
     onFocusNode,
+    onSelectDerived,
   }: Props = $props();
 
   let expanded = $state(true);
@@ -80,7 +82,7 @@
   {:else}
     <span class="toggle-spacer"></span>
   {/if}
-  <button class="row-label" onclick={() => selection.select(path)}>{summary}</button>
+  <button class="row-label" onclick={() => { selection.select(path); if (isDerived) onSelectDerived?.(path, doc); }}>{summary}</button>
   {#if onFocusNode && perNode}
     <button
       class="row-focus"
@@ -130,6 +132,7 @@
         {isDerived}
         {perNode}
         {onFocusNode}
+        {onSelectDerived}
       />
     {/each}
   </div>
@@ -147,6 +150,7 @@
         isDerived={true}
         {client}
         {perNode}
+        {onSelectDerived}
       />
     {/each}
   </div>
