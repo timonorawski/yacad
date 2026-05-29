@@ -30,6 +30,7 @@ export default defineConfig({
       { find: '@yacad/import-obj', replacement: src('import-obj/src/index.ts') },
       { find: '@yacad/import-gltf', replacement: src('import-gltf/src/index.ts') },
       { find: '@yacad/lua', replacement: src('lua/src/index.ts') },
+      { find: '@yacad/remote-vfs', replacement: src('remote-vfs/src/index.ts') },
       { find: '@yacad/vfs', replacement: src('vfs/src/index.ts') },
       { find: '@yacad/doc-store', replacement: src('doc-store/src/index.ts') },
       { find: '@yacad/selection', replacement: src('selection/src/index.ts') },

@@ -4,12 +4,12 @@ Tests the claim that a chamfered cuboid doesn't need a BREP kernel — it's just
 
 ## What is parametric
 
-| Param     | Type   | Default | Effect                              |
-| --------- | ------ | ------- | ----------------------------------- |
-| `width`   | number | 50      | Box X dimension                     |
-| `depth`   | number | 50      | Box Y dimension                     |
-| `height`  | number | 50      | Box Z dimension                     |
-| `chamfer` | number | 5       | Leg length of the wedge (per face)  |
+| Param     | Type   | Default | Effect                             |
+| --------- | ------ | ------- | ---------------------------------- |
+| `width`   | number | 50      | Box X dimension                    |
+| `depth`   | number | 50      | Box Y dimension                    |
+| `height`  | number | 50      | Box Z dimension                    |
+| `chamfer` | number | 5       | Leg length of the wedge (per face) |
 
 ## Why this exists
 

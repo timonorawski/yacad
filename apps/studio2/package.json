@@ -32,6 +32,7 @@
     "@yacad/mutations": "workspace:*",
     "@yacad/render": "workspace:*",
     "@yacad/selection": "workspace:*",
+    "@yacad/remote-vfs": "workspace:*",
     "@yacad/vfs": "workspace:*",
     "@yacad/worker": "workspace:*",
     "manifold-3d": "^3.5.0",

@@ -1,0 +1,45 @@
+{
+  "name": "@yacad/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "bin": {
+    "yacad-mcp": "./dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "start": "node ./dist/server.js",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@yacad/cache": "workspace:*",
+    "@yacad/canonical": "workspace:*",
+    "@yacad/dag": "workspace:*",
+    "@yacad/doc-store": "workspace:*",
+    "@yacad/engine": "workspace:*",
+    "@yacad/export-dxf": "workspace:*",
+    "@yacad/export-png": "workspace:*",
+    "@yacad/export-stl": "workspace:*",
+    "@yacad/export-svg": "workspace:*",
+    "@yacad/geometry": "workspace:*",
+    "@yacad/hash": "workspace:*",
+    "@yacad/import-gltf": "workspace:*",
+    "@yacad/import-obj": "workspace:*",
+    "@yacad/import-stl": "workspace:*",
+    "@yacad/kernel-manifold": "workspace:*",
+    "@yacad/lua": "workspace:*",
+    "@yacad/mutations": "workspace:*",
+    "@yacad/remote-vfs": "workspace:*",
+    "@yacad/vfs": "workspace:*",
+    "@yacad/vfs-fs": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/ws": "^8.5.10",
+    "@yacad/tsconfig": "workspace:*"
+  }
+}

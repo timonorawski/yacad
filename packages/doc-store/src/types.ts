@@ -21,7 +21,8 @@ export type DocEvent =
   | { kind: 'doc-changed' }
   | { kind: 'meta-changed' }
   | { kind: 'persisted' }
-  | { kind: 'invalidated'; error: Error };
+  | { kind: 'invalidated'; error: Error }
+  | { kind: 'blob-added'; hash: Hash };
 
 /**
  * Narrow interface the doc-store needs from the worker transport layer. The

@@ -11,9 +11,10 @@
     selection: SelectionState;
     outputTypes: Map<string, '2d' | '3d'>;
     onExport: (path: string, format: ExportFormat) => Promise<void>;
+    viewerMode: boolean;
   }
 
-  let { doc, path, selection, outputTypes, onExport }: Props = $props();
+  let { doc, path, selection, outputTypes, onExport, viewerMode }: Props = $props();
 
   let expanded = $state(true);
   let exportMenu: HTMLDetailsElement | undefined = $state();
@@ -68,6 +69,7 @@
         {selection}
         {outputTypes}
         {onExport}
+        {viewerMode}
       />
     {/each}
   </div>

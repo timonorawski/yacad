@@ -78,7 +78,7 @@ export const FILLETED_SLAB_DEFINITION: LuaDefinition = {
     '  -- Bail out early if not near a horizontal face.',
     '  if dz >= r then return x, y, z end',
     '',
-    "  -- Compute signed distance from the rounded-rect XY profile (d_xy negative",
+    '  -- Compute signed distance from the rounded-rect XY profile (d_xy negative',
     '  -- inside) AND the outward unit normal at the nearest outline point.',
     '  local ax  = math.abs(x)',
     '  local ay  = math.abs(y)',
@@ -123,7 +123,7 @@ export const FILLETED_SLAB_DEFINITION: LuaDefinition = {
     '  end',
     '',
     "  -- Outside the outline shouldn't happen for surface vertices of an extruded",
-    "  -- closed profile, but guard anyway. Skip vertices that are deeper than r",
+    '  -- closed profile, but guard anyway. Skip vertices that are deeper than r',
     '  -- from the outline.',
     '  if d_xy >= 0 or -d_xy >= r then return x, y, z end',
     '',
@@ -131,12 +131,12 @@ export const FILLETED_SLAB_DEFINITION: LuaDefinition = {
     '  local nx = sx * nx_abs',
     '  local ny = sy * ny_abs',
     '',
-    "  -- Local fillet coordinates: (s, t) = (dz, -d_xy), both in [0, r].",
+    '  -- Local fillet coordinates: (s, t) = (dz, -d_xy), both in [0, r].',
     '  local s = dz',
     '  local t = -d_xy',
     '',
-    "  -- Project (s, t) radially from the fillet center (r, r) onto the fillet",
-    "  -- circle (s-r)² + (t-r)² = r².",
+    '  -- Project (s, t) radially from the fillet center (r, r) onto the fillet',
+    '  -- circle (s-r)² + (t-r)² = r².',
     '  local vs = s - r',
     '  local vt = t - r',
     '  local vlen = math.sqrt(vs * vs + vt * vt)',
@@ -144,7 +144,7 @@ export const FILLETED_SLAB_DEFINITION: LuaDefinition = {
     '  local new_s = r + (vs / vlen) * r',
     '  local new_t = r + (vt / vlen) * r',
     '',
-    "  -- Translate back to world coordinates. The change in t is the inward push;",
+    '  -- Translate back to world coordinates. The change in t is the inward push;',
     '  -- the change in s is the change in distance to the nearest horizontal face.',
     '  local delta_t = new_t - t',
     '  local nxw = x - delta_t * nx',
@@ -194,11 +194,9 @@ export async function seedFilletedSlabShowcase(library: DocLibrary): Promise<voi
       },
     },
   };
-  const session = await library.create(
-    'Exploratory: filleted slab (offset + warp)',
-    doc,
-    { skipValidation: true },
-  );
+  const session = await library.create('Exploratory: filleted slab (offset + warp)', doc, {
+    skipValidation: true,
+  });
   await session.addBlob(defBytes);
   await session.save();
   await session.close();

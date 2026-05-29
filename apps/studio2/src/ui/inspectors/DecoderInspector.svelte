@@ -9,9 +9,10 @@
     node: NodeDoc;
     session: DocSession;
     onCommitHash: (hash: string) => void;
+    viewerMode: boolean;
   }
 
-  let { node, session, onCommitHash }: Props = $props();
+  let { node, session, onCommitHash, viewerMode }: Props = $props();
 
   const blobHash = $derived((node.params ?? {})['blobHash'] as string | undefined);
   const sizeBytes = $derived(blobHash ? (session.blobs.get(blobHash)?.length ?? 0) : 0);
@@ -40,5 +41,7 @@
   blob: <code>{blobHash ? blobHash.slice(0, 12) + '…' : '(none)'}</code>
   {#if sizeBytes}<small>({sizeBytes} bytes)</small>{/if}
 </p>
-<button onclick={() => fileInput.click()}>Replace…</button>
-<input type="file" bind:this={fileInput} onchange={onFile} style="display: none" />
+{#if !viewerMode}
+  <button onclick={() => fileInput.click()}>Replace…</button>
+  <input type="file" bind:this={fileInput} onchange={onFile} style="display: none" />
+{/if}

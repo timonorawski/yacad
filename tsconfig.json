@@ -18,8 +18,11 @@
     { "path": "packages/import-obj" },
     { "path": "packages/import-gltf" },
     { "path": "packages/vfs" },
+    { "path": "packages/vfs-fs" },
+    { "path": "packages/remote-vfs" },
     { "path": "packages/doc-store" },
     { "path": "packages/selection" },
-    { "path": "packages/mutations" }
+    { "path": "packages/mutations" },
+    { "path": "apps/mcp" }
   ]
 }

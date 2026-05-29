@@ -4,17 +4,17 @@ Tests the claim that a fully-filleted slab (rounded XY corners + rounded top/bot
 
 ## What is parametric
 
-| Param          | Type   | Default | Effect                                                                        |
-| -------------- | ------ | ------- | ----------------------------------------------------------------------------- |
-| `width`        | number | 60      | Slab X dimension                                                              |
-| `depth`        | number | 40      | Slab Y dimension                                                              |
-| `height`       | number | 20      | Slab Z dimension                                                              |
-| `cornerRadius` | number | 8       | XY corner fillet radius (rounds the vertical edges of the slab)               |
-| `edgeRadius`   | number | 3       | Top/bottom Z edge fillet radius (skipped when 0)                              |
+| Param          | Type   | Default | Effect                                                          |
+| -------------- | ------ | ------- | --------------------------------------------------------------- |
+| `width`        | number | 60      | Slab X dimension                                                |
+| `depth`        | number | 40      | Slab Y dimension                                                |
+| `height`       | number | 20      | Slab Z dimension                                                |
+| `cornerRadius` | number | 8       | XY corner fillet radius (rounds the vertical edges of the slab) |
+| `edgeRadius`   | number | 3       | Top/bottom Z edge fillet radius (skipped when 0)                |
 
 ## Why this exists
 
-This is the second of two scenes in `docs/superpowers/specs/2026-05-29-fillet-chamfer-decomposition-design.md`. The chamfered-box showcase covers the pure-boolean case; this one demonstrates that the same architectural claim extends to *fillets* — including those that require deforming the mesh surface around a known edge.
+This is the second of two scenes in `docs/superpowers/specs/2026-05-29-fillet-chamfer-decomposition-design.md`. The chamfered-box showcase covers the pure-boolean case; this one demonstrates that the same architectural claim extends to _fillets_ — including those that require deforming the mesh surface around a known edge.
 
 It also previews the **evaluator** capability the spec defers to a follow-up: the warp's per-vertex callback needs to know the XY profile shape (to compute the outward normal at each vertex), and today that information is passed through `params.values` because the slab is authored by the same Lua node as the warp. When the upstream geometry isn't authored by the same node (e.g., a fillet on the intersection edge of two booleaned cylinders), the warp would need to inspect the mesh — that's the evaluator.
 

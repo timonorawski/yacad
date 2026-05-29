@@ -10,12 +10,15 @@
     selection: SelectionState;
     outputTypes: Map<string, '2d' | '3d'>;
     onExport: (path: string, format: ExportFormat) => Promise<void>;
+    viewerMode: boolean;
   }
 
-  let { session, selection, outputTypes, onExport }: Props = $props();
+  let { session, selection, outputTypes, onExport, viewerMode }: Props = $props();
 </script>
 
 <div class="tree-pane-inner">
-  <ToolPalette {session} {selection} />
-  <TreeNode doc={session.doc} path="$" {selection} {outputTypes} {onExport} />
+  {#if !viewerMode}
+    <ToolPalette {session} {selection} />
+  {/if}
+  <TreeNode doc={session.doc} path="$" {selection} {outputTypes} {onExport} {viewerMode} />
 </div>

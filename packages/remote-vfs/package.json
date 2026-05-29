@@ -1,0 +1,26 @@
+{
+  "name": "@yacad/remote-vfs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@yacad/vfs": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "@yacad/tsconfig": "workspace:*",
+    "ws": "^8.18.0"
+  }
+}

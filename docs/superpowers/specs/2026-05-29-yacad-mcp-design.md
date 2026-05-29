@@ -53,6 +53,7 @@ The same WS endpoint also broadcasts `doc-changed` / `current-doc-changed` / `li
 ### `apps/mcp/` (new)
 
 The Node executable. Wires together:
+
 - `FilesystemVfs(libraryDir) → DocLibrary → DocSession`
 - `Engine + ManifoldKernel + WasmoonLuaRuntime + WasmoonWarpEvaluator` (same composition the worker uses today)
 - `validateLuaSource` for Lua-authoring tools
@@ -61,6 +62,7 @@ The Node executable. Wires together:
 - WS endpoint at `/ws` mounting `RemoteVfsServer` + the doc-change broadcaster
 
 Flags:
+
 - `--port N` (default `5179`)
 - `--host HOST` (default `127.0.0.1`) — bind address for the HTTP+WS server. When the host is anything other than `127.0.0.1` / `localhost` / `::1`, the server generates a random access token at startup and requires it on every HTTP request and WS upgrade (query param `?token=...`). Localhost-only mode never requires a token.
 - `--library-dir PATH` (default `./.yacad-mcp/vfs`)
@@ -185,26 +187,26 @@ JSON-RPC-style frames. Both directions allowed; v1 only routes server→client f
 
 **Server → client events (broadcast):**
 
-| Event | Payload |
-|---|---|
-| `current-doc-changed` | `{ id, meta, doc, blobs: [{ hash, base64 }] }` — fired on `setCurrentDoc` or initial connect |
-| `doc-changed` | `{ id, doc }` — tree mutation only |
-| `blob-added` | `{ id, hash, base64 }` — emitted when a blob (Lua def, imported mesh) is added to a session, decoupled from tree mutations |
-| `meta-changed` | `{ id, meta }` |
-| `library-changed` | `{ docs: [{ id, name }] }` |
+| Event                 | Payload                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `current-doc-changed` | `{ id, meta, doc, blobs: [{ hash, base64 }] }` — fired on `setCurrentDoc` or initial connect                               |
+| `doc-changed`         | `{ id, doc }` — tree mutation only                                                                                         |
+| `blob-added`          | `{ id, hash, base64 }` — emitted when a blob (Lua def, imported mesh) is added to a session, decoupled from tree mutations |
+| `meta-changed`        | `{ id, meta }`                                                                                                             |
+| `library-changed`     | `{ docs: [{ id, name }] }`                                                                                                 |
 
 Blob events are separate from `doc-changed` because adding a blob (via `addLuaDefinition` or mesh-import tools) doesn't necessarily mutate the doc tree, and conversely a tree mutation rarely needs to ship blobs. Keeping them split mirrors how `session.addBlob` and `session.mutate` work today.
 
 **Client → server requests (RPC, correlated by `id`):**
 
-| Method | Returns |
-|---|---|
-| `library.list()` | `[{ id, name }]` |
-| `library.openSession(id)` | `{ meta, doc, blobs[] }` (one-shot fetch) |
-| `vfs.read(key)` | `bytes \| null` |
-| `vfs.write(key, bytes)` | `ok` — rejected with `viewer-read-only` in v1 |
-| `vfs.list(prefix)` | `keys[]` |
-| `vfs.delete(key)` | `ok` — rejected with `viewer-read-only` in v1 |
+| Method                    | Returns                                       |
+| ------------------------- | --------------------------------------------- |
+| `library.list()`          | `[{ id, name }]`                              |
+| `library.openSession(id)` | `{ meta, doc, blobs[] }` (one-shot fetch)     |
+| `vfs.read(key)`           | `bytes \| null`                               |
+| `vfs.write(key, bytes)`   | `ok` — rejected with `viewer-read-only` in v1 |
+| `vfs.list(prefix)`        | `keys[]`                                      |
+| `vfs.delete(key)`         | `ok` — rejected with `viewer-read-only` in v1 |
 
 In v1, `viewerMode` studio2 has its editing affordances hidden, so the `RemoteVfs` `write`/`delete` methods are never called in normal use. The protocol routes exist so future bidirectional editing slots in without a protocol change — just flipping a server-side flag.
 
@@ -212,17 +214,17 @@ In v1, `viewerMode` studio2 has its editing affordances hidden, so the `RemoteVf
 
 Every tool body is wrapped in try/catch. Known errors map to stable codes:
 
-| Source | Code |
-|---|---|
-| `LuaValidationError` | `lua-validation` (with full `issues[]` in details) |
-| `DagError` | `dag-validation` (with offending `path` in details) |
-| Missing doc/blob | `not-found` |
-| Wrong geometry kind for export | `wrong-geometry-kind` |
-| Path doesn't resolve | `bad-path` |
-| Viewer attempts write in v1 | `viewer-read-only` |
-| Bad/missing token on non-localhost connect | HTTP 401 / WS close 4001 |
-| `getViewerUrl` when `--no-viewer` | `no-viewer` |
-| `rotateAccessToken` on localhost-only | `not-applicable` |
+| Source                                     | Code                                                |
+| ------------------------------------------ | --------------------------------------------------- |
+| `LuaValidationError`                       | `lua-validation` (with full `issues[]` in details)  |
+| `DagError`                                 | `dag-validation` (with offending `path` in details) |
+| Missing doc/blob                           | `not-found`                                         |
+| Wrong geometry kind for export             | `wrong-geometry-kind`                               |
+| Path doesn't resolve                       | `bad-path`                                          |
+| Viewer attempts write in v1                | `viewer-read-only`                                  |
+| Bad/missing token on non-localhost connect | HTTP 401 / WS close 4001                            |
+| `getViewerUrl` when `--no-viewer`          | `no-viewer`                                         |
+| `rotateAccessToken` on localhost-only      | `not-applicable`                                    |
 
 WS disconnect doesn't fail tools — broadcasts to no subscribers are no-ops; eval and mutation work without a viewer connected. With `--no-viewer`, the broadcast channel is omitted entirely.
 
