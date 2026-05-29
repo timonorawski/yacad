@@ -26,6 +26,23 @@ describe('lua tools', () => {
 
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
+  it('addLuaDefinition errors with no-current-doc when no doc is open', async () => {
+    // Override the beforeEach default: drop the seeded doc so currentDocId is unset.
+    ctx.currentDocId = undefined;
+    ctx.sessions.clear();
+    const out = await addLuaDefinition(ctx, {
+      schema: { inputs: [], params: {}, output: '3d' },
+      code: 'return geo.box({ size = {1,1,1} })',
+    });
+    expect(out.ok).toBe(false);
+    if (!out.ok) {
+      expect(out.error.code).toBe('no-current-doc');
+      expect(out.error.message).toMatch(/createDoc|openDoc/);
+    }
+    // And nothing leaked into the in-memory map.
+    expect(ctx.luaDefs.size).toBe(0);
+  });
+
   it('addLuaDefinition stores valid Lua and returns its hash', async () => {
     const out = await addLuaDefinition(ctx, {
       schema: { inputs: [], params: {}, output: '3d' },

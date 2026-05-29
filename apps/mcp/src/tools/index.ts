@@ -215,7 +215,8 @@ export const TOOLS: readonly ToolDef[] = [
   // lua (2)
   {
     name: 'addLuaDefinition',
-    description: 'Validate, register, and return the hash of a LuaDefinition.',
+    description:
+      'Validate, register, and return the hash of a LuaDefinition. Requires a current doc — the bytes are persisted into its blob set so they ship with the document. Call createDoc or openDoc first.',
     inputSchema: {
       type: 'object',
       required: ['schema', 'code'],

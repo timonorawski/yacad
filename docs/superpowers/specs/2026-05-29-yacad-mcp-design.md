@@ -119,8 +119,8 @@ Each calls the corresponding `@yacad/mutations` function inside `session.mutate(
 
 ### Lua authoring (2)
 
-- `addLuaDefinition({ schema, code })` → `{ hash }` — runs `validateLuaSource` first; on failure returns `{ ok: false, error: { code: 'lua-validation', details: { issues } } }` without registering
-- `validateLuaCode({ schema, code })` → `{ issues: [] }` — dry-run validation, never registers
+- `addLuaDefinition({ schema, code })` → `{ hash }` — runs `validateLuaSource` first; on failure returns `{ ok: false, error: { code: 'lua-validation', details: { issues } } }` without registering. Requires a current doc — the canonical bytes are written into its blob set so the def ships with the document; returns `no-current-doc` otherwise.
+- `validateLuaCode({ schema, code })` → `{ issues: [] }` — dry-run validation, never registers; doc-independent (safe to call before `createDoc`)
 
 ### Export (4)
 
@@ -219,6 +219,7 @@ Every tool body is wrapped in try/catch. Known errors map to stable codes:
 | `LuaValidationError`                       | `lua-validation` (with full `issues[]` in details)  |
 | `DagError`                                 | `dag-validation` (with offending `path` in details) |
 | Missing doc/blob                           | `not-found`                                         |
+| Doc-coupled tool called with no open doc   | `no-current-doc`                                    |
 | Wrong geometry kind for export             | `wrong-geometry-kind`                               |
 | Path doesn't resolve                       | `bad-path`                                          |
 | Viewer attempts write in v1                | `viewer-read-only`                                  |

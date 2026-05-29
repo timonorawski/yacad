@@ -18,6 +18,18 @@ export async function addLuaDefinition(
   ctx: Ctx,
   args: { schema: LuaDefinition['schema']; code: string },
 ): Promise<ToolResult<{ hash: string }>> {
+  // A LuaDefinition must travel with the doc that references it: the bytes get
+  // persisted into the open session's blob set so the viewer (and a future
+  // reopen) can resolve `definitionHash`. Without a current doc there's
+  // nowhere to persist, so refuse rather than silently leave the def in the
+  // in-memory map only — that was the original bug.
+  const session = ctx.currentDocId ? ctx.sessions.get(ctx.currentDocId) : undefined;
+  if (!session) {
+    return err(
+      'no-current-doc',
+      'no current doc; call createDoc or openDoc before addLuaDefinition so the definition bytes persist with the document',
+    );
+  }
   const def: LuaDefinition = { schema: args.schema, code: args.code };
   try {
     validateLuaSource(def);
@@ -30,17 +42,10 @@ export async function addLuaDefinition(
   const bytes = canonicalBytes(def);
   const hash = await defaultHasher.hash(bytes);
   ctx.luaDefs.set(hash, def);
-  // Also persist the bytes into the current session's blob set if one is open,
-  // so the def lives with the doc when saved.
-  if (ctx.currentDocId) {
-    const session = ctx.sessions.get(ctx.currentDocId);
-    if (session) {
-      try {
-        await session.addBlob(bytes);
-      } catch (e) {
-        return err('blob-persist-failed', (e as Error).message);
-      }
-    }
+  try {
+    await session.addBlob(bytes);
+  } catch (e) {
+    return err('blob-persist-failed', (e as Error).message);
   }
   return ok({ hash });
 }
