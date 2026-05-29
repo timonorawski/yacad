@@ -82,12 +82,22 @@
   {:else}
     <span class="toggle-spacer"></span>
   {/if}
-  <button class="row-label" onclick={() => { selection.select(path); if (isDerived) onSelectDerived?.(path, doc); }}>{summary}</button>
+  <button
+    class="row-label"
+    onclick={() => {
+      selection.select(path);
+      if (isDerived) onSelectDerived?.(path, doc);
+    }}>{summary}</button
+  >
   {#if onFocusNode && perNode}
     <button
       class="row-focus"
       title="Inspect this node's geometry in isolation"
-      onclick={(e) => { e.stopPropagation(); selection.select(path); onFocusNode(path); }}
+      onclick={(e) => {
+        e.stopPropagation();
+        selection.select(path);
+        onFocusNode(path);
+      }}
       aria-label="Focus node">&#128269;</button
     >
   {/if}

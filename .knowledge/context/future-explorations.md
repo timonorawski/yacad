@@ -1,23 +1,23 @@
 ---
 topic: future-explorations
 tags:
-- ideas
-- exploration
-- future
-- running-list
-- lua
-- composition
-- modularity
-- status-tracking
+  - ideas
+  - exploration
+  - future
+  - running-list
+  - lua
+  - composition
+  - modularity
+  - status-tracking
 files:
-- packages/lua
-- packages/dag/src/expand.ts
-- docs/vision.md
-- apps/studio2/src/ui/ViewportPane.svelte
-- apps/studio2/src/ui/TreeNode.svelte
-- apps/studio2/src/ui/InspectorPane.svelte
-- packages/render/src/viewport.ts
-- apps/mcp
+  - packages/lua
+  - packages/dag/src/expand.ts
+  - docs/vision.md
+  - apps/studio2/src/ui/ViewportPane.svelte
+  - apps/studio2/src/ui/TreeNode.svelte
+  - apps/studio2/src/ui/InspectorPane.svelte
+  - packages/render/src/viewport.ts
+  - apps/mcp
 created: '2026-05-29T12:46:53.705081Z'
 updated: '2026-05-29T14:59:45.184870Z'
 ---

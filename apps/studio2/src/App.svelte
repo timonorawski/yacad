@@ -435,7 +435,7 @@
           onEditLua={openLuaEditor}
           {viewerMode}
           onFocusNode={focusNode}
-          focusedNodeId={focusedNodeId}
+          {focusedNodeId}
           {derivedNodeDoc}
         />
       {:else}

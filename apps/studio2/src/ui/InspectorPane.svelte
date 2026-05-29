@@ -19,7 +19,15 @@
     derivedNodeDoc?: NodeDoc | undefined;
   }
 
-  let { session, selection, onEditLua, viewerMode, onFocusNode, focusedNodeId, derivedNodeDoc }: Props = $props();
+  let {
+    session,
+    selection,
+    onEditLua,
+    viewerMode,
+    onFocusNode,
+    focusedNodeId,
+    derivedNodeDoc,
+  }: Props = $props();
 
   const selectedNode = $derived.by(() => {
     if (!selection.selectedId) return undefined;
@@ -73,8 +81,8 @@
       <button
         class="inspector-focus-btn"
         title="Show this node's geometry in isolation"
-        onclick={() => onFocusNode(selection.selectedId!)}
-      >&#128269; Focus</button>
+        onclick={() => onFocusNode(selection.selectedId!)}>&#128269; Focus</button
+      >
     {/if}
   </div>
   {#if selectedDef?.kind === 'kernel'}

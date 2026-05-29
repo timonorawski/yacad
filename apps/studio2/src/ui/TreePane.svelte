@@ -20,7 +20,17 @@
     onSelectDerived?: (path: string, doc: NodeDoc) => void;
   }
 
-  let { session, selection, outputTypes, onExport, viewerMode, client, perNode, onFocusNode, onSelectDerived }: Props = $props();
+  let {
+    session,
+    selection,
+    outputTypes,
+    onExport,
+    viewerMode,
+    client,
+    perNode,
+    onFocusNode,
+    onSelectDerived,
+  }: Props = $props();
 </script>
 
 <div class="tree-pane-inner">
