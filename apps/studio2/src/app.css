@@ -16,11 +16,16 @@ body {
 .studio-shell {
   display: grid;
   grid-template-rows: auto 1fr;
-  grid-template-columns: 280px 1fr 320px;
+  grid-template-columns: 1fr;
   grid-template-areas:
-    'topbar topbar topbar'
-    'tree viewport inspector';
+    'topbar'
+    'workspace';
   height: 100vh;
+}
+.workspace {
+  grid-area: workspace;
+  position: relative;
+  overflow: hidden;
 }
 .topbar {
   grid-area: topbar;
@@ -31,15 +36,26 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  z-index: 2;
 }
 .tree-pane {
-  grid-area: tree;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
   background: var(--panel);
   border-right: 1px solid var(--panel-border);
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  z-index: 5;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+.tree-pane.open {
+  transform: translateX(0);
 }
 .tree-pane > :first-child {
   flex: 1;
@@ -53,15 +69,67 @@ body {
   overflow: auto;
 }
 .viewport-pane {
-  grid-area: viewport;
   position: relative;
+  width: 100%;
+  height: 100%;
 }
 .inspector-pane {
-  grid-area: inspector;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
   background: var(--panel);
   border-left: 1px solid var(--panel-border);
   overflow: auto;
   padding: 0.75rem;
+  z-index: 5;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+}
+.inspector-pane.open {
+  transform: translateX(0);
+}
+
+/* Sheet toggle buttons */
+.sheet-toggle {
+  position: absolute;
+  top: 0.5rem;
+  z-index: 6;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sheet-toggle:hover,
+.sheet-toggle.active {
+  opacity: 1;
+}
+.sheet-toggle.left {
+  left: 0.5rem;
+}
+.sheet-toggle.right {
+  right: 0.5rem;
+}
+
+/* Mobile: wider sheets for usability */
+@media (max-width: 899px) {
+  .tree-pane {
+    width: min(280px, 85vw);
+  }
+  .inspector-pane {
+    width: min(320px, 85vw);
+  }
 }
 .tree-row {
   display: flex;
@@ -673,4 +741,83 @@ body {
   cursor: pointer;
   padding: 0.25rem 0.6rem;
   font: inherit;
+}
+
+/* Viewport toolbar */
+.vp-toolbar {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(30, 30, 34, 0.85);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 0.2rem 0.35rem;
+  z-index: 4;
+  pointer-events: auto;
+}
+.vp-toolbar-group {
+  display: flex;
+  gap: 0.15rem;
+}
+.vp-toolbar-sep {
+  width: 1px;
+  height: 1.2rem;
+  background: var(--panel-border);
+  margin: 0 0.15rem;
+}
+.vp-tb-btn {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+.vp-tb-btn:hover {
+  background: var(--panel-border);
+}
+.vp-tb-btn:active {
+  background: var(--accent);
+  color: var(--bg);
+}
+.vp-tb-active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* Focus toggle (viewport footer) */
+.focus-toggle {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+  padding: 0.1rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  pointer-events: auto;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+.focus-toggle:hover {
+  opacity: 1;
+}
+.focus-toggle.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  opacity: 1;
+}
+.focused-label {
+  color: var(--accent);
+  font-size: 0.8rem;
+  pointer-events: auto;
 }

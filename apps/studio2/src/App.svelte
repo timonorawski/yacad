@@ -52,6 +52,15 @@
   let editingLuaNodeId = $state<string | null>(null);
   let outputTypes = $state<Map<string, '2d' | '3d'>>(new Map());
 
+  // Sheet visibility state — desktop defaults open, mobile defaults closed.
+  const DESKTOP_BREAKPOINT = 900;
+  let treeOpen = $state(
+    typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BREAKPOINT : true,
+  );
+  let inspectorOpen = $state(
+    typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BREAKPOINT : true,
+  );
+
   // Keep an outputType-per-path map in sync with the current session. Walks
   // the validated graph; on invalidated docs the map empties and tree-row
   // gadgets vanish until the document is fixed.
@@ -330,26 +339,48 @@
       onClearCache={clearCache}
     />
   </header>
-  <aside class="tree-pane">
-    {#if session && selection}
-      <TreePane {session} {selection} {outputTypes} onExport={exportNode} {viewerMode} />
-      <PerformancePanel outcome={evalOutcome} />
-    {:else}
-      <em>loading…</em>
-    {/if}
-  </aside>
-  <main class="viewport-pane">
-    {#if session && client}
-      <ViewportPane {session} {client} onEvaluated={(o) => (evalOutcome = o)} />
-    {/if}
-  </main>
-  <aside class="inspector-pane">
-    {#if session && selection}
-      <InspectorPane {session} {selection} onEditLua={openLuaEditor} {viewerMode} />
-    {:else}
-      <em>loading…</em>
-    {/if}
-  </aside>
+  <div class="workspace">
+    <main class="viewport-pane">
+      {#if session && client}
+        <ViewportPane
+          {session}
+          {client}
+          onEvaluated={(o) => (evalOutcome = o)}
+          selectedId={selection?.selectedId ?? null}
+          perNode={evalOutcome?.perNode}
+        />
+      {/if}
+      <button
+        class="sheet-toggle left"
+        class:active={treeOpen}
+        onclick={() => (treeOpen = !treeOpen)}
+        aria-label={treeOpen ? 'Hide tree panel' : 'Show tree panel'}
+        title={treeOpen ? 'Hide tree' : 'Show tree'}>&#9776;</button
+      >
+      <button
+        class="sheet-toggle right"
+        class:active={inspectorOpen}
+        onclick={() => (inspectorOpen = !inspectorOpen)}
+        aria-label={inspectorOpen ? 'Hide inspector panel' : 'Show inspector panel'}
+        title={inspectorOpen ? 'Hide inspector' : 'Show inspector'}>&#9881;</button
+      >
+    </main>
+    <aside class="tree-pane sheet" class:open={treeOpen}>
+      {#if session && selection}
+        <TreePane {session} {selection} {outputTypes} onExport={exportNode} {viewerMode} />
+        <PerformancePanel outcome={evalOutcome} />
+      {:else}
+        <em>loading…</em>
+      {/if}
+    </aside>
+    <aside class="inspector-pane sheet" class:open={inspectorOpen}>
+      {#if session && selection}
+        <InspectorPane {session} {selection} onEditLua={openLuaEditor} {viewerMode} />
+      {:else}
+        <em>loading…</em>
+      {/if}
+    </aside>
+  </div>
   <DocsDrawer
     open={docsOpen}
     tab={docsTab}

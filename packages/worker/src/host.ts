@@ -1,11 +1,11 @@
-import { IndexedDbStore, MemoryStore, TieredStore } from '@yacad/cache';
+import { IndexedDbStore, MemoryStore, TieredStore, type CacheKey } from '@yacad/cache';
 import { buildGraph, getNodeType, registerNodeType, type DefinitionResolver } from '@yacad/dag';
-import { Engine } from '@yacad/engine';
+import { Engine, ENGINE_VERSION } from '@yacad/engine';
 import { type Geometry } from '@yacad/geometry';
 import { IMPORT_GLTF_NODE_TYPE, IMPORT_GLTF_TYPE } from '@yacad/import-gltf';
 import { IMPORT_OBJ_NODE_TYPE, IMPORT_OBJ_TYPE } from '@yacad/import-obj';
 import { IMPORT_STL_NODE_TYPE, IMPORT_STL_TYPE } from '@yacad/import-stl';
-import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
+import { KERNEL_NAME, KERNEL_VERSION, ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
 import {
   LuaValidationError,
   makeLuaNodeType,
@@ -18,6 +18,7 @@ import {
 import type {
   ClearCacheRequest,
   EvaluateRequest,
+  GetGeometryRequest,
   HasLuaDefinitionRequest,
   HasMeshBlobRequest,
   OkResponse,
@@ -54,7 +55,7 @@ export function startHost(scope: WorkerScope): void {
   // and the Engine constructor so both see the same live Map.
   // ---------------------------------------------------------------------------
   const luaDefs = new Map<string, LuaDefinition>();
-  const luaResolver: LuaDefinitionResolver = { get: (h) => luaDefs.get(h) };
+  const luaResolver: LuaDefinitionResolver = { get: (h: string) => luaDefs.get(h) };
   let luaRegistered = false;
 
   function ensureLuaRegistered(runtime: WasmoonLuaRuntime): void {
@@ -122,6 +123,11 @@ export function startHost(scope: WorkerScope): void {
 
     if (req.kind === 'clearCache') {
       void handleClearCache(scope, backend, req);
+      return;
+    }
+
+    if (req.kind === 'getGeometry') {
+      void handleGetGeometry(scope, backend, req);
       return;
     }
 
@@ -223,6 +229,68 @@ function handleHasMeshBlob(
 ): void {
   const res: OkResponse = { id: req.id, kind: 'ok', present: meshBlobs.has(req.hash) };
   scope.postMessage(res);
+}
+
+async function handleGetGeometry(
+  scope: WorkerScope,
+  backend: Promise<Backend> | undefined,
+  req: GetGeometryRequest,
+): Promise<void> {
+  if (!backend) {
+    scope.postMessage({ id: req.id, kind: 'geometry', ok: false, error: 'engine not initialized' });
+    return;
+  }
+  try {
+    const { store } = await backend;
+    const tier = req.tier ?? 'final';
+    const key: CacheKey = {
+      semanticHash: req.hash,
+      producedBy: {
+        kernel: KERNEL_NAME,
+        kernelVersion: KERNEL_VERSION,
+        engineVersion: ENGINE_VERSION,
+        qualityTier: tier,
+      },
+    };
+    // Try mesh first, then crossSection — we don't know the artifact kind.
+    const mesh = await store.get(key, 'mesh');
+    if (mesh && mesh.kind === 'mesh') {
+      const geometry = {
+        kind: '3d' as const,
+        mesh: {
+          vertices: mesh.mesh.vertices.slice(),
+          indices: mesh.mesh.indices.slice(),
+        },
+      };
+      scope.postMessage({ id: req.id, kind: 'geometry', ok: true, geometry }, [
+        geometry.mesh.vertices.buffer,
+        geometry.mesh.indices.buffer,
+      ]);
+      return;
+    }
+    const cs = await store.get(key, 'crossSection');
+    if (cs && cs.kind === 'crossSection') {
+      const geometry = {
+        kind: '2d' as const,
+        section: { polygons: cs.section.polygons.map((p) => [...p]) },
+      };
+      scope.postMessage({ id: req.id, kind: 'geometry', ok: true, geometry });
+      return;
+    }
+    scope.postMessage({
+      id: req.id,
+      kind: 'geometry',
+      ok: false,
+      error: `no cached geometry for hash ${req.hash}`,
+    });
+  } catch (err) {
+    scope.postMessage({
+      id: req.id,
+      kind: 'geometry',
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 async function handle(

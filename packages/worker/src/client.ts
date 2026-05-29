@@ -1,7 +1,12 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
 import type { Geometry } from '@yacad/geometry';
 import { LuaValidationError, type LuaDefinition } from '@yacad/lua';
-import type { OkResponse, ValidationErrorResponse, WorkerResponse } from './protocol';
+import type {
+  GetGeometryOk,
+  OkResponse,
+  ValidationErrorResponse,
+  WorkerResponse,
+} from './protocol';
 
 export interface EvaluateOutcome {
   readonly geometry: Geometry;
@@ -126,6 +131,18 @@ export class WorkerClient {
   async hasMeshBlob(hash: string): Promise<boolean> {
     const res = await this.send({ id: 0, kind: 'hasMeshBlob', hash });
     return (res as OkResponse).present === true;
+  }
+
+  /**
+   * Look up a cached geometry by its semantic hash. Returns the geometry if
+   * found, or `null` if nothing is cached for that hash. This is a pure cache
+   * read — no DAG walking or evaluation.
+   */
+  async getGeometry(hash: string, tier = 'final'): Promise<Geometry | null> {
+    const res = await this.send({ id: 0, kind: 'getGeometry', hash, tier });
+    const g = res as GetGeometryOk | { ok: false };
+    if (g.ok) return (g as GetGeometryOk).geometry;
+    return null;
   }
 
   /** Drop every artifact in the worker's cache (L1 + L2). The next evaluate

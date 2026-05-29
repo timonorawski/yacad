@@ -73,6 +73,20 @@ export interface ClearCacheRequest {
   readonly kind: 'clearCache';
 }
 
+/**
+ * Look up a cached geometry by its semantic hash. This is a pure cache read —
+ * no DAG walking or evaluation. The worker tries both `mesh` and `crossSection`
+ * artifact kinds under the current kernel/engine provenance and returns whichever
+ * is found (or an error if nothing is cached for that hash).
+ */
+export interface GetGeometryRequest {
+  readonly id: number;
+  readonly kind: 'getGeometry';
+  readonly hash: string;
+  /** Quality tier to look up (defaults to 'final'). */
+  readonly tier?: string;
+}
+
 export type WorkerRequest =
   | InitRequest
   | EvaluateRequest
@@ -80,7 +94,8 @@ export type WorkerRequest =
   | HasLuaDefinitionRequest
   | PutMeshBlobRequest
   | HasMeshBlobRequest
-  | ClearCacheRequest;
+  | ClearCacheRequest
+  | GetGeometryRequest;
 
 export interface EvaluateOk {
   readonly id: number;
@@ -133,4 +148,26 @@ export interface ValidationErrorResponse {
   readonly issues: readonly ValidationIssue[];
 }
 
-export type WorkerResponse = EvaluateOk | EvaluateErr | OkResponse | ValidationErrorResponse;
+/** Successful response to a `getGeometry` request — carries the cached geometry. */
+export interface GetGeometryOk {
+  readonly id: number;
+  readonly kind: 'geometry';
+  readonly ok: true;
+  readonly geometry: Geometry;
+}
+
+/** Error response to a `getGeometry` request — hash not found in cache. */
+export interface GetGeometryErr {
+  readonly id: number;
+  readonly kind: 'geometry';
+  readonly ok: false;
+  readonly error: string;
+}
+
+export type WorkerResponse =
+  | EvaluateOk
+  | EvaluateErr
+  | OkResponse
+  | ValidationErrorResponse
+  | GetGeometryOk
+  | GetGeometryErr;

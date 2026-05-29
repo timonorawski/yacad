@@ -6,6 +6,7 @@ import * as lua from './lua-tools';
 import * as exp from './export-tools';
 import * as cache from './cache-tools';
 import * as server from './server-tools';
+import * as docs from './doc-tools';
 import type { ToolResult } from './library-tools';
 
 export interface ToolDef {
@@ -318,5 +319,47 @@ export const TOOLS: readonly ToolDef[] = [
       'Generate a fresh access token and drop all connected viewers (they will reconnect with the new URL). Errors on localhost-only servers.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     handler: (ctx) => server.rotateAccessToken(ctx, {}),
+  },
+
+  // docs (5)
+  {
+    name: 'listNodeTypes',
+    description:
+      'List all registered node types with their kind (kernel/expandable/decoder), output type, and brief summary.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    handler: (ctx) => docs.listNodeTypes(ctx, {}),
+  },
+  {
+    name: 'getNodeTypeDoc',
+    description:
+      'Get full documentation for a specific node type: summary, paramSchema (name, type, required, default, min, max, enum, doc string), output type, child requirements, and Lua example.',
+    inputSchema: {
+      type: 'object',
+      required: ['type'],
+      properties: { type: { type: 'string' } },
+      additionalProperties: false,
+    },
+    handler: (ctx, args) => docs.getNodeTypeDoc(ctx, args as { type: string }),
+  },
+  {
+    name: 'getLanguageReference',
+    description:
+      'Return the full DAG language reference documentation (all node types, document shape, dual type system, validation rules, and examples).',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    handler: (ctx) => docs.getLanguageReference(ctx, {}),
+  },
+  {
+    name: 'getLuaApiReference',
+    description:
+      'Return documentation about the Lua sandbox API surface: available globals (geo.*, params, inputs, math.*, string.*, table.*), all geo.* functions, and LuaDefinition param types.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    handler: (ctx) => docs.getLuaApiReference(ctx, {}),
+  },
+  {
+    name: 'getExamples',
+    description:
+      'Return example LuaDefinitions and DAG patterns from the showcase collection (house, castle, tree, torus-knot, chamfered-box, filleted-slab).',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    handler: (ctx) => docs.getExamples(ctx, {}),
   },
 ];
