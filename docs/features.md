@@ -4,9 +4,9 @@ A capability inventory of what's shipped today. Complements [ROADMAP.md](ROADMAP
 
 ## Authoring
 
-### Studio v1 (`apps/studio`)
+### Studio v1 (`apps/studio`, legacy)
 
-The original reference implementation, kept for compatibility and Playwright e2e coverage:
+The original reference implementation. It is soft-retired: kept in-tree for historical reference and archaeology, but no longer the active app or CI browser target. Use `pnpm dev:legacy` only when intentionally inspecting it.
 
 - **JSON DAG editor** (sidebar). Live recompile on edit; sample-scene dropdown covering 3D primitives, 2D primitives, Lua-driven scenes, and mesh-import variants.
 - **three.js viewport** — orbit camera, axis helpers, 2D and 3D geometry rendering.
@@ -16,7 +16,7 @@ The original reference implementation, kept for compatibility and Playwright e2e
 
 ### Studio v2 (`apps/studio2`, live at [cad.yamplay.cc](https://cad.yamplay.cc))
 
-The current Svelte 5 studio, auto-deployed from `main`:
+The active Svelte 5 studio, launched by `pnpm dev` and auto-deployed from `main`:
 
 - **Three-pane shell** — tree / viewport / inspector layout (familiar from Houdini/Blender). On mobile (< 900 px) the tree and inspector become slide-in sheets toggled by toolbar buttons; on desktop (≥ 900 px) both open by default alongside the viewport.
 - **Tree view** — collapse, select, single-highlight; shows node type labels and geometry-kind icons. Lua nodes get an expansion toggle (◆) to reveal the generated sub-DAG inline; derived nodes render with visual distinction (muted, italic, dashed indent) and read-only inspectors.
@@ -139,9 +139,9 @@ Explicitly out of scope or not yet started. See [ROADMAP.md](ROADMAP.md) for the
 ## Engineering substrate
 
 - **TypeScript pnpm monorepo** with workspace packages and project references. `tsc -b` is the type-correctness gate; CI runs build + lint + format:check + test + build:app.
-- **Vitest** for unit tests; tests colocated with source (`foo.ts` + `foo.test.ts`). 75 test files across the workspace.
+- **Vitest** for unit tests; tests colocated with source (`foo.ts` + `foo.test.ts`). 76 test files across the workspace.
 - **`@yacad/e2e`** — full-pipeline scene→STL snapshot tests plus `packages/e2e/showcase/` scenes (house, castle, tree, torus-knot, chamfered-box, filleted-slab). Captured geometry summaries (vertex count, bbox, hash) catch silent regressions.
-- **Playwright smoke** — `apps/studio/e2e/studio.spec.ts` covers the cold-start path, incremental recompute, 2D/3D scene switching, mesh-import scenes, Lua scenes, and export-button gating. `apps/studio2/e2e/` has its own Playwright suite (`studio2.spec.ts` + `lua-validation.spec.ts`). `apps/mcp/e2e/mutation-updates-viewer.spec.ts` covers the MCP-to-viewer live-update path.
+- **Playwright smoke** — `apps/studio2/e2e/` is the active browser suite, covering startup/viewport readiness, cache behavior, inspector edits, structural mutations, 2D/3D document switching, Lua validation, export gating, and STL downloads. `apps/studio/e2e/studio.spec.ts` remains legacy-only v1 coverage. `apps/mcp/e2e/mutation-updates-viewer.spec.ts` covers the MCP-to-viewer live-update path.
 - **ESLint flat config + Prettier.** Format and lint pass as CI gates.
-- **GitHub Actions CI** — `ci.yml` (build + lint + format:check + test + build:app), `browser-e2e.yml` (Playwright, studio v1), `perf.yml` (kernel performance regression check), `deploy.yml` (studio v2 → GitHub Pages on push to `main`).
+- **GitHub Actions CI** — `ci.yml` (build + lint + format:check + test + build:app), `browser-e2e.yml` (Playwright, studio v2), `perf.yml` (kernel performance regression check), `deploy.yml` (studio v2 → GitHub Pages on push to `main`).
 - **Per-phase design + plan docs** — every non-trivial feature ships a design spec (`docs/superpowers/specs/`) committed alongside the code. The history of decisions is in the repo.

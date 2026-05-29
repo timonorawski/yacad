@@ -15,7 +15,8 @@ pnpm test                                 # vitest run: all package unit tests
 pnpm test:watch                           # vitest watch mode
 pnpm lint                                 # eslint (flat config) over all TS
 pnpm format                               # prettier --write
-pnpm dev                                  # run the studio v1 app (Vite dev server)
+pnpm dev                                  # run the active studio v2 app (Vite dev server)
+pnpm dev:legacy                           # run the legacy studio v1 app intentionally
 pnpm build:app                            # production build of the studio v2 app
 
 # single package / single test
@@ -31,7 +32,7 @@ Vitest resolves `@yacad/*` to package **source** (see `vitest.config.ts`), and t
 
 ## Monorepo layout
 
-`packages/*` are framework-agnostic libraries wired as the vision's layers; `apps/studio2` is the active Svelte 5 studio, `apps/studio` is the legacy v1 (JSON-editor based) kept for compatibility + Playwright archaeology; `tooling/*` holds the shared tsconfig base and ESLint config. Dependency flow (acyclic, simplified):
+`packages/*` are framework-agnostic libraries wired as the vision's layers; `apps/studio2` is the active Svelte 5 studio, `apps/studio` is the legacy v1 (JSON-editor based) kept for historical reference and archaeology; `tooling/*` holds the shared tsconfig base and ESLint config. Dependency flow (acyclic, simplified):
 
 ```
 canonical → hash ┐

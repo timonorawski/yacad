@@ -8,8 +8,9 @@ This document is a navigator — what's where, why, and how the pieces fit. For 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Authoring Surfaces                          apps/studio    │
-│  - JSON DAG editor                           apps/studio2   │
+│  Authoring Surfaces                          apps/studio2   │
+│  - Tree / viewport / inspector               apps/studio    │
+│    (legacy reference)                                       │
 │  - Sample-scene library                                     │
 │  - Lua escape hatch                                         │
 ├─────────────────────────────────────────────────────────────┤
@@ -68,7 +69,7 @@ geometry ────────┼→ dag → kernel-manifold ┐
 
 ### Document model
 
-- **`@yacad/dag`** — the core data model. Defines `Node` (`{ id, type, params, children, hash }`), the node-type registry, semantic hashing, the 2D/3D type system, and 20 built-in node types. The `NodeTypeDef` discriminated union covers three kinds: `Kernel` (computed by the kernel), `Expandable` (composed of sub-DAG — Lua nodes use this), and `Decoder` (leaf node decoding an opaque blob — the mesh imports use this).
+- **`@yacad/dag`** — the core data model. Defines `Node` (`{ id, type, params, children, hash }`), the node-type registry, semantic hashing, the 2D/3D type system, and the registered node types documented in the language reference. The `NodeTypeDef` discriminated union covers three kinds: `Kernel` (computed by the kernel), `Expandable` (composed of sub-DAG — Lua nodes use this), and `Decoder` (leaf node decoding an opaque blob — the mesh imports use this).
 - **`@yacad/mutations`** — _(studio v2 foundation)_ helpers for editing a DAG immutably: `setParam`, `addChild`, `moveChild`, `replaceAt`, `wrapWith`. Path-based addressing.
 - **`@yacad/selection`** — _(studio v2 foundation)_ selection state shared between viewport and inspector.
 
@@ -106,8 +107,8 @@ geometry ────────┼→ dag → kernel-manifold ┐
 
 ### Apps
 
-- **`apps/studio`** — the original studio. JSON editor + viewport + cache-hit panel + language reference. The reference implementation of "what the system can do end-to-end."
-- **`apps/studio2`** — the active studio (live at cad.yamplay.cc). Three-pane shell (tree / viewport / inspector), paramSchema-driven kernel inspector, Lua inspector, decoder inspector, Monaco Lua editor, structural-mutation tool palette, document library, viewport toolbar (display modes, camera presets), sub-DAG inspection for Lua nodes, performance panel, per-node export gadget.
+- **`apps/studio2`** — the active studio (live at cad.yamplay.cc; launched by `pnpm dev`). Three-pane shell (tree / viewport / inspector), paramSchema-driven kernel inspector, Lua inspector, decoder inspector, Monaco Lua editor, structural-mutation tool palette, document library, viewport toolbar (display modes, camera presets), sub-DAG inspection for Lua nodes, performance panel, per-node export gadget.
+- **`apps/studio`** — the original studio, now legacy-only. JSON editor + viewport + cache-hit panel + language reference remain in-tree for historical reference and archaeology; use `pnpm dev:legacy` when intentionally inspecting it.
 - **`apps/mcp`** — MCP server exposing the DAG pipeline as tool calls: library CRUD, document reading, mutations, Lua definition management, exports (STL/SVG/DXF/PNG), cache control, and viewer URL management.
 
 ## Threading model
