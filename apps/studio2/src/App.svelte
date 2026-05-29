@@ -367,7 +367,7 @@
     </main>
     <aside class="tree-pane sheet" class:open={treeOpen}>
       {#if session && selection}
-        <TreePane {session} {selection} {outputTypes} onExport={exportNode} {viewerMode} />
+        <TreePane {session} {selection} {outputTypes} onExport={exportNode} {viewerMode} {client} perNode={evalOutcome?.perNode} />
         <PerformancePanel outcome={evalOutcome} />
       {:else}
         <em>loading…</em>
