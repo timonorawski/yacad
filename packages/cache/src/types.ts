@@ -24,7 +24,7 @@ export interface CacheKey {
 }
 
 /** The kinds of derived artifact stored per node, each under its own sub-key. */
-export type ArtifactKind = 'mesh' | 'bbox' | 'luaDefinition' | 'crossSection';
+export type ArtifactKind = 'mesh' | 'bbox' | 'luaDefinition' | 'crossSection' | 'expandedDoc';
 
 export interface MeshArtifact {
   readonly kind: 'mesh';
@@ -68,7 +68,24 @@ export interface CrossSectionArtifact {
   readonly section: CrossSectionLike;
 }
 
-export type Artifact = MeshArtifact | BBoxArtifact | LuaDefinitionArtifact | CrossSectionArtifact;
+/**
+ * Structural placeholder for an expanded sub-DAG document. The real `NodeDoc`
+ * from @yacad/dag is structurally assignable. We keep @yacad/cache free of
+ * @yacad/dag imports so the dep graph stays acyclic (same pattern as
+ * LuaDefinitionLike and CrossSectionLike).
+ */
+export interface NodeDocLike {
+  readonly type: string;
+  readonly params?: Readonly<Record<string, unknown>>;
+  readonly children?: readonly NodeDocLike[];
+}
+
+export interface ExpandedDocArtifact {
+  readonly kind: 'expandedDoc';
+  readonly doc: NodeDocLike;
+}
+
+export type Artifact = MeshArtifact | BBoxArtifact | LuaDefinitionArtifact | CrossSectionArtifact | ExpandedDocArtifact;
 
 /**
  * Async-uniform store. Consumers use this interface without knowing which tier

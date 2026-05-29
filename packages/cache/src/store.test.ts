@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { IndexedDbStore } from './indexeddb-store';
 import { MemoryStore } from './memory-store';
 import { TieredStore } from './tiered-store';
-import { storageKey, type CacheKey, type MeshArtifact } from './types';
+import { storageKey, type CacheKey, type MeshArtifact, type ExpandedDocArtifact } from './types';
 
 function key(semanticHash: string, qualityTier = 'final'): CacheKey {
   return {
@@ -17,6 +17,20 @@ function mesh(seed = 0): MeshArtifact {
     mesh: {
       vertices: new Float32Array([seed, 0, 0, 1, 1, 1, 2, 2, 2]),
       indices: new Uint32Array([0, 1, 2]),
+    },
+  };
+}
+
+function expandedDoc(): ExpandedDocArtifact {
+  return {
+    kind: 'expandedDoc',
+    doc: {
+      type: 'union',
+      params: {},
+      children: [
+        { type: 'box', params: { size: [10, 10, 10] } },
+        { type: 'sphere', params: { radius: 5 } },
+      ],
     },
   };
 }
@@ -172,6 +186,40 @@ describe('TieredStore', () => {
     expect(await l2.has(key('a'), 'mesh')).toBe(false);
     expect(await l1.has(key('b'), 'mesh')).toBe(false);
     expect(await l2.has(key('b'), 'mesh')).toBe(false);
+  });
+});
+
+describe('expandedDoc artifact kind', () => {
+  it('round-trips through MemoryStore', async () => {
+    const store = new MemoryStore();
+    const k = key('lua-abc');
+    await store.put(k, expandedDoc());
+    const got = await store.get(k, 'expandedDoc');
+    expect(got).toEqual(expandedDoc());
+  });
+
+  it('does not collide with mesh under the same semantic hash', async () => {
+    const store = new MemoryStore();
+    const k = key('same-hash');
+    await store.put(k, mesh(1));
+    await store.put(k, expandedDoc());
+    const gotMesh = await store.get(k, 'mesh');
+    const gotDoc = await store.get(k, 'expandedDoc');
+    expect(gotMesh).toEqual(mesh(1));
+    expect(gotDoc).toEqual(expandedDoc());
+  });
+
+  it('storageKey separates expandedDoc from mesh', () => {
+    const k = key('h');
+    expect(storageKey(k, 'expandedDoc')).not.toBe(storageKey(k, 'mesh'));
+    expect(storageKey(k, 'expandedDoc')).toContain('h:expandedDoc:');
+  });
+
+  it('clears alongside other artifacts', async () => {
+    const store = new MemoryStore();
+    await store.put(key('a'), expandedDoc());
+    await store.clear();
+    expect(await store.has(key('a'), 'expandedDoc')).toBe(false);
   });
 });
 
