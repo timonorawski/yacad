@@ -2,6 +2,7 @@ import type { EvalStats, NodeEval } from '@yacad/engine';
 import type { Geometry } from '@yacad/geometry';
 import { LuaValidationError, type LuaDefinition } from '@yacad/lua';
 import type {
+  GetExpandedDocOk,
   GetGeometryOk,
   OkResponse,
   ValidationErrorResponse,
@@ -151,8 +152,8 @@ export class WorkerClient {
    */
   async getExpandedDoc(hash: string, tier = 'final'): Promise<import('@yacad/dag').NodeDoc | null> {
     const res = await this.send({ id: 0, kind: 'getExpandedDoc', hash, tier });
-    const g = res as { ok: boolean; doc?: unknown };
-    if (g.ok) return (g as { ok: true; doc: import('@yacad/dag').NodeDoc }).doc;
+    const g = res as GetExpandedDocOk | { ok: false };
+    if (g.ok) return (g as GetExpandedDocOk).doc;
     return null;
   }
 
