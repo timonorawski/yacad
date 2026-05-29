@@ -19,22 +19,34 @@ The original reference implementation, kept for compatibility and Playwright e2e
 The current Svelte 5 studio, auto-deployed from `main`:
 
 - **Three-pane shell** — tree / viewport / inspector layout (familiar from Houdini/Blender).
-- **Tree view** — collapse, select, single-highlight; shows node type labels and geometry-kind icons.
-- **Property inspector** dispatching by node kind: paramSchema-driven forms for kernel nodes (with type-specific widgets for `int`, `number`, `boolean`, `string`, `vec2`, `vec3`, `vec2-array`, `enum`); Lua inspector with live validation issues; decoder inspector.
+- **Tree view** — collapse, select, single-highlight; shows node type labels and geometry-kind icons. Lua nodes get an expansion toggle (◆) to reveal the generated sub-DAG inline; derived nodes render with visual distinction (muted, italic, dashed indent) and read-only inspectors.
+- **Property inspector** dispatching by node kind: paramSchema-driven forms for kernel nodes (with type-specific widgets for `int`, `number`, `boolean`, `string`, `vec2`, `vec3`, `vec2-array`, `enum`, plus `exclusiveGroup` fieldsets for mutually exclusive params); Lua inspector with live validation issues; decoder inspector. Derived (generated) nodes show a "Generated node" badge and enforce read-only mode.
 - **Monaco slide-over Lua editor** — syntax highlighting, Revert / Save buttons, always-visible validation status chip (pass/fail + ms timing, debounced 150 ms).
-- **Structural-mutation tool palette** — auto-generated wrap-with and add-child pickers from the node-type registry; delete, duplicate, unwrap.
+- **Structural-mutation tool palette** — auto-generated wrap-with and add-child pickers from the node-type registry; delete, unwrap.
 - **Document library** — multi-document picker; open, create, rename, delete. Persisted in IndexedDB via `@yacad/vfs` + `@yacad/doc-store`. First-run seeded from v1's example scenes (including the showcase fixtures).
 - **Undo / redo** — snapshot-based, session-lifetime.
 - **Document import/export** — single-bundle JSON or multi-doc archive via the header menu.
 - **Performance panel** — node count, hit/miss/hit-rate, per-node timing breakdown.
 - **Export gadget** — per-node STL / SVG / DXF / PNG, gated on the node's geometry kind.
+- **Viewport toolbar** — display mode cycle (solid / wireframe / solid+edges), camera presets (front / back / left / right / top / bottom / isometric), perspective toggle, zoom controls (fit / + / −).
 - **Docs drawer** — in-app panels for Language Reference, Lua API reference, Architecture, and Features docs.
 
 ### Common authoring
 
 - **Sandboxed Lua code nodes.** Wasmoon-based Lua 5.4 with `openStandardLibs: false` + selective `math` / `string` / `table` loaders. `math.randomseed` seeded then stripped; `require`, `print`, `load`, `loadstring` stripped from the environment. A Lua node carries its source plus a parameter and input schema; the runtime expands it into a sub-DAG that the engine then walks.
 - **Lua static validation.** `validateLuaSource` runs AST-level checks before any definition is committed: rejects undeclared `params.*` and `inputs.*` references, sandbox API violations, and malformed `geo.<type>` calls.
-- **Showcase scene library** — four annotated parametric scenes seeded into the document library: house (13 params, gable roof), castle (12 params, curtain walls + crenellations), tree (12 params, recursive Lua + imported glTF leaves), and torus knot (6 params, demonstrating the `warp` node).
+- **Showcase scene library** — six annotated parametric scenes seeded into the document library: house (13 params, gable roof), castle (12 params, curtain walls + crenellations), tree (12 params, recursive Lua + imported glTF leaves), torus knot (6 params, demonstrating the `warp` node), chamfered box (exploratory boolean-composition fillet), and filleted slab (exploratory boolean-composition chamfer).
+
+### MCP server (`apps/mcp`)
+
+An MCP (Model Context Protocol) server exposing the full DAG pipeline as tool calls for agentic workflows:
+
+- **Library management** — list, open, create, delete documents.
+- **Document reading** — get full document tree, inspect node at path.
+- **Mutations** — setParam, addChild, moveChild, removeAt, replaceAt, wrapWith, unwrap, plus `addLuaDefinition` for Lua code nodes.
+- **Exports** — STL, SVG, DXF, PNG (gated on geometry kind).
+- **Cache control** — clear cache, rotate access token.
+- **Viewer** — get viewer URL, set current document for live viewing.
 
 ## Geometry kernel
 
@@ -89,7 +101,7 @@ Each import is a `Decoder` node type: it takes a blob hash, the runtime resolves
 - **L2: IndexedDB** with write-behind persistence. Survives page reload; the next session warm-starts from L2.
 - **`TieredStore`** presents a single async-uniform `ObjectStore` interface; consumers don't know which tier serves their request.
 - **Per-node timings + cache-hit instrumentation** surfaced by the engine, displayed in the studio's stats panel.
-- **Artifacts:** `mesh`, `bbox`, `crossSection`, `luaDefinition`.
+- **Artifacts:** `mesh`, `bbox`, `crossSection`, `luaDefinition`, `expandedDoc` (cached resolved sub-DAG for Lua node inspection).
 
 ## Not yet
 
@@ -108,7 +120,7 @@ Explicitly out of scope or not yet started. See [ROADMAP.md](ROADMAP.md) for the
 
 - **TypeScript pnpm monorepo** with workspace packages and project references. `tsc -b` is the type-correctness gate; CI runs build + lint + format:check + test + build:app.
 - **Vitest** for unit tests; tests colocated with source (`foo.ts` + `foo.test.ts`). 248+ test files across the workspace.
-- **`@yacad/e2e`** — full-pipeline scene→STL snapshot tests plus `packages/e2e/showcase/` scenes (house, castle, tree, torus-knot). Captured geometry summaries (vertex count, bbox, hash) catch silent regressions.
+- **`@yacad/e2e`** — full-pipeline scene→STL snapshot tests plus `packages/e2e/showcase/` scenes (house, castle, tree, torus-knot, chamfered-box, filleted-slab). Captured geometry summaries (vertex count, bbox, hash) catch silent regressions.
 - **Playwright smoke** — `apps/studio/e2e/studio.spec.ts` covers the cold-start path, incremental recompute, 2D/3D scene switching, mesh-import scenes, Lua scenes, and export-button gating. `apps/studio2` has its own Playwright suite including a LuaInspector validation test.
 - **ESLint flat config + Prettier.** Format and lint pass as CI gates.
 - **GitHub Actions CI** — `ci.yml` (build + unit + lint + format), `browser-e2e.yml` (Playwright), `perf.yml` (kernel performance regression check), `deploy.yml` (studio v2 → GitHub Pages on push to `main`).

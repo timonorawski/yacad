@@ -489,6 +489,9 @@ The `LuaDefinition` (referenced by `definitionHash`) is a separate content-addre
 - `schema.inputs`: declared positional child inputs.
 - `schema.params`: typed parameter declarations (`int`, `number`, `boolean`, `string`, `vec3`) with defaults and optional `min`/`max` ranges.
 - `code`: Lua 5.4 source, sandboxed. The geometry construction API (`geo.box`, `geo.union`, etc.) and `math` / `string` / `table` (pure subsets) are available; `os`, `io`, `package`, `require`, `print`, `load`, etc. are not.
+
+The `geo.*` API is auto-generated from the kernel-node registry. In addition to the named constructors (`geo.box`, `geo.cylinder`, `geo.union`, etc.), three import constructors are available: `geo.import_stl(params)`, `geo.import_obj(params)`, `geo.import_gltf(params)` (underscored forms of the decoder types). A generic escape hatch `geo.node(type, params?, children?)` can construct any non-expandable registered node type by string name.
+
 - `math.random` is seeded deterministically from `definitionHash + canonical(values)` so the same instance always produces identical geometry.
 
 The Lua code returns a sub-DAG as a `NodeDoc` table. The engine recursively evaluates that sub-DAG — caching at both the outer LuaNode level (Lua never runs on warm hits) and the inner sub-DAG nodes (shared primitives across LuaNodes hit cache).

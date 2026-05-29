@@ -74,7 +74,7 @@ geometry ────────┼→ dag → kernel-manifold ┐
 
 ### Cache and VFS
 
-- **`@yacad/cache`** — content-addressable object store. Cache keys are structured: `{ semantic_hash, produced_by: { kernel, kernel_version, engine_version, quality_tier } }`. The semantic hash identifies _the geometry_; `produced_by` is provenance metadata so the cache can hold multiple valid artifacts under the same hash. L1 (`Map` + LRU + pin), L2 (IndexedDB), and `TieredStore` are the implementations. Artifacts: `mesh`, `bbox`, `crossSection`, `luaDefinition`.
+- **`@yacad/cache`** — content-addressable object store. Cache keys are structured: `{ semantic_hash, produced_by: { kernel, kernel_version, engine_version, quality_tier } }`. The semantic hash identifies _the geometry_; `produced_by` is provenance metadata so the cache can hold multiple valid artifacts under the same hash. L1 (`Map` + LRU + pin), L2 (IndexedDB), and `TieredStore` are the implementations. Artifacts: `mesh`, `bbox`, `crossSection`, `luaDefinition`, `expandedDoc`.
 - **`@yacad/vfs`** — _(studio v2 foundation)_ document filesystem abstraction. `MemoryVfs` and `IndexedDbVfs` implementations.
 - **`@yacad/doc-store`** — _(studio v2 foundation)_ document library / session management built on `@yacad/vfs`.
 
@@ -107,7 +107,8 @@ geometry ────────┼→ dag → kernel-manifold ┐
 ### Apps
 
 - **`apps/studio`** — the original studio. JSON editor + viewport + cache-hit panel + language reference. The reference implementation of "what the system can do end-to-end."
-- **`apps/studio2`** — _(in progress)_ studio v2 foundation. Document library, inspectors per node type, structural mutations via `@yacad/mutations`, Monaco Lua editor. Not feature-equivalent to studio v1 yet.
+- **`apps/studio2`** — the active studio (live at cad.yamplay.cc). Three-pane shell (tree / viewport / inspector), paramSchema-driven kernel inspector, Lua inspector, decoder inspector, Monaco Lua editor, structural-mutation tool palette, document library, viewport toolbar (display modes, camera presets), sub-DAG inspection for Lua nodes, performance panel, per-node export gadget.
+- **`apps/mcp`** — MCP server exposing the DAG pipeline as tool calls: library CRUD, document reading, mutations, Lua definition management, exports (STL/SVG/DXF/PNG), cache control, and viewer URL management.
 
 ## Threading model
 
@@ -135,7 +136,7 @@ These are the load-bearing types. Reading their source files is the fastest way 
 - **`Node`** in [`@yacad/dag`](../packages/dag/src/node.ts) — `{ id, type, params, children, hash }`. The hash is `hash(type, canonical(params), child_hashes...)`. The `id` is for stable identity within a document (UI references) and is _not_ part of the hash.
 - **`Geometry`** in [`@yacad/geometry`](../packages/geometry/src/index.ts) — discriminated union: `{ kind: '2d'; section: CrossSection } | { kind: '3d'; mesh: Mesh }`. Operations are dual-typed at node boundaries.
 - **`NodeTypeDef`** in [`@yacad/dag/src/registry.ts`](../packages/dag/src/registry.ts) — `{ Kernel | Expandable | Decoder }` discriminated union. The registry holds all node types, schema-derived docs, parameter validators, and output-type resolvers.
-- **`CacheKey` / `Artifact`** in [`@yacad/cache`](../packages/cache/src/index.ts) — `{ semantic_hash, produced_by }` keys; `Artifact` is a discriminated union `{ 'mesh' | 'bbox' | 'crossSection' | 'luaDefinition' }`.
+- **`CacheKey` / `Artifact`** in [`@yacad/cache`](../packages/cache/src/index.ts) — `{ semantic_hash, produced_by }` keys; `Artifact` is a discriminated union `{ 'mesh' | 'bbox' | 'crossSection' | 'luaDefinition' | 'expandedDoc' }`.
 - **`Kernel`** in [`@yacad/kernel-manifold`](../packages/kernel-manifold/src/kernel.ts) — `(node, childGeoms) → KernelResult`. The contract for plugging an alternative kernel (e.g., a future OCCT.js escape hatch) in.
 
 ## Architectural invariants
@@ -151,6 +152,26 @@ These are decisions code review treats as load-bearing. Don't relitigate without
 7. **Manifold is the primary kernel; OCCT.js is the escape hatch.** Kernel choice is per-node, declared by node type. Cache stores per-kernel artifacts under the same semantic hash.
 8. **Scope discipline over feature breadth.** What's deliberately out of scope (below) is what keeps the architecture tractable.
 9. **Open-source CAD projects are specification documents for _what the problem is_, not architectural references for _how to solve it_.** Mine their test corpora and forum-documented edge cases; design fresh.
+
+## Coordinate system
+
+YACAD uses a **Z-up right-handed coordinate system** for all geometry operations, matching Manifold, OpenSCAD, and the STL convention used by 3D-printing slicers.
+
+| Axis  | Meaning            |
+| ----- | ------------------ |
+| **X** | Left–right         |
+| **Y** | Front–back (depth) |
+| **Z** | Up–down (height)   |
+
+**2D shapes** live on the **XY plane** (Z = 0). `extrude` lifts them along **+Z**. `section` slices a 3D solid with a plane and returns a 2D cross-section on that plane; the default slicing plane is XY at the origin. `revolve` defaults to rotating around the **Y axis** (producing upright solids in the viewport).
+
+**Exports** respect this convention directly:
+
+- **STL**: no coordinate transform — Z-up matches slicer convention.
+- **DXF**: 2D coordinates pass through as-is (Y-up in the DXF sense matches the XY plane).
+- **SVG / PNG**: Y axis is flipped (CAD Y-up → screen Y-down).
+
+**Rendering**: the three.js viewport uses Y-up natively. Currently no rotation transform is applied between kernel output and renderer — kernel `(x, y, z)` maps 1:1 to three.js `(x, y, z)`. This means the viewport's visual "up" is the Y axis while the kernel's "up" is Z. A future pass will apply a coordinate transform in the renderer to align these (tracked in `.knowledge/decisions/`).
 
 ## Deliberately out of scope
 
