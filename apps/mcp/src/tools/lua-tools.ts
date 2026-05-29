@@ -1,10 +1,6 @@
 import { canonicalBytes } from '@yacad/canonical';
 import { defaultHasher } from '@yacad/hash';
-import {
-  LuaValidationError,
-  validateLuaSource,
-  type LuaDefinition,
-} from '@yacad/lua';
+import { LuaValidationError, validateLuaSource, type LuaDefinition } from '@yacad/lua';
 import type { Ctx } from '../context';
 import type { ToolResult } from './library-tools';
 

@@ -19,10 +19,7 @@ function requireSession(ctx: Ctx) {
   return ctx.sessions.get(ctx.currentDocId);
 }
 
-export async function getDoc(
-  ctx: Ctx,
-  _args: Record<string, never>,
-): Promise<ToolResult<unknown>> {
+export async function getDoc(ctx: Ctx, _args: Record<string, never>): Promise<ToolResult<unknown>> {
   const s = requireSession(ctx);
   if (!s) return err('no-current-doc', 'no current doc; call createDoc or openDoc first');
   return ok(s.doc);

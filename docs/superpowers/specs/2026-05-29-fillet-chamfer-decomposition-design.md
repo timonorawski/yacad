@@ -8,9 +8,9 @@
 
 Architectural invariant #7 in `CLAUDE.md` positions OCCT.js as "the escape hatch for BREP operations (real fillets, lofts, sweeps, NURBS surfaces)." `docs/vision.md` specifically calls out BREP fillets as the canonical OCCT use case.
 
-This experiment tests a counterclaim: for shapes whose edges are *known at authoring time* (any pure composition of primitives), fillet and chamfer reduce to existing operations. If the experiments validate the claim, the OCCT-integration story shifts from "needed for fillets" to "needed only when filleting arbitrary derived edges from imported meshes or kernel-produced intersections."
+This experiment tests a counterclaim: for shapes whose edges are _known at authoring time_ (any pure composition of primitives), fillet and chamfer reduce to existing operations. If the experiments validate the claim, the OCCT-integration story shifts from "needed for fillets" to "needed only when filleting arbitrary derived edges from imported meshes or kernel-produced intersections."
 
-These scenes are deliberately limited to known-edge cases. The harder problem — fillet/chamfer of *derived* edges (e.g., the intersection curve of two booleaned cylinders) — is deferred to a follow-up spec that introduces the **evaluator** capability: a Lua function that inspects child meshes to prepare warp `values`. The asymmetry is laid out below; the evaluator follow-up is in [§Open questions](#open-questions).
+These scenes are deliberately limited to known-edge cases. The harder problem — fillet/chamfer of _derived_ edges (e.g., the intersection curve of two booleaned cylinders) — is deferred to a follow-up spec that introduces the **evaluator** capability: a Lua function that inspects child meshes to prepare warp `values`. The asymmetry is laid out below; the evaluator follow-up is in [§Open questions](#open-questions).
 
 ## Goals
 
@@ -34,11 +34,11 @@ These scenes are deliberately limited to known-edge cases. The harder problem �
 
 The simplest fillet/chamfer cases don't need mesh inspection because the edges are knowable from the authoring code. For a box-shaped chamfer, the 12 edges are deterministic from the box dimensions. For a slab's corner fillet, the corner positions come from the source rectangle. These are the cases this spec targets.
 
-The harder case — fillet on an edge that *emerges* from kernel evaluation (boolean intersections, imported meshes) — requires a Lua-callable that can read mesh data after upstream evaluation completes. _Rejected_ approach: build the evaluator now and demonstrate all three cases together. Cost: bigger spec, an architectural call (per-warp `prepare` callback vs. general `inputs.foo.mesh()` properties) that should be made carefully. _Chosen_ approach: ship the known-edge scenes first to validate the broader claim cheaply, then design the evaluator informed by what these scenes actually need.
+The harder case — fillet on an edge that _emerges_ from kernel evaluation (boolean intersections, imported meshes) — requires a Lua-callable that can read mesh data after upstream evaluation completes. _Rejected_ approach: build the evaluator now and demonstrate all three cases together. Cost: bigger spec, an architectural call (per-warp `prepare` callback vs. general `inputs.foo.mesh()` properties) that should be made carefully. _Chosen_ approach: ship the known-edge scenes first to validate the broader claim cheaply, then design the evaluator informed by what these scenes actually need.
 
 ### Both scenes are Lua expandable nodes, not new kernel types
 
-Each scene is built as a `LuaDefinition` whose `expand()` emits the appropriate sub-DAG. No `chamfer` or `fillet` kernel node is registered. _Why:_ the experiments are demonstrating that the *existing* ops suffice; adding a kernel node would obscure that claim. Future productionization could promote validated patterns into kernel nodes if round-trip cost matters, but not in this spec.
+Each scene is built as a `LuaDefinition` whose `expand()` emits the appropriate sub-DAG. No `chamfer` or `fillet` kernel node is registered. _Why:_ the experiments are demonstrating that the _existing_ ops suffice; adding a kernel node would obscure that claim. Future productionization could promote validated patterns into kernel nodes if round-trip cost matters, but not in this spec.
 
 ### Two scenes, not one
 
@@ -173,7 +173,7 @@ When `edgeRadius === 0`, Stage B is skipped entirely; the result is the slab wit
 
 ### Why the filleted-slab previews the evaluator
 
-The warp in Stage B receives `width`, `depth`, `cornerRadius` via `params.values` because it needs to know the XY profile shape to compute the inward normal. This is *passing the construction parameters through* — the Lua node that builds the slab knows them and forwards them to the warp it generates.
+The warp in Stage B receives `width`, `depth`, `cornerRadius` via `params.values` because it needs to know the XY profile shape to compute the inward normal. This is _passing the construction parameters through_ — the Lua node that builds the slab knows them and forwards them to the warp it generates.
 
 With the evaluator capability (future spec), the warp would instead inspect the slab mesh directly to find outward normals at each vertex. For known-construction cases like this slab, the passed-through-params approach is correct and simpler. The evaluator becomes load-bearing only when the upstream geometry isn't authored by the same Lua node — which is exactly the third (deferred) scene's use case.
 

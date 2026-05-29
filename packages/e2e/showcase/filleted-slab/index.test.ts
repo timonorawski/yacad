@@ -43,9 +43,7 @@ describe('filleted slab showcase', () => {
     expect(FILLETED_SLAB_DEFINITION.schema.output).toBe('3d');
     expect(FILLETED_SLAB_DEFINITION.schema.inputs).toHaveLength(0);
     const paramNames = Object.keys(FILLETED_SLAB_DEFINITION.schema.params).sort();
-    expect(paramNames).toEqual(
-      ['cornerRadius', 'depth', 'edgeRadius', 'height', 'width'].sort(),
-    );
+    expect(paramNames).toEqual(['cornerRadius', 'depth', 'edgeRadius', 'height', 'width'].sort());
     expect(FILLETED_SLAB_DEFINITION.schema.params['edgeRadius']).toMatchObject({
       type: 'number',
       default: 3,

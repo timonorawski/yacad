@@ -4,7 +4,11 @@ export type ToolResult<T> =
   | { readonly ok: true; readonly data: T }
   | {
       readonly ok: false;
-      readonly error: { readonly code: string; readonly message: string; readonly details?: unknown };
+      readonly error: {
+        readonly code: string;
+        readonly message: string;
+        readonly details?: unknown;
+      };
     };
 
 function ok<T>(data: T): ToolResult<T> {
@@ -66,10 +70,7 @@ export async function openDoc(
   }
 }
 
-export async function deleteDoc(
-  ctx: Ctx,
-  args: { id: string },
-): Promise<ToolResult<{ ok: true }>> {
+export async function deleteDoc(ctx: Ctx, args: { id: string }): Promise<ToolResult<{ ok: true }>> {
   try {
     const session = ctx.sessions.get(args.id);
     if (session) {

@@ -96,10 +96,7 @@ export async function wrapWith(
   );
 }
 
-export async function unwrap(
-  ctx: Ctx,
-  args: { path: string },
-): Promise<ToolResult<{ ok: true }>> {
+export async function unwrap(ctx: Ctx, args: { path: string }): Promise<ToolResult<{ ok: true }>> {
   return applyMutation(
     ctx,
     (prev) => mUnwrap(prev, args.path) as never,

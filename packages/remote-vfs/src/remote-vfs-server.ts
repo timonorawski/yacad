@@ -1,13 +1,6 @@
 import type { Vfs } from '@yacad/vfs';
 import type { WebSocketServer, WebSocket as NodeWebSocket } from 'ws';
-import type {
-  EventType,
-  RpcErr,
-  RpcOk,
-  RpcRequest,
-  ServerEvent,
-  WsFrame,
-} from './protocol';
+import type { EventType, RpcErr, RpcOk, RpcRequest, ServerEvent, WsFrame } from './protocol';
 
 export interface RemoteVfsServerOptions {
   /** Underlying VFS this server proxies to. */

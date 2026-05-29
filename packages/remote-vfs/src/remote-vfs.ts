@@ -52,8 +52,7 @@ export class RemoteVfs implements Vfs {
     this.initialBackoffMs = opts.initialBackoffMs ?? 250;
     this.maxBackoffMs = opts.maxBackoffMs ?? 5000;
     this.backoffMs = this.initialBackoffMs;
-    this.webSocketCtor =
-      opts.webSocketCtor ?? (globalThis.WebSocket as typeof WebSocket);
+    this.webSocketCtor = opts.webSocketCtor ?? (globalThis.WebSocket as typeof WebSocket);
     this.connect(opts.url);
   }
 
