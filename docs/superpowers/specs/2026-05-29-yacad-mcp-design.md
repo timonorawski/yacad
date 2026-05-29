@@ -62,6 +62,7 @@ The Node executable. Wires together:
 
 Flags:
 - `--port N` (default `5179`)
+- `--host HOST` (default `127.0.0.1`) — bind address for the HTTP+WS server. When the host is anything other than `127.0.0.1` / `localhost` / `::1`, the server generates a random access token at startup and requires it on every HTTP request and WS upgrade (query param `?token=...`). Localhost-only mode never requires a token.
 - `--library-dir PATH` (default `./.yacad-mcp/vfs`)
 - `--no-viewer` — skip HTTP+WS entirely; MCP runs headless (no port bound, viewer build not required for startup — `run.sh` should respect this if invoked accordingly)
 
@@ -132,7 +133,12 @@ Path defaults to `'$'` (root). Mismatched output type → `wrong-geometry-kind` 
 
 - `clearCache()` — drops L1 (and L2 if/when added); next eval is all misses. Lets the agent demonstrate cache-vs-rebuild timings.
 
-**Total: 23 tools.**
+### Server (2)
+
+- `getViewerUrl()` → `{ url }` — current viewer URL including the access token when one is in force. The agent calls this when it wants to show the user where to look. Returns `no-viewer` error if `--no-viewer`.
+- `rotateAccessToken()` → `{ url, token }` — generates a new random access token, invalidates the old one, drops every connected WS so viewers reconnect with the new URL. Returns `not-applicable` when the server is bound to localhost-only (no token mode).
+
+**Total: 25 tools.**
 
 ## Data flow
 
@@ -214,6 +220,9 @@ Every tool body is wrapped in try/catch. Known errors map to stable codes:
 | Wrong geometry kind for export | `wrong-geometry-kind` |
 | Path doesn't resolve | `bad-path` |
 | Viewer attempts write in v1 | `viewer-read-only` |
+| Bad/missing token on non-localhost connect | HTTP 401 / WS close 4001 |
+| `getViewerUrl` when `--no-viewer` | `no-viewer` |
+| `rotateAccessToken` on localhost-only | `not-applicable` |
 
 WS disconnect doesn't fail tools — broadcasts to no subscribers are no-ops; eval and mutation work without a viewer connected. With `--no-viewer`, the broadcast channel is omitted entirely.
 
