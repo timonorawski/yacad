@@ -11,6 +11,7 @@
     "typescript-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "mcp-server-dev@claude-plugins-official": true,
-    "semgrep@claude-plugins-official": false
+    "semgrep@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": true
   }
 }
