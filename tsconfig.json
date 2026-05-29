@@ -18,6 +18,7 @@
     { "path": "packages/import-obj" },
     { "path": "packages/import-gltf" },
     { "path": "packages/vfs" },
+    { "path": "packages/vfs-fs" },
     { "path": "packages/doc-store" },
     { "path": "packages/selection" },
     { "path": "packages/mutations" }

@@ -517,6 +517,16 @@ importers:
         specifier: workspace:*
         version: link:../../tooling/tsconfig
 
+  packages/vfs-fs:
+    dependencies:
+      '@yacad/vfs':
+        specifier: workspace:*
+        version: link:../vfs
+    devDependencies:
+      '@yacad/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+
   packages/worker:
     dependencies:
       '@yacad/cache':
