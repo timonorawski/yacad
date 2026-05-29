@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Vfs } from '@yacad/vfs';
+  import { RemoteVfs } from '@yacad/remote-vfs';
   import { DocLibrary } from '@yacad/doc-store';
   import { WorkerClient } from '@yacad/worker';
   import type { EvaluateOutcome } from '@yacad/worker';
@@ -230,7 +231,33 @@
       }
     })();
 
+    // In viewer mode, subscribe to live doc updates pushed over WS so the
+    // tree and inspector stay in sync when the MCP server mutates a document.
+    let unsubCurrentDoc: (() => void) | undefined;
+    let unsubDocChanged: (() => void) | undefined;
+    if (viewerMode && vfs instanceof RemoteVfs) {
+      // `current-doc-changed` fires when the MCP server sets a new current doc.
+      // Open it (or switch to it if already open).
+      unsubCurrentDoc = vfs.on('current-doc-changed', (payload) => {
+        const p = payload as { id: string };
+        void openDoc(p.id, 'user');
+      });
+      // `doc-changed` fires when the server mutates the currently-open doc.
+      // Apply the new document tree directly to the in-memory session so
+      // Svelte re-renders the tree and inspector without replacing the session
+      // (which would reset selection state). Autosave will fail with
+      // viewer-read-only, which is expected and intentionally ignored here.
+      unsubDocChanged = vfs.on('doc-changed', (payload) => {
+        const p = payload as { id: string; doc: import('@yacad/dag').NodeDoc };
+        if (session && session.session.id === p.id) {
+          void session.session.mutate(() => p.doc).catch(() => undefined);
+        }
+      });
+    }
+
     return () => {
+      unsubCurrentDoc?.();
+      unsubDocChanged?.();
       worker.terminate();
       session?.session.close();
       session?.dispose();

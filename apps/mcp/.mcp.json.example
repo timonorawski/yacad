@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "yacad": {
+      "type": "stdio",
+      "command": "/absolute/path/to/yacad/apps/mcp/run.sh",
+      "args": []
+    }
+  }
+}

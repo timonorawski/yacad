@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean",
-    "start": "node ./dist/server.js"
+    "start": "node ./dist/server.js",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
