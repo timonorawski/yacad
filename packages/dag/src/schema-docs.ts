@@ -4,7 +4,20 @@
  */
 export interface ParamDoc {
   readonly name: string;
-  readonly type: 'number' | 'int' | 'boolean' | 'string' | 'vec2' | 'vec3' | 'vec2-array';
+  /**
+   * Scalar and vector types are fully editable by the inspector.
+   * `record` is a free-form JSON object the validator accepts but the inspector
+   * cannot currently render — used for opaque param bags like `warp.values`.
+   */
+  readonly type:
+    | 'number'
+    | 'int'
+    | 'boolean'
+    | 'string'
+    | 'vec2'
+    | 'vec3'
+    | 'vec2-array'
+    | 'record';
   readonly required: boolean;
   readonly default?: unknown;
   readonly doc: string;

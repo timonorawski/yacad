@@ -282,10 +282,7 @@ describe('Phase 2 — geo.<type> call shape', () => {
     expect(() => validateLuaSource(def('return geo.box({ size = { 1, 1, 1 } })'))).not.toThrow();
   });
 
-  // TEMPORARY: unknown-geo-param checking is disabled until paramSchema is made
-  // authoritative (some nodes, e.g. warp, accept params their schema doesn't
-  // declare). Re-enable this test alongside the check.
-  it.skip('flags unknown param keys with validNames', () => {
+  it('flags unknown param keys with validNames', () => {
     try {
       validateLuaSource(def('return geo.box({ size = { 1, 1, 1 }, bogus = 5 })'));
       throw new Error('expected throw');

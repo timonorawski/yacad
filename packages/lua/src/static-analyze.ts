@@ -492,6 +492,7 @@ function walkPhase2(
     const doc = getKernelTypeDoc(typeName);
     if (!doc) return; // already reported as unknown-geo-type
     const required = doc.paramSchema.filter((p) => p.required).map((p) => p.name);
+    const all = doc.paramSchema.map((p) => p.name);
 
     const paramsArg = args[0];
     if (paramsArg === undefined) {
@@ -519,12 +520,15 @@ function walkPhase2(
         const key = field.key?.name as string | undefined;
         if (key === undefined) continue;
         presentKeys.add(key);
-        // TEMPORARY: unknown-geo-param checking is disabled. paramSchema is not
-        // yet a guaranteed-complete enumeration of accepted params — e.g. `warp`
-        // accepts a free-form `values` record that its schema doesn't declare
-        // (no ParamDoc 'record' variant exists yet) — so flagging unknown keys
-        // produces false positives that break seeding/put. Re-enable once
-        // paramSchema is made authoritative (declare every accepted param).
+        if (!all.includes(key)) {
+          issues.push({
+            category: 'unknown-geo-param',
+            message: `geo.${typeName} has no param '${key}'`,
+            ...locOf(field.key ?? field),
+            identifier: key,
+            validNames: all,
+          });
+        }
       }
       // TableKey ([expr] = ...) and TableValue (positional) are not statically
       // resolvable to param names; treat presence as nothing.

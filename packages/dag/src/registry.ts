@@ -482,9 +482,13 @@ const defs: NodeTypeDef[] = [
           required: true,
           doc: 'Lua function body. Receives x, y, z as locals; must return three numbers (new x, y, z). Sandbox matches LuaNode: no I/O, no clock, no RNG (math.random is stripped). The callback must be a pure function of (x, y, z) and `params`.',
         },
-        // TODO: `values` is a free-form table (canonical JSON record); ParamDoc.type
-        // has no 'record' variant yet, so it's not exposed in the inspector — edit
-        // via the JSON path or via a Lua wrapper for now.
+        {
+          name: 'values',
+          type: 'record',
+          required: false,
+          default: {},
+          doc: 'Optional table of values passed to the warp callback as the `params` local (e.g. `params.amplitude`). Free-form JSON object; structurally not editable in the inspector.',
+        },
       ],
     },
     (params, path) => {

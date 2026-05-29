@@ -121,6 +121,11 @@
       value={value as [number, number, number] | undefined}
       onCommit={(v) => onCommit(schema.name, v)}
     />
+  {:else if schema.type === 'record'}
+    <div class="form-field">
+      <span>{schema.name}</span>
+      <p class="field-hint">Free-form record — edit via the JSON view or a parent Lua wrapper.</p>
+    </div>
   {/if}
 {/snippet}
 
