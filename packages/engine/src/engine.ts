@@ -265,6 +265,13 @@ export class Engine {
         const expandStart = performance.now();
         const subDoc = await expandableDef.expand(node.params as Record<string, unknown>, inputs);
         const resolved = resolveInputRefs(subDoc, node.children, inputNames);
+
+        // Cache the resolved expansion doc for later inspection.
+        await this.store.put(this.expansionKeyFor(node, tier), {
+          kind: 'expandedDoc',
+          doc: resolved,
+        });
+
         const subRoot = await buildGraph(resolved, undefined, undefined, this.resolver);
         const expandMs = performance.now() - expandStart;
 
@@ -333,6 +340,18 @@ export class Engine {
       storeMs,
     });
     return geometry;
+  }
+
+  private expansionKeyFor(node: Node, qualityTier: string): CacheKey {
+    return {
+      semanticHash: node.hash,
+      producedBy: {
+        kernel: '__expansion',
+        kernelVersion: '0',
+        engineVersion: this.engineVersion,
+        qualityTier,
+      },
+    };
   }
 
   private keyFor(node: Node, qualityTier: string): CacheKey {

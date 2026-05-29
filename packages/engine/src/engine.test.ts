@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { MemoryStore } from '@yacad/cache';
+import { MemoryStore, type CacheKey, type ExpandedDocArtifact } from '@yacad/cache';
 import {
   buildGraph,
   registerNodeType,
@@ -10,7 +10,7 @@ import {
 } from '@yacad/dag';
 import { isMesh } from '@yacad/geometry';
 import { ManifoldKernel, loadManifold } from '@yacad/kernel-manifold';
-import { Engine, EvaluationError } from './engine';
+import { Engine, ENGINE_VERSION, EvaluationError } from './engine';
 
 let kernel: ManifoldKernel;
 
@@ -104,6 +104,59 @@ describe('Engine — expandable nodes', () => {
     // and no entry whose id starts with '$' from the inner walk leaks through.
     const innerIds = result.perNode.filter((e) => e.id !== '$');
     expect(innerIds.length).toBe(0);
+  });
+
+  it('caches the resolved expansion doc', async () => {
+    registerNodeType(synUnboxDef);
+    const store = new MemoryStore();
+    const engine = new Engine(store, kernel, { resolver: NOOP_RESOLVER });
+    const graph = await buildGraph({ type: 'syn_unbox' }, undefined, undefined, NOOP_RESOLVER);
+    await engine.evaluate(graph, 'final');
+
+    const expansionKey: CacheKey = {
+      semanticHash: graph.hash,
+      producedBy: {
+        kernel: '__expansion',
+        kernelVersion: '0',
+        engineVersion: ENGINE_VERSION,
+        qualityTier: 'final',
+      },
+    };
+    const artifact = (await store.get(expansionKey, 'expandedDoc')) as
+      | ExpandedDocArtifact
+      | undefined;
+    expect(artifact).toBeDefined();
+    expect(artifact!.kind).toBe('expandedDoc');
+    // The expanded sub-DAG for syn_unbox with no children is a box.
+    expect(artifact!.doc.type).toBe('box');
+  });
+
+  it('expansion doc is available even on outer cache hit', async () => {
+    registerNodeType(synUnboxDef);
+    const store = new MemoryStore();
+    const engine = new Engine(store, kernel, { resolver: NOOP_RESOLVER });
+    const graph = await buildGraph({ type: 'syn_unbox' }, undefined, undefined, NOOP_RESOLVER);
+
+    // First evaluation populates the cache.
+    await engine.evaluate(graph, 'final');
+    // Second evaluation hits the outer cache (expand() not called again).
+    await engine.evaluate(graph, 'final');
+
+    const expansionKey: CacheKey = {
+      semanticHash: graph.hash,
+      producedBy: {
+        kernel: '__expansion',
+        kernelVersion: '0',
+        engineVersion: ENGINE_VERSION,
+        qualityTier: 'final',
+      },
+    };
+    const artifact = (await store.get(expansionKey, 'expandedDoc')) as
+      | ExpandedDocArtifact
+      | undefined;
+    expect(artifact).toBeDefined();
+    expect(artifact!.kind).toBe('expandedDoc');
+    expect(artifact!.doc.type).toBe('box');
   });
 
   it('outer-caches expandable result (expand() not called on second eval)', async () => {
