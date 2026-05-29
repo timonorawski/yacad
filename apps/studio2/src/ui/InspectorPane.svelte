@@ -29,6 +29,10 @@
 
   const selectedDef = $derived(selectedNode ? getNodeType(selectedNode.type) : undefined);
 
+  const isDerived = $derived(
+    selection?.selectedId?.includes('/__expanded/') ?? false
+  );
+
   async function commitParam(name: string, value: unknown) {
     if (!selection.selectedId) return;
     try {
@@ -54,28 +58,33 @@
   <InvalidatedInspector error={session.invalidationError} />
 {:else if !selectedNode}
   <p><em>Select a node from the tree to edit its parameters.</em></p>
-{:else if selectedDef?.kind === 'kernel'}
-  <KernelInspector
-    node={selectedNode}
-    onCommit={commitParam}
-    onCommitMany={commitParams}
-    {viewerMode}
-  />
-{:else if selectedDef?.kind === 'expandable'}
-  <LuaInspector
-    node={selectedNode}
-    definitionResolver={(h) => decodeLuaDefinitionBytes(session.session.blobs.get(h))}
-    onCommitValue={commitParam}
-    onEditCode={onEditLua}
-    {viewerMode}
-  />
-{:else if selectedDef?.kind === 'decoder'}
-  <DecoderInspector
-    node={selectedNode}
-    session={session.session}
-    onCommitHash={(h) => commitParam('blobHash', h)}
-    {viewerMode}
-  />
 {:else}
-  <p><em>no inspector for type "{selectedNode.type}"</em></p>
+  {#if isDerived}
+    <div class="derived-badge">Generated node — edit Lua source to change</div>
+  {/if}
+  {#if selectedDef?.kind === 'kernel'}
+    <KernelInspector
+      node={selectedNode}
+      onCommit={commitParam}
+      onCommitMany={commitParams}
+      viewerMode={viewerMode || isDerived}
+    />
+  {:else if selectedDef?.kind === 'expandable'}
+    <LuaInspector
+      node={selectedNode}
+      definitionResolver={(h) => decodeLuaDefinitionBytes(session.session.blobs.get(h))}
+      onCommitValue={commitParam}
+      onEditCode={onEditLua}
+      viewerMode={viewerMode || isDerived}
+    />
+  {:else if selectedDef?.kind === 'decoder'}
+    <DecoderInspector
+      node={selectedNode}
+      session={session.session}
+      onCommitHash={(h) => commitParam('blobHash', h)}
+      viewerMode={viewerMode || isDerived}
+    />
+  {:else}
+    <p><em>no inspector for type "{selectedNode.type}"</em></p>
+  {/if}
 {/if}
