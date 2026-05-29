@@ -52,6 +52,31 @@
   let editingLuaNodeId = $state<string | null>(null);
   let outputTypes = $state<Map<string, '2d' | '3d'>>(new Map());
 
+  // Focused-node inspection state (shared across viewport, tree, inspector).
+  let focusedNodeId = $state<string | null>(null);
+  let focusedHash = $state<string | null>(null);
+
+  function focusNode(nodeId: string) {
+    if (!evalOutcome?.perNode) return;
+    const entry = evalOutcome.perNode.find((n) => n.id === nodeId);
+    if (!entry?.hash) return;
+    focusedNodeId = nodeId;
+    focusedHash = entry.hash;
+  }
+
+  function unfocus() {
+    focusedNodeId = null;
+    focusedHash = null;
+  }
+
+  // Exit focus mode when selection changes to a different node.
+  $effect(() => {
+    const sel = selection?.selectedId;
+    if (focusedNodeId && sel !== focusedNodeId) {
+      unfocus();
+    }
+  });
+
   // Sheet visibility state — desktop defaults open, mobile defaults closed.
   const DESKTOP_BREAKPOINT = 900;
   let treeOpen = $state(
@@ -348,6 +373,8 @@
           onEvaluated={(o) => (evalOutcome = o)}
           selectedId={selection?.selectedId ?? null}
           perNode={evalOutcome?.perNode}
+          {focusedHash}
+          onUnfocus={unfocus}
         />
       {/if}
       <button
@@ -375,6 +402,7 @@
           {viewerMode}
           {client}
           perNode={evalOutcome?.perNode}
+          onFocusNode={focusNode}
         />
         <PerformancePanel outcome={evalOutcome} />
       {:else}
@@ -383,7 +411,14 @@
     </aside>
     <aside class="inspector-pane sheet" class:open={inspectorOpen}>
       {#if session && selection}
-        <InspectorPane {session} {selection} onEditLua={openLuaEditor} {viewerMode} />
+        <InspectorPane
+          {session}
+          {selection}
+          onEditLua={openLuaEditor}
+          {viewerMode}
+          onFocusNode={focusNode}
+          focusedNodeId={focusedNodeId}
+        />
       {:else}
         <em>loading…</em>
       {/if}

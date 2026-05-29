@@ -17,6 +17,7 @@
     client?: WorkerClient | undefined;
     isDerived?: boolean | undefined;
     perNode?: readonly NodeEval[] | undefined;
+    onFocusNode?: ((nodeId: string) => void) | undefined;
   }
 
   let {
@@ -29,6 +30,7 @@
     client,
     isDerived,
     perNode,
+    onFocusNode,
   }: Props = $props();
 
   let expanded = $state(true);
@@ -79,6 +81,14 @@
     <span class="toggle-spacer"></span>
   {/if}
   <button class="row-label" onclick={() => selection.select(path)}>{summary}</button>
+  {#if onFocusNode && perNode}
+    <button
+      class="row-focus"
+      title="Inspect this node's geometry in isolation"
+      onclick={(e) => { e.stopPropagation(); selection.select(path); onFocusNode(path); }}
+      aria-label="Focus node">&#128269;</button
+    >
+  {/if}
   {#if isExpandable && !isDerived}
     <button
       class="expansion-toggle"
@@ -119,6 +129,7 @@
         {client}
         {isDerived}
         {perNode}
+        {onFocusNode}
       />
     {/each}
   </div>

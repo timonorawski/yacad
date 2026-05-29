@@ -14,9 +14,11 @@
     selection: SelectionState;
     onEditLua: () => void;
     viewerMode: boolean;
+    onFocusNode?: ((nodeId: string) => void) | undefined;
+    focusedNodeId?: string | null | undefined;
   }
 
-  let { session, selection, onEditLua, viewerMode }: Props = $props();
+  let { session, selection, onEditLua, viewerMode, onFocusNode, focusedNodeId }: Props = $props();
 
   const selectedNode = $derived.by(() => {
     if (!selection.selectedId) return undefined;
@@ -57,9 +59,18 @@
 {:else if !selectedNode}
   <p><em>Select a node from the tree to edit its parameters.</em></p>
 {:else}
-  {#if isDerived}
-    <div class="derived-badge">Generated node — edit Lua source to change</div>
-  {/if}
+  <div class="inspector-header">
+    {#if isDerived}
+      <span class="derived-badge">Generated node — edit Lua source to change</span>
+    {/if}
+    {#if onFocusNode && selection.selectedId && focusedNodeId !== selection.selectedId}
+      <button
+        class="inspector-focus-btn"
+        title="Show this node's geometry in isolation"
+        onclick={() => onFocusNode(selection.selectedId!)}
+      >&#128269; Focus</button>
+    {/if}
+  </div>
   {#if selectedDef?.kind === 'kernel'}
     <KernelInspector
       node={selectedNode}

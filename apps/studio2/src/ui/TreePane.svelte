@@ -15,9 +15,10 @@
     viewerMode: boolean;
     client?: WorkerClient | undefined;
     perNode?: readonly NodeEval[] | undefined;
+    onFocusNode?: (nodeId: string) => void;
   }
 
-  let { session, selection, outputTypes, onExport, viewerMode, client, perNode }: Props = $props();
+  let { session, selection, outputTypes, onExport, viewerMode, client, perNode, onFocusNode }: Props = $props();
 </script>
 
 <div class="tree-pane-inner">
@@ -33,5 +34,6 @@
     {viewerMode}
     {client}
     {perNode}
+    {onFocusNode}
   />
 </div>
