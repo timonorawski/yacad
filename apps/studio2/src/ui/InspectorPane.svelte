@@ -13,9 +13,10 @@
     session: SessionState;
     selection: SelectionState;
     onEditLua: () => void;
+    viewerMode: boolean;
   }
 
-  let { session, selection, onEditLua }: Props = $props();
+  let { session, selection, onEditLua, viewerMode }: Props = $props();
 
   const selectedNode = $derived.by(() => {
     if (!selection.selectedId) return undefined;
@@ -54,19 +55,26 @@
 {:else if !selectedNode}
   <p><em>Select a node from the tree to edit its parameters.</em></p>
 {:else if selectedDef?.kind === 'kernel'}
-  <KernelInspector node={selectedNode} onCommit={commitParam} onCommitMany={commitParams} />
+  <KernelInspector
+    node={selectedNode}
+    onCommit={commitParam}
+    onCommitMany={commitParams}
+    {viewerMode}
+  />
 {:else if selectedDef?.kind === 'expandable'}
   <LuaInspector
     node={selectedNode}
     definitionResolver={(h) => decodeLuaDefinitionBytes(session.session.blobs.get(h))}
     onCommitValue={commitParam}
     onEditCode={onEditLua}
+    {viewerMode}
   />
 {:else if selectedDef?.kind === 'decoder'}
   <DecoderInspector
     node={selectedNode}
     session={session.session}
     onCommitHash={(h) => commitParam('blobHash', h)}
+    {viewerMode}
   />
 {:else}
   <p><em>no inspector for type "{selectedNode.type}"</em></p>

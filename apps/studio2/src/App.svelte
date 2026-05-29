@@ -240,14 +240,17 @@
 
 <div class="studio-shell">
   <header class="topbar">
-    <DocPicker
-      {userDocs}
-      {sampleDocs}
-      currentId={session?.session.id ?? null}
-      {openDoc}
-      {createDoc}
-    />
+    {#if !viewerMode}
+      <DocPicker
+        {userDocs}
+        {sampleDocs}
+        currentId={session?.session.id ?? null}
+        {openDoc}
+        {createDoc}
+      />
+    {/if}
     <HeaderMenu
+      {viewerMode}
       {docsOpen}
       onToggleDocs={() => (docsOpen = !docsOpen)}
       onRefreshSamples={refreshSamples}
@@ -259,7 +262,7 @@
   </header>
   <aside class="tree-pane">
     {#if session && selection}
-      <TreePane {session} {selection} {outputTypes} onExport={exportNode} />
+      <TreePane {session} {selection} {outputTypes} onExport={exportNode} {viewerMode} />
       <PerformancePanel outcome={evalOutcome} />
     {:else}
       <em>loading…</em>
@@ -272,7 +275,7 @@
   </main>
   <aside class="inspector-pane">
     {#if session && selection}
-      <InspectorPane {session} {selection} onEditLua={openLuaEditor} />
+      <InspectorPane {session} {selection} onEditLua={openLuaEditor} {viewerMode} />
     {:else}
       <em>loading…</em>
     {/if}

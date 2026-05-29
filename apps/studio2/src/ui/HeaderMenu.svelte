@@ -1,5 +1,6 @@
 <script lang="ts">
   interface Props {
+    viewerMode: boolean;
     docsOpen: boolean;
     onToggleDocs: () => void;
     onRefreshSamples: () => Promise<void>;
@@ -10,6 +11,7 @@
   }
 
   let {
+    viewerMode,
     docsOpen,
     onToggleDocs,
     onRefreshSamples,
@@ -49,20 +51,22 @@
         void onDownloadAll();
       }}>Download all documents</button
     >
-    <button
-      type="button"
-      onclick={() => {
-        close();
-        void onImport();
-      }}>Import document…</button
-    >
-    <button
-      type="button"
-      onclick={() => {
-        close();
-        void onRefreshSamples();
-      }}>Refresh samples</button
-    >
+    {#if !viewerMode}
+      <button
+        type="button"
+        onclick={() => {
+          close();
+          void onImport();
+        }}>Import document…</button
+      >
+      <button
+        type="button"
+        onclick={() => {
+          close();
+          void onRefreshSamples();
+        }}>Refresh samples</button
+      >
+    {/if}
     <button
       type="button"
       onclick={() => {

@@ -14,9 +14,10 @@
     node: NodeDoc;
     onCommit: (paramName: string, value: unknown) => void;
     onCommitMany: (patch: Record<string, unknown>) => void;
+    viewerMode: boolean;
   }
 
-  let { node, onCommit, onCommitMany }: Props = $props();
+  let { node, onCommit, onCommitMany, viewerMode }: Props = $props();
   const doc = $derived(getKernelTypeDoc(node.type));
 
   type Entry =
@@ -132,30 +133,40 @@
 {#if doc}
   <h3>{node.type}</h3>
   <p class="summary">{doc.summary}</p>
-  {#each entries as entry (entry.kind === 'group' ? entry.group : entry.schema.name)}
-    {#if entry.kind === 'single'}
-      {@render field(entry.schema)}
-    {:else}
-      {@const active = activeMember(entry.members)}
-      <fieldset class="exclusive-group">
-        <legend>
-          {#each entry.members as m (m.name)}
-            <label class="exclusive-radio">
-              <input
-                type="radio"
-                name={`${node.type}-${entry.group}`}
-                value={m.name}
-                checked={m.name === active.name}
-                onchange={() => selectGroupMember(entry.members, m.name)}
-              />
-              {m.name}
-            </label>
-          {/each}
-        </legend>
-        {@render field(active)}
-      </fieldset>
-    {/if}
-  {/each}
+  {#if viewerMode}
+    {#each doc.paramSchema as schema (schema.name)}
+      {@const value = (node.params ?? {})[schema.name]}
+      <div class="form-field">
+        <span>{schema.name}</span>
+        <code>{JSON.stringify(value ?? null)}</code>
+      </div>
+    {/each}
+  {:else}
+    {#each entries as entry (entry.kind === 'group' ? entry.group : entry.schema.name)}
+      {#if entry.kind === 'single'}
+        {@render field(entry.schema)}
+      {:else}
+        {@const active = activeMember(entry.members)}
+        <fieldset class="exclusive-group">
+          <legend>
+            {#each entry.members as m (m.name)}
+              <label class="exclusive-radio">
+                <input
+                  type="radio"
+                  name={`${node.type}-${entry.group}`}
+                  value={m.name}
+                  checked={m.name === active.name}
+                  onchange={() => selectGroupMember(entry.members, m.name)}
+                />
+                {m.name}
+              </label>
+            {/each}
+          </legend>
+          {@render field(active)}
+        </fieldset>
+      {/if}
+    {/each}
+  {/if}
 {:else}
   <p><em>no kernel schema for "{node.type}"</em></p>
 {/if}
