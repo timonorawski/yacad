@@ -78,7 +78,13 @@ export async function evaluate(
     let bbox: { min: [number, number, number]; max: [number, number, number] } | null = null;
     let tris = 0;
     if (geom.kind === '3d') {
-      bbox = computeBBox(geom.mesh);
+      const bb = computeBBox(geom.mesh);
+      if (bb) {
+        bbox = {
+          min: [bb.min[0], bb.min[1], bb.min[2]],
+          max: [bb.max[0], bb.max[1], bb.max[2]],
+        };
+      }
       tris = triangleCount(geom.mesh);
     }
     return ok({
