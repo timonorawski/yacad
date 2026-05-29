@@ -37,8 +37,7 @@ export const TOOLS: readonly ToolDef[] = [
       properties: { name: { type: 'string' }, initialDoc: { type: 'object' } },
       additionalProperties: false,
     },
-    handler: (ctx, args) =>
-      library.createDoc(ctx, args as { name: string; initialDoc?: unknown }),
+    handler: (ctx, args) => library.createDoc(ctx, args as { name: string; initialDoc?: unknown }),
   },
   {
     name: 'openDoc',
@@ -100,8 +99,7 @@ export const TOOLS: readonly ToolDef[] = [
       properties: { tier: { type: 'string' }, includePerNode: { type: 'boolean' } },
       additionalProperties: false,
     },
-    handler: (ctx, args) =>
-      read.evaluate(ctx, args as { tier?: string; includePerNode?: boolean }),
+    handler: (ctx, args) => read.evaluate(ctx, args as { tier?: string; includePerNode?: boolean }),
   },
 
   // mutate (8)
@@ -127,16 +125,22 @@ export const TOOLS: readonly ToolDef[] = [
     inputSchema: {
       type: 'object',
       required: ['path', 'type'],
-      properties: { path: { type: 'string' }, type: { type: 'string' }, params: { type: 'object' } },
+      properties: {
+        path: { type: 'string' },
+        type: { type: 'string' },
+        params: { type: 'object' },
+      },
       additionalProperties: false,
     },
     handler: (ctx, args) =>
-      mutate.wrapWith(ctx, args as { path: string; type: string; params?: Record<string, unknown> }),
+      mutate.wrapWith(
+        ctx,
+        args as { path: string; type: string; params?: Record<string, unknown> },
+      ),
   },
   {
     name: 'unwrap',
-    description:
-      'Replace the node at path with its sole child (errors if not exactly one child).',
+    description: 'Replace the node at path with its sole child (errors if not exactly one child).',
     inputSchema: {
       type: 'object',
       required: ['path'],
@@ -170,10 +174,7 @@ export const TOOLS: readonly ToolDef[] = [
       additionalProperties: false,
     },
     handler: (ctx, args) =>
-      mutate.moveChild(
-        ctx,
-        args as { srcPath: string; destParentPath: string; destIndex: number },
-      ),
+      mutate.moveChild(ctx, args as { srcPath: string; destParentPath: string; destIndex: number }),
   },
   {
     name: 'replaceAt',

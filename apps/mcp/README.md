@@ -8,12 +8,12 @@ Copy `.mcp.json.example` to your project's `.mcp.json`, replace the absolute pat
 
 ## Flags
 
-| Flag | Default | Effect |
-|---|---|---|
-| `--port N` | `5179` | HTTP+WS port |
-| `--host HOST` | `127.0.0.1` | Bind address. Anything other than `127.0.0.1` / `localhost` / `::1` turns on access-token enforcement: HTTP requests and WS upgrades require `?token=...` matching the random token generated at startup. The token is printed to stderr on launch; `getViewerUrl` returns the URL with the token baked in. `rotateAccessToken` generates a new one and disconnects existing viewers. |
-| `--library-dir PATH` | `./.yacad-mcp/vfs` | Where docs are persisted on disk |
-| `--no-viewer` | off | Skip HTTP+WS; runs headless. `run.sh` also skips the studio2 rebuild in this mode |
+| Flag                 | Default            | Effect                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--port N`           | `5179`             | HTTP+WS port                                                                                                                                                                                                                                                                                                                                                                          |
+| `--host HOST`        | `127.0.0.1`        | Bind address. Anything other than `127.0.0.1` / `localhost` / `::1` turns on access-token enforcement: HTTP requests and WS upgrades require `?token=...` matching the random token generated at startup. The token is printed to stderr on launch; `getViewerUrl` returns the URL with the token baked in. `rotateAccessToken` generates a new one and disconnects existing viewers. |
+| `--library-dir PATH` | `./.yacad-mcp/vfs` | Where docs are persisted on disk                                                                                                                                                                                                                                                                                                                                                      |
+| `--no-viewer`        | off                | Skip HTTP+WS; runs headless. `run.sh` also skips the studio2 rebuild in this mode                                                                                                                                                                                                                                                                                                     |
 
 ## Persistence
 

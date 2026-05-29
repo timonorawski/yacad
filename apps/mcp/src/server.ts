@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { setupRuntime } from './library-setup';
@@ -67,10 +64,7 @@ async function main(): Promise<void> {
     process.stderr.write(`[yacad-mcp] running headless (--no-viewer)\n`);
   }
 
-  const server = new Server(
-    { name: 'yacad', version: '0.0.0' },
-    { capabilities: { tools: {} } },
-  );
+  const server = new Server({ name: 'yacad', version: '0.0.0' }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS.map((t) => ({
