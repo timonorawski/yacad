@@ -53,6 +53,7 @@ export class RemoteVfsServer {
   private onConnection(socket: NodeWebSocket): void {
     this.clients.add(socket);
     socket.on('close', () => this.clients.delete(socket));
+    socket.on('error', () => this.clients.delete(socket));
     socket.on('message', (raw) => {
       let frame: WsFrame;
       try {
@@ -71,12 +72,16 @@ export class RemoteVfsServer {
       const res: RpcOk = { id: req.id, kind: 'response', ok: true, result };
       socket.send(JSON.stringify(res));
     } catch (err) {
-      const error = err as Error & { code?: string };
+      const message = err instanceof Error ? err.message : String(err);
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : 'internal';
       const res: RpcErr = {
         id: req.id,
         kind: 'response',
         ok: false,
-        error: { code: error.code ?? 'internal', message: error.message },
+        error: { code, message },
       };
       socket.send(JSON.stringify(res));
     }
