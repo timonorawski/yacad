@@ -11,6 +11,7 @@
     "build": "tsc -b",
     "build:app": "pnpm --filter @yacad/studio build",
     "build:v2": "pnpm --filter @yacad/studio2 build",
+    "build:mcp": "pnpm --filter @yacad/mcp build",
     "check:v2": "pnpm --filter @yacad/studio2 check",
     "dev": "pnpm --filter @yacad/studio dev",
     "dev:v2": "pnpm --filter @yacad/studio2 dev",

@@ -305,7 +305,12 @@ async function handleGetExpandedDoc(
   req: GetExpandedDocRequest,
 ): Promise<void> {
   if (!backend) {
-    scope.postMessage({ id: req.id, kind: 'expandedDoc', ok: false, error: 'engine not initialized' });
+    scope.postMessage({
+      id: req.id,
+      kind: 'expandedDoc',
+      ok: false,
+      error: 'engine not initialized',
+    });
     return;
   }
   try {

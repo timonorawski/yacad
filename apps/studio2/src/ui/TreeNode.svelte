@@ -19,7 +19,17 @@
     perNode?: readonly NodeEval[] | undefined;
   }
 
-  let { doc, path, selection, outputTypes, onExport, viewerMode, client, isDerived, perNode }: Props = $props();
+  let {
+    doc,
+    path,
+    selection,
+    outputTypes,
+    onExport,
+    viewerMode,
+    client,
+    isDerived,
+    perNode,
+  }: Props = $props();
 
   let expanded = $state(true);
   let exportMenu: HTMLDetailsElement | undefined = $state();
@@ -74,7 +84,8 @@
       class="expansion-toggle"
       onclick={toggleExpansion}
       title={expansionOpen ? 'Hide generated sub-DAG' : 'Show generated sub-DAG'}
-    >{expansionLoading ? '…' : expansionOpen ? '▾' : '◆'}</button>
+      >{expansionLoading ? '…' : expansionOpen ? '▾' : '◆'}</button
+    >
   {/if}
   {#if exportFormats.length > 0}
     <details class="row-export" bind:this={exportMenu}>

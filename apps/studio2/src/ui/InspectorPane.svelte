@@ -29,9 +29,7 @@
 
   const selectedDef = $derived(selectedNode ? getNodeType(selectedNode.type) : undefined);
 
-  const isDerived = $derived(
-    selection?.selectedId?.includes('/__expanded/') ?? false
-  );
+  const isDerived = $derived(selection?.selectedId?.includes('/__expanded/') ?? false);
 
   async function commitParam(name: string, value: unknown) {
     if (!selection.selectedId) return;

@@ -14,27 +14,28 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Modify | `packages/cache/src/types.ts` | Add `ExpandedDocArtifact`, extend `ArtifactKind` and `Artifact` unions |
-| Modify | `packages/cache/src/store.test.ts` | Round-trip test for `expandedDoc` artifact kind |
-| Modify | `packages/engine/src/engine.ts` | Cache expansion doc in expandable branch |
-| Modify | `packages/engine/src/engine.test.ts` | Verify expansion doc is cached after Lua evaluation |
-| Modify | `packages/worker/src/protocol.ts` | `GetExpandedDocRequest` / response types |
-| Modify | `packages/worker/src/host.ts` | `handleGetExpandedDoc` handler |
-| Modify | `packages/worker/src/client.ts` | `getExpandedDoc()` method |
-| Modify | `packages/worker/src/index.ts` | Re-export new protocol types |
-| Modify | `apps/studio2/src/ui/TreeNode.svelte` | Expansion affordance for Lua nodes, derived node rendering |
-| Modify | `apps/studio2/src/ui/InspectorPane.svelte` | Read-only mode for derived nodes |
-| Modify | `apps/studio2/src/ui/inspectors/KernelInspector.svelte` | Accept `readonly` prop |
-| Modify | `apps/studio2/src/app.css` | Styles for derived nodes |
-| Modify | `apps/studio2/src/App.svelte` | Thread `client` to TreePane for expansion fetches |
+| Action | File                                                    | Responsibility                                                         |
+| ------ | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Modify | `packages/cache/src/types.ts`                           | Add `ExpandedDocArtifact`, extend `ArtifactKind` and `Artifact` unions |
+| Modify | `packages/cache/src/store.test.ts`                      | Round-trip test for `expandedDoc` artifact kind                        |
+| Modify | `packages/engine/src/engine.ts`                         | Cache expansion doc in expandable branch                               |
+| Modify | `packages/engine/src/engine.test.ts`                    | Verify expansion doc is cached after Lua evaluation                    |
+| Modify | `packages/worker/src/protocol.ts`                       | `GetExpandedDocRequest` / response types                               |
+| Modify | `packages/worker/src/host.ts`                           | `handleGetExpandedDoc` handler                                         |
+| Modify | `packages/worker/src/client.ts`                         | `getExpandedDoc()` method                                              |
+| Modify | `packages/worker/src/index.ts`                          | Re-export new protocol types                                           |
+| Modify | `apps/studio2/src/ui/TreeNode.svelte`                   | Expansion affordance for Lua nodes, derived node rendering             |
+| Modify | `apps/studio2/src/ui/InspectorPane.svelte`              | Read-only mode for derived nodes                                       |
+| Modify | `apps/studio2/src/ui/inspectors/KernelInspector.svelte` | Accept `readonly` prop                                                 |
+| Modify | `apps/studio2/src/app.css`                              | Styles for derived nodes                                               |
+| Modify | `apps/studio2/src/App.svelte`                           | Thread `client` to TreePane for expansion fetches                      |
 
 ---
 
 ### Task 1: Add `expandedDoc` Artifact Kind to Cache
 
 **Files:**
+
 - Modify: `packages/cache/src/types.ts`
 - Test: `packages/cache/src/store.test.ts`
 
@@ -136,7 +137,12 @@ export type ArtifactKind = 'mesh' | 'bbox' | 'luaDefinition' | 'crossSection' | 
 Update `Artifact`:
 
 ```typescript
-export type Artifact = MeshArtifact | BBoxArtifact | LuaDefinitionArtifact | CrossSectionArtifact | ExpandedDocArtifact;
+export type Artifact =
+  | MeshArtifact
+  | BBoxArtifact
+  | LuaDefinitionArtifact
+  | CrossSectionArtifact
+  | ExpandedDocArtifact;
 ```
 
 - [ ] **Step 4: Verify the export in `packages/cache/src/index.ts`**
@@ -160,6 +166,7 @@ git commit -m "feat(cache): add expandedDoc artifact kind for Lua sub-DAG inspec
 ### Task 2: Cache Expansion Doc in Engine
 
 **Files:**
+
 - Modify: `packages/engine/src/engine.ts`
 - Test: `packages/engine/src/engine.test.ts`
 
@@ -219,10 +226,7 @@ In the expandable branch of `walk()`, after `resolveInputRefs` produces `resolve
 
 ```typescript
 // Cache the resolved expansion doc for later inspection.
-await this.store.put(
-  this.expansionKeyFor(node, tier),
-  { kind: 'expandedDoc', doc: resolved },
-);
+await this.store.put(this.expansionKeyFor(node, tier), { kind: 'expandedDoc', doc: resolved });
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -261,6 +265,7 @@ git commit -m "feat(engine): cache resolved expansion doc for expandable nodes"
 ### Task 3: Worker Protocol — `getExpandedDoc` Message
 
 **Files:**
+
 - Modify: `packages/worker/src/protocol.ts`
 - Modify: `packages/worker/src/host.ts`
 - Modify: `packages/worker/src/client.ts`
@@ -310,7 +315,12 @@ async function handleGetExpandedDoc(
   req: GetExpandedDocRequest,
 ): Promise<void> {
   if (!backend) {
-    scope.postMessage({ id: req.id, kind: 'expandedDoc', ok: false, error: 'engine not initialized' });
+    scope.postMessage({
+      id: req.id,
+      kind: 'expandedDoc',
+      ok: false,
+      error: 'engine not initialized',
+    });
     return;
   }
   try {
@@ -400,6 +410,7 @@ git commit -m "feat(worker): add getExpandedDoc protocol message for Lua sub-DAG
 ### Task 4: Tree View — Expansion Affordance and Derived Node Rendering
 
 **Files:**
+
 - Modify: `apps/studio2/src/ui/TreeNode.svelte`
 - Modify: `apps/studio2/src/ui/TreePane.svelte`
 - Modify: `apps/studio2/src/App.svelte`
@@ -435,7 +446,7 @@ interface Props {
 Pass it through to `TreeNode`:
 
 ```svelte
-<TreeNode doc={session.doc} path="$" {selection} {outputTypes} onExport={onExport} {viewerMode} {client} />
+<TreeNode doc={session.doc} path="$" {selection} {outputTypes} {onExport} {viewerMode} {client} />
 ```
 
 - [ ] **Step 2: Add expansion state and fetch to TreeNode**
@@ -449,8 +460,8 @@ import type { NodeDoc } from '@yacad/dag';
 interface Props {
   // ... existing props
   client?: WorkerClient;
-  derived?: boolean;        // true when this node is part of an expanded sub-DAG
-  perNode?: readonly import('@yacad/engine').NodeEval[];  // for hash lookup
+  derived?: boolean; // true when this node is part of an expanded sub-DAG
+  perNode?: readonly import('@yacad/engine').NodeEval[]; // for hash lookup
 }
 ```
 
@@ -493,7 +504,8 @@ In the TreeNode template, add after the existing children rendering block:
     class="expansion-toggle"
     onclick={toggleExpansion}
     title={expansionOpen ? 'Hide generated sub-DAG' : 'Show generated sub-DAG'}
-  >{expansionLoading ? '…' : expansionOpen ? '▾' : '◆'}</button>
+    >{expansionLoading ? '…' : expansionOpen ? '▾' : '◆'}</button
+  >
 {/if}
 ```
 
@@ -530,7 +542,15 @@ For derived nodes, add class modifiers to the row:
 In `apps/studio2/src/App.svelte`, pass `perNode` to `TreePane`:
 
 ```svelte
-<TreePane {session} {selection} {outputTypes} onExport={exportNode} {viewerMode} {client} perNode={evalOutcome?.perNode} />
+<TreePane
+  {session}
+  {selection}
+  {outputTypes}
+  onExport={exportNode}
+  {viewerMode}
+  {client}
+  perNode={evalOutcome?.perNode}
+/>
 ```
 
 Thread it through `TreePane.svelte` to `TreeNode.svelte` (add to both Props interfaces).
@@ -588,6 +608,7 @@ git commit -m "feat(studio2): tree view expansion affordance for Lua sub-DAG ins
 ### Task 5: Inspector — Read-Only Mode for Derived Nodes
 
 **Files:**
+
 - Modify: `apps/studio2/src/ui/InspectorPane.svelte`
 - Modify: `apps/studio2/src/ui/inspectors/KernelInspector.svelte`
 - Modify: `apps/studio2/src/app.css`
@@ -599,9 +620,7 @@ git commit -m "feat(studio2): tree view expansion affordance for Lua sub-DAG ins
 In `apps/studio2/src/ui/InspectorPane.svelte`, derive whether the selected node is derived:
 
 ```typescript
-const isDerived = $derived(
-  selection?.selectedId?.includes('/__expanded/') ?? false
-);
+const isDerived = $derived(selection?.selectedId?.includes('/__expanded/') ?? false);
 ```
 
 When rendering the inspector, pass `viewerMode={viewerMode || isDerived}` to disable all editing for derived nodes.

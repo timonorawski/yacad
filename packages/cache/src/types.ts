@@ -85,7 +85,12 @@ export interface ExpandedDocArtifact {
   readonly doc: NodeDocLike;
 }
 
-export type Artifact = MeshArtifact | BBoxArtifact | LuaDefinitionArtifact | CrossSectionArtifact | ExpandedDocArtifact;
+export type Artifact =
+  | MeshArtifact
+  | BBoxArtifact
+  | LuaDefinitionArtifact
+  | CrossSectionArtifact
+  | ExpandedDocArtifact;
 
 /**
  * Async-uniform store. Consumers use this interface without knowing which tier

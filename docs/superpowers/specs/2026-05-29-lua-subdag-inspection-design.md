@@ -15,6 +15,7 @@ For debugging, learning, and agentic review, seeing the expanded structure is es
 The resolved `NodeDoc` is trivial in size compared to the mesh geometry it produces (kilobytes of JSON vs megabytes of vertex/index buffers). Rather than re-expanding on demand or carrying expansion docs in the evaluate result payload, we store them in the existing L1/L2 tiered cache alongside geometry artifacts.
 
 This gives us:
+
 - **Consistency:** The cached doc is exactly what was evaluated, not a re-expansion that might differ
 - **Zero overhead on the hot path:** Cache write happens only on misses, alongside the geometry write
 - **Lifecycle for free:** Expansion docs evict alongside geometry — same LRU, same IndexedDB persistence, same `clearCache()` behavior
@@ -125,6 +126,7 @@ async getExpandedDoc(hash: string, tier = 'final'): Promise<NodeDoc | null>
 Lua nodes get a distinct disclosure control, visually differentiated from the normal child-toggle triangle. This communicates "this node has generated content you can inspect" rather than "this node has authored children."
 
 When clicked:
+
 1. Send `getExpandedDoc(node.hash)` to the worker
 2. On response, render the sub-DAG tree below the Lua node
 3. Cache the response in component state so re-collapsing/expanding doesn't re-fetch

@@ -24,5 +24,14 @@
   {#if !viewerMode}
     <ToolPalette {session} {selection} />
   {/if}
-  <TreeNode doc={session.doc} path="$" {selection} {outputTypes} {onExport} {viewerMode} {client} {perNode} />
+  <TreeNode
+    doc={session.doc}
+    path="$"
+    {selection}
+    {outputTypes}
+    {onExport}
+    {viewerMode}
+    {client}
+    {perNode}
+  />
 </div>

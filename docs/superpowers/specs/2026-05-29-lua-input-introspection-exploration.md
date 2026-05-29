@@ -60,6 +60,7 @@ This is a refinement of CLAUDE.md invariant #2 (determinism) for the input-intro
 ### What it permits
 
 Inside `expand`, the Lua may read any function of:
+
 - `params` (the LuaNode's own params, in the hash)
 - `inputs[i]` (children, whose hashes are in the LuaNode's hash)
 - Anything **transitively** derivable from a child's mesh — bbox, edges, in-future mesh data, surface area, anything the kernel can compute from `(child_mesh, explicit_args)`
