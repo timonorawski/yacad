@@ -1,6 +1,7 @@
 import type { EvalStats, NodeEval } from '@yacad/engine';
 import type { Geometry } from '@yacad/geometry';
 import { LuaValidationError, type LuaDefinition } from '@yacad/lua';
+import type { NodeDoc } from '@yacad/dag';
 import type {
   GetExpandedDocOk,
   GetGeometryOk,
@@ -150,7 +151,7 @@ export class WorkerClient {
    * Look up a cached expansion doc by its semantic hash. Returns the resolved
    * NodeDoc if found, or `null` if nothing is cached. Pure cache read.
    */
-  async getExpandedDoc(hash: string, tier = 'final'): Promise<import('@yacad/dag').NodeDoc | null> {
+  async getExpandedDoc(hash: string, tier = 'final'): Promise<NodeDoc | null> {
     const res = await this.send({ id: 0, kind: 'getExpandedDoc', hash, tier });
     const g = res as GetExpandedDocOk | { ok: false };
     if (g.ok) return (g as GetExpandedDocOk).doc;
